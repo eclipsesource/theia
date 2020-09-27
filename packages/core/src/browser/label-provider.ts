@@ -12,6 +12,9 @@
  * https://www.gnu.org/software/classpath/license.html.
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
+ * Contributors:
+ *     TypeFox and others - Initial API and implementation
+ *     Jonas Helming <jhelming@eclipsesource.com> Contributed on behalf of STMicroelectronics - Documentation
  ********************************************************************************/
 
 import { inject, injectable, named, postConstruct } from 'inversify';
@@ -47,10 +50,21 @@ export const FOLDER_ICON = DEFAULT_FOLDER_ICON;
 export const FILE_ICON = DEFAULT_FILE_ICON;
 
 export const LabelProviderContribution = Symbol('LabelProviderContribution');
+/**
+ * A {@link LabelProviderContribution} determines how specific elemens/nodes are displayed in the workbench.
+ * Theia views use a common {@link LabelProvider} to determine the label and/or an icon for elements shown in the UI. This includes elements in lists
+ * and trees, but also view specific locations like headers. The common {@link LabelProvider} collects all {@links LabelProviderContribution} and delegates
+ * to the contribution with the highest priority. This is determined via calling the {@link LabelProviderContribution.canHandle} function, so contributions
+ * define which elements they are responsible for.
+ * As an example, a {@links LabelProviderContribution} can contribute an icon for a specific file type. This would be used in multiple locations displaying files,
+ * e.g. the file explorer, the header of editors or in file dialogues. Therefore, as arbitrary views can consume LabelProviderContributions, they must be generic
+ * for the covered element type, not view specific. Label providers and contributions can be used for arbitrary element and node types, e.g. for markers or domain-specific
+ * elements.
+ */
 export interface LabelProviderContribution {
 
     /**
-     * whether this contribution can handle the given element and with what priority.
+     * Determines whether this contribution can handle the given element and with what priority.
      * All contributions are ordered by the returned number if greater than zero. The highest number wins.
      * If two or more contributions return the same positive number one of those will be used. It is undefined which one.
      */
@@ -78,7 +92,7 @@ export interface LabelProviderContribution {
     readonly onDidChange?: Event<DidChangeLabelEvent>;
 
     /**
-     * Check whether the given element is affected by the given change event.
+     * Checks whether the given element is affected by the given change event.
      * Contributions delegating to the label provider can use this hook
      * to perform a recursive check.
      */
@@ -256,6 +270,16 @@ export class DefaultUriLabelProviderContribution implements LabelProviderContrib
     }
 }
 
+/**
+ * The {@link LabelProvider} determines how elemens/nodes are displayed in the workbench. For any element, it can determine a short label, a long label
+ * and an icon. The {@link LabelProvider} is to be used in lists, trees and tables, but also view specific locations like headers.
+ * The common {@link LabelProvider} can be extended/adapted via {@link LabelProviderContribution}s. For every element, the {@links LabelProvider} will determine the
+ * {@link LabelProviderContribution} with the hightest priority and delegate to it. Theia registers default {@link LabelProviderContribution} for common types, e.g.
+ * the {@link DefaultUriLabelProviderContribution} for elements that have a URI.
+ * Using the {@link LabelProvider} across the workbench ensures a common look and feel for elements across multiple views. To adapt the way how specific
+ * elements/nodes are rendered, use a {@link LabelProviderContribution} rather than adapting or sub classing the {@link LabelProvider}. This way, your adaptation
+ * is applied to all view in Theia that use the {@link LabelProvider}
+ */
 @injectable()
 export class LabelProvider implements FrontendApplicationContribution {
 
@@ -314,6 +338,9 @@ export class LabelProvider implements FrontendApplicationContribution {
         return this.getIcon(URIIconReference.create('folder'));
     }
 
+    /**
+     * returns an icon class for the given element.
+     */
     getIcon(element: object): string {
         const contributions = this.findContribution(element);
         for (const contribution of contributions) {
@@ -326,6 +353,9 @@ export class LabelProvider implements FrontendApplicationContribution {
         return '';
     }
 
+    /**
+     * returns a short name for the given element.
+     */
     getName(element: object): string {
         const contributions = this.findContribution(element);
         for (const contribution of contributions) {
@@ -338,6 +368,9 @@ export class LabelProvider implements FrontendApplicationContribution {
         return '<unknown>';
     }
 
+    /**
+     * returns a long name for the given element.
+     */
     getLongName(element: object): string {
         const contributions = this.findContribution(element);
         for (const contribution of contributions) {
