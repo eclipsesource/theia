@@ -106,13 +106,6 @@ script:
   - travis_retry yarn test:theia
   - travis_retry yarn test:electron
   - travis_retry yarn test:browser
-notifications:
-  webhooks:
-    urls:
-      - https://webhooks.gitter.im/e/c42ddc125fe6bbfccb48
-    on_success: change
-    on_failure: always
-    on_start: never
 jobs:
   fast_finish: true
   include:
@@ -130,12 +123,13 @@ jobs:
         - node --version
         - $PYTHON --version
       script: yarn
-    - name: macOS / Python 2
-      os: osx
-      osx_image: xcode11.4
-      env: CXX=c++
-      script:
-        - travis_retry yarn test:theia
+    # Skip mac os build because it always fails due to github api limits
+    # - name: macOS / Python 2
+    #   os: osx
+    #   osx_image: xcode11.4
+    #   env: CXX=c++
+    #   script:
+    #     - travis_retry yarn test:theia
     - name: Windows / Python 2
       os: windows
       env:
@@ -143,29 +137,3 @@ jobs:
         - YARN_GPG=no
       script:
         - travis_retry yarn test:theia
-    - stage: deploy
-      if: NOT type IN (cron, pull_request)
-      os: linux
-      before_script: skip
-      script: skip
-      install: skip
-      before_deploy:
-        - |
-          if ! [ "$BEFORE_DEPLOY_RUN" ]; then
-            export BEFORE_DEPLOY_RUN=1
-            printf "//registry.npmjs.org/:_authToken=${NPM_AUTH_TOKEN}\n" >> ~/.npmrc
-            THEIA_SKIP_NPM_PREPARE=1 yarn install --skip-integrity-check # fix cache we meddled-with
-            yarn run docs
-          fi
-      deploy:
-        - provider: script
-          script: yarn run publish:next
-          on:
-            branch: master
-          skip_cleanup: true
-        - provider: pages
-          skip_cleanup: true
-          github-token: $GITHUB_TOKEN
-          local-dir: gh-pages
-          on:
-            branch: master
