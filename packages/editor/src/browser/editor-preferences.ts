@@ -58,6 +58,8 @@ export const EDITOR_MODEL_DEFAULTS = {
     largeFileOptimizations: true
 };
 
+export const DEFAULT_WORD_SEPARATORS = '`~!@#$%^&*()-=+[{]}\\|;:\'",.<>/?';
+
 /* eslint-disable max-len */
 /* eslint-disable no-null/no-null */
 
@@ -109,7 +111,7 @@ const codeEditorPreferenceProperties = {
     },
     'editor.semanticHighlighting.enabled': {
         'type': 'boolean',
-        'default': false,
+        'default': true,
         'description': 'Controls whether the semanticHighlighting is shown for the languages that support it.'
     },
     'editor.stablePeek': {
@@ -1171,7 +1173,7 @@ const codeEditorPreferenceProperties = {
     'editor.wordSeparators': {
         'description': 'Characters that will be used as word separators when doing word related navigations or operations.',
         'type': 'string',
-        'default': '`~!@#$%^&*()-=+[{]}\\|;:\'",.<>/?'
+        'default': DEFAULT_WORD_SEPARATORS
     },
     'editor.wordWrap': {
         'markdownEnumDescriptions': [
