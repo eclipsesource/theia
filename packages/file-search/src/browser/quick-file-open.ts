@@ -30,12 +30,21 @@ import { NavigationLocationService } from '@theia/editor/lib/browser/navigation/
 import * as fuzzy from '@theia/core/shared/fuzzy';
 import { MessageService } from '@theia/core/lib/common/message-service';
 import { FileSystemPreferences } from '@theia/filesystem/lib/browser';
+import { EditorOpenerOptions, EditorWidget, Position, Range } from '@theia/editor/lib/browser';
 
 export const quickFileOpen: Command = {
     id: 'file-search.openFile',
     category: 'File',
     label: 'Open File...'
 };
+
+export interface FilterAndRange {
+    filter: string;
+    range?: Range;
+}
+
+// Supports patterns of <path><#|:><line><#|:|,><col?>
+const LINE_COLON_PATTERN = /\s?[#:\(](?:line )?(\d*)(?:[#:,](\d*))?\)?\s*$/;
 
 @injectable()
 export class QuickFileOpenService implements QuickOpenModel, QuickOpenHandler {
@@ -69,10 +78,12 @@ export class QuickFileOpenService implements QuickOpenModel, QuickOpenHandler {
      */
     protected isOpen: boolean = false;
 
+    protected filterAndRangeDefault = { filter: '', range: undefined };
+
     /**
-     * The current lookFor string input by the user.
+     * Tracks the user file search filter and location range e.g. fileFilter:line:column or fileFilter:line,column
      */
-    protected currentLookFor: string = '';
+    protected filterAndRange: FilterAndRange = this.filterAndRangeDefault;
 
     /**
      * The score constants when comparing file search results.
@@ -94,7 +105,7 @@ export class QuickFileOpenService implements QuickOpenModel, QuickOpenHandler {
     }
 
     getOptions(): QuickOpenOptions {
-        let placeholder = 'File name to search.';
+        let placeholder = 'File name to search (append : to go to line).';
         const keybinding = this.getKeyCommand();
         if (keybinding) {
             placeholder += ` (Press ${keybinding} to show/hide ignored files)`;
@@ -126,11 +137,11 @@ export class QuickFileOpenService implements QuickOpenModel, QuickOpenHandler {
             this.hideIgnoredFiles = !this.hideIgnoredFiles;
         } else {
             this.hideIgnoredFiles = true;
-            this.currentLookFor = '';
+            this.filterAndRange = this.filterAndRangeDefault;
             this.isOpen = true;
         }
 
-        this.quickOpenService.open(this.currentLookFor);
+        this.quickOpenService.open(this.filterAndRange.filter);
     }
 
     /**
@@ -157,20 +168,22 @@ export class QuickFileOpenService implements QuickOpenModel, QuickOpenHandler {
 
         const roots = this.workspaceService.tryGetRoots();
 
-        this.currentLookFor = lookFor;
+        this.filterAndRange = this.splitFilterAndRange(lookFor);
+        const fileFilter = this.filterAndRange.filter;
+
         const alreadyCollected = new Set<string>();
         const recentlyUsedItems: QuickOpenItem[] = [];
 
         const locations = [...this.navigationLocationService.locations()].reverse();
         for (const location of locations) {
             const uriString = location.uri.toString();
-            if (location.uri.scheme === 'file' && !alreadyCollected.has(uriString) && fuzzy.test(lookFor, uriString)) {
+            if (location.uri.scheme === 'file' && !alreadyCollected.has(uriString) && fuzzy.test(fileFilter, uriString)) {
                 const item = this.toItem(location.uri, { groupLabel: recentlyUsedItems.length === 0 ? 'recently opened' : undefined, showBorder: false });
                 recentlyUsedItems.push(item);
                 alreadyCollected.add(uriString);
             }
         }
-        if (lookFor.length > 0) {
+        if (fileFilter.length > 0) {
             const handler = async (results: string[]) => {
                 if (token.isCancellationRequested) {
                     return;
@@ -205,7 +218,7 @@ export class QuickFileOpenService implements QuickOpenModel, QuickOpenHandler {
                 acceptor([...recentlyUsedItems, ...sortedResults]);
             };
 
-            this.fileSearchService.find(lookFor, {
+            this.fileSearchService.find(fileFilter, {
                 rootUris: roots.map(r => r.resource.toString()),
                 fuzzyMatch: true,
                 limit: 200,
@@ -254,7 +267,7 @@ export class QuickFileOpenService implements QuickOpenModel, QuickOpenHandler {
         }
 
         // Normalize the user query.
-        const query: string = normalize(this.currentLookFor);
+        const query: string = normalize(this.filterAndRange.filter);
 
         /**
          * Score a given string.
@@ -347,9 +360,21 @@ export class QuickFileOpenService implements QuickOpenModel, QuickOpenHandler {
     }
 
     openFile(uri: URI): void {
-        this.openerService.getOpener(uri)
-            .then(opener => opener.open(uri))
+        const options = this.buildOpenerOptions();
+        const closedEditor = this.navigationLocationService.closedEditorsStack.find(editor => editor.uri.path.toString() === uri.path.toString());
+        this.openerService.getOpener(uri, options)
+            .then(opener => opener.open(uri, options))
+            .then(widget => {
+                // Attempt to restore the editor state if it exists, and no selection is explicitly requested.
+                if (widget instanceof EditorWidget && closedEditor && !options.selection) {
+                    widget.editor.restoreViewState(closedEditor.viewState);
+                }
+            })
             .catch(error => this.messageService.error(error));
+    }
+
+    protected buildOpenerOptions(): EditorOpenerOptions {
+        return { selection: this.filterAndRange.range };
     }
 
     private toItem(uriOrString: URI | string, group?: QuickOpenGroupItemOptions): QuickOpenItem<QuickOpenItemOptions> {
@@ -385,5 +410,36 @@ export class QuickFileOpenService implements QuickOpenModel, QuickOpenHandler {
             run: () => false
         };
         return new QuickOpenItem<QuickOpenItemOptions>(options);
+    }
+
+    /**
+     * Splits the given expression into a structure of search-file-filter and
+     * location-range.
+     *
+     * @param expression patterns of <path><#|:><line><#|:|,><col?>
+     */
+    protected splitFilterAndRange(expression: string): FilterAndRange {
+        let filter = expression;
+        let range = undefined;
+
+        // Find line and column number from the expression using RegExp.
+        const patternMatch = LINE_COLON_PATTERN.exec(expression);
+
+        if (patternMatch) {
+            const line = parseInt(patternMatch[1] ?? '', 10);
+            if (Number.isFinite(line)) {
+                const lineNumber = line > 0 ? line - 1 : 0;
+
+                const column = parseInt(patternMatch[2] ?? '', 10);
+                const startColumn = Number.isFinite(column) && column > 0 ? column - 1 : 0;
+
+                const position = Position.create(lineNumber, startColumn);
+
+                filter = expression.substr(0, patternMatch.index);
+                range = Range.create(position, position);
+            }
+        }
+
+        return { filter, range };
     }
 }

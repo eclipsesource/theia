@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2018 TypeFox and others.
+ * Copyright (c) 2021 SAP SE or an SAP affiliate company and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -15,28 +15,27 @@
  ********************************************************************************/
 
 import { injectable } from '@theia/core/shared/inversify';
-import { ResourceResolver, Resource } from '@theia/core';
-import URI from '@theia/core/lib/common/uri';
+import { TerminalProcess, TerminalProcessOptions } from './terminal-process';
 
-export const MEMORY_TEXT = 'mem-txt';
-
-export class InMemoryTextResource implements Resource {
-
-    constructor(readonly uri: URI) { }
-
-    async readContents(options?: { encoding?: string | undefined; } | undefined): Promise<string> {
-        return this.uri.query;
-    }
-
-    dispose(): void { }
+export const TaskTerminalProcessFactory = Symbol('TaskTerminalProcessFactory');
+export interface TaskTerminalProcessFactory {
+    (options: TerminalProcessOptions): TaskTerminalProcess;
 }
 
 @injectable()
-export class InMemoryTextResourceResolver implements ResourceResolver {
-    resolve(uri: URI): Resource | Promise<Resource> {
-        if (uri.scheme !== MEMORY_TEXT) {
-            throw new Error(`Expected a URI with ${MEMORY_TEXT} scheme. Was: ${uri}.`);
+export class TaskTerminalProcess extends TerminalProcess {
+
+    public exited = false;
+    public attachmentAttempted = false;
+
+    protected onTerminalExit(code: number | undefined, signal: string | undefined): void {
+        this.emitOnExit(code, signal);
+        this.exited = true;
+        // Unregister process only if task terminal already attached (or failed attach),
+        // Fixes https://github.com/eclipse-theia/theia/issues/2961
+        if (this.attachmentAttempted) {
+            this.unregisterProcess();
         }
-        return new InMemoryTextResource(uri);
     }
+
 }

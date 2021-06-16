@@ -33,6 +33,8 @@ import { KeyValueStorageProxy } from '../../../plugin/plugin-storage';
 import { WebviewsExtImpl } from '../../../plugin/webviews';
 import { loadManifest } from './plugin-manifest-loader';
 import { TerminalServiceExtImpl } from '../../../plugin/terminal-ext';
+import { reviver } from '../../../plugin/types-impl';
+import { SecretsExtImpl } from '../../../plugin/secrets-ext';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ctx = self as any;
@@ -45,8 +47,12 @@ const rpc = new RPCProtocolImpl({
     onMessage: emitter.event,
     send: (m: string) => {
         ctx.postMessage(m);
-    }
+    },
+},
+{
+    reviver: reviver
 });
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 addEventListener('message', (message: any) => {
     emitter.fire(message.data);
@@ -63,6 +69,7 @@ const preferenceRegistryExt = new PreferenceRegistryExtImpl(rpc, workspaceExt);
 const debugExt = createDebugExtStub(rpc);
 const clipboardExt = new ClipboardExt(rpc);
 const webviewExt = new WebviewsExtImpl(rpc, workspaceExt);
+const secretsExt = new SecretsExtImpl(rpc);
 const terminalService: TerminalServiceExt = new TerminalServiceExtImpl(rpc);
 
 const pluginManager = new PluginManagerExtImpl({
@@ -106,6 +113,7 @@ const pluginManager = new PluginManagerExtImpl({
                 const plugin: Plugin = {
                     pluginPath: pluginModel.entryPoint.frontend!,
                     pluginFolder: pluginModel.packagePath,
+                    pluginUri: pluginModel.packageUri,
                     model: pluginModel,
                     lifecycle: pluginLifecycle,
                     rawModel
@@ -120,6 +128,7 @@ const pluginManager = new PluginManagerExtImpl({
                     plugin: {
                         pluginPath: pluginModel.entryPoint.backend,
                         pluginFolder: pluginModel.packagePath,
+                        pluginUri: pluginModel.packageUri,
                         model: pluginModel,
                         lifecycle: pluginLifecycle,
                         get rawModel(): never {
@@ -148,7 +157,7 @@ const pluginManager = new PluginManagerExtImpl({
             }
         }
     }
-}, envExt, terminalService, storageProxy, preferenceRegistryExt, webviewExt, rpc);
+}, envExt, terminalService, storageProxy, secretsExt, preferenceRegistryExt, webviewExt, rpc);
 
 const apiFactory = createAPIFactory(
     rpc,

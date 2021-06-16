@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2018 Google and others.
+ * Copyright (C) 2021 Ericsson and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -14,6 +14,12 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-export * from './editor-preview-frontend-module';
-export * from './editor-preview-manager';
-export * from './editor-preview-widget';
+import { ContainerModule } from '@theia/core/shared/inversify';
+import { BackendApplicationServer } from '@theia/core/lib/node';
+import { SampleBackendApplicationServer } from './sample-backend-application-server';
+
+export default new ContainerModule(bind => {
+    if (process.env.SAMPLE_BACKEND_APPLICATION_SERVER) {
+        bind(BackendApplicationServer).to(SampleBackendApplicationServer).inSingletonScope();
+    }
+});

@@ -103,6 +103,7 @@ export interface PreferenceData {
 export interface Plugin {
     pluginPath: string | undefined;
     pluginFolder: string;
+    pluginUri: string;
     model: PluginModel;
     rawModel: PluginPackage;
     lifecycle: PluginLifecycle;
@@ -177,6 +178,7 @@ export const emptyPlugin: Plugin = {
     },
     pluginPath: 'empty',
     pluginFolder: 'empty',
+    pluginUri: 'empty',
     rawModel: {
         name: 'emptyPlugin',
         publisher: 'Theia',
@@ -765,6 +767,14 @@ export interface TimelineCommandArg {
     uri: string;
 }
 
+export interface DecorationRequest {
+    readonly id: number;
+    readonly uri: UriComponents;
+}
+
+export type DecorationData = [boolean, string, string, ThemeColor];
+export interface DecorationReply { [id: number]: DecorationData; }
+
 export namespace CommentsCommandArg {
     export function is(arg: Object | undefined): arg is CommentsCommandArg {
         return !!arg && typeof arg === 'object' && 'commentControlHandle' in arg && 'commentThreadHandle' in arg && 'text' in arg && !('commentUniqueId' in arg);
@@ -800,23 +810,14 @@ export interface CommentsEditCommandArg {
 }
 
 export interface DecorationsExt {
-    registerDecorationProvider(provider: theia.DecorationProvider): theia.Disposable
-    $provideDecoration(id: number, uri: string): Promise<DecorationData | undefined>
+    registerFileDecorationProvider(provider: theia.FileDecorationProvider, pluginInfo: PluginInfo): theia.Disposable
+    $provideDecorations(handle: number, requests: DecorationRequest[], token: CancellationToken): Promise<DecorationReply>;
 }
 
 export interface DecorationsMain {
-    $registerDecorationProvider(id: number, provider: DecorationProvider): Promise<number>;
-    $fireDidChangeDecorations(id: number, arg: undefined | string | string[]): Promise<void>;
-    $dispose(id: number): Promise<void>;
-}
-
-export interface DecorationData {
-    letter?: string;
-    title?: string;
-    color?: ThemeColor;
-    priority?: number;
-    bubble?: boolean;
-    source?: string;
+    $registerDecorationProvider(handle: number): Promise<void>;
+    $unregisterDecorationProvider(handle: number): void;
+    $onDidChange(handle: number, resources: UriComponents[] | null): void;
 }
 
 export interface ScmMain {
@@ -925,10 +926,6 @@ export interface SourceControlResourceDecorations {
      * The icon path for a specific source control resource state.
      */
     readonly iconPath?: string;
-}
-
-export interface DecorationProvider {
-    provideDecoration(uri: string): Promise<DecorationData | undefined>;
 }
 
 export interface NotificationMain {
@@ -1719,6 +1716,7 @@ export const PLUGIN_RPC_CONTEXT = {
     DEBUG_MAIN: createProxyIdentifier<DebugMain>('DebugMain'),
     FILE_SYSTEM_MAIN: createProxyIdentifier<FileSystemMain>('FileSystemMain'),
     SCM_MAIN: createProxyIdentifier<ScmMain>('ScmMain'),
+    SECRETS_MAIN: createProxyIdentifier<SecretsMain>('SecretsMain'),
     DECORATIONS_MAIN: createProxyIdentifier<DecorationsMain>('DecorationsMain'),
     WINDOW_MAIN: createProxyIdentifier<WindowMain>('WindowMain'),
     CLIPBOARD_MAIN: <ProxyIdentifier<ClipboardMain>>createProxyIdentifier<ClipboardMain>('ClipboardMain'),
@@ -1753,6 +1751,7 @@ export const MAIN_RPC_CONTEXT = {
     FILE_SYSTEM_EXT: createProxyIdentifier<FileSystemExt>('FileSystemExt'),
     ExtHostFileSystemEventService: createProxyIdentifier<ExtHostFileSystemEventServiceShape>('ExtHostFileSystemEventService'),
     SCM_EXT: createProxyIdentifier<ScmExt>('ScmExt'),
+    SECRETS_EXT: createProxyIdentifier<SecretsExt>('SecretsExt'),
     DECORATIONS_EXT: createProxyIdentifier<DecorationsExt>('DecorationsExt'),
     LABEL_SERVICE_EXT: createProxyIdentifier<LabelServiceExt>('LabelServiceExt'),
     TIMELINE_EXT: createProxyIdentifier<TimelineExt>('TimeLineExt'),
@@ -1809,4 +1808,14 @@ export interface LabelServiceExt {
 export interface LabelServiceMain {
     $registerResourceLabelFormatter(handle: number, formatter: ResourceLabelFormatter): void;
     $unregisterResourceLabelFormatter(handle: number): void;
+}
+
+export interface SecretsExt {
+    $onDidChangePassword(e: { extensionId: string, key: string }): Promise<void>;
+}
+
+export interface SecretsMain {
+    $getPassword(extensionId: string, key: string): Promise<string | undefined>;
+    $setPassword(extensionId: string, key: string, value: string): Promise<void>;
+    $deletePassword(extensionId: string, key: string): Promise<void>;
 }

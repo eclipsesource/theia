@@ -14,15 +14,20 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import { inject, injectable } from '@theia/core/shared/inversify';
-import { AbstractTreeDecoratorService } from '@theia/core/lib/browser/tree/tree-decorator';
-import { PreferencesDecorator } from './preferences-decorator';
+import * as assert from 'assert';
+import * as types from './types-impl';
 
-@injectable()
-export class PreferencesDecoratorService extends AbstractTreeDecoratorService {
+describe('API Type Implementations:', () => {
 
-    constructor(@inject(PreferencesDecorator) protected readonly preferencesTreeDecorator: PreferencesDecorator) {
-        super([preferencesTreeDecorator]);
-    }
+    describe('URI:', () => {
+         it('should convert to string', () => {
+            const uriString = 'scheme://authority.com/foo/bar/zoz?query#fragment';
+            const uri = types.URI.parse(uriString);
+            // when
+            const result = uri.toString();
 
-}
+            // then
+            assert.strictEqual(result, uriString);
+        });
+    });
+});
