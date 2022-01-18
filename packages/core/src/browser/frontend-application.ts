@@ -15,7 +15,7 @@
  ********************************************************************************/
 
 import { inject, injectable, named } from 'inversify';
-import { ContributionProvider, CommandRegistry, MenuModelRegistry, isOSX } from '../common';
+import { ContributionProvider, CommandRegistry, MenuModelRegistry, isOSX, ClientConnectionNotifier } from '../common';
 import { MaybePromise } from '../common/types';
 import { KeybindingRegistry } from './keybinding';
 import { Widget } from './widgets';
@@ -129,7 +129,8 @@ export class FrontendApplication {
         @inject(ContributionProvider) @named(FrontendApplicationContribution)
         protected readonly contributions: ContributionProvider<FrontendApplicationContribution>,
         @inject(ApplicationShell) protected readonly _shell: ApplicationShell,
-        @inject(FrontendApplicationStateService) protected readonly stateService: FrontendApplicationStateService
+        @inject(FrontendApplicationStateService) protected readonly stateService: FrontendApplicationStateService,
+        @inject(ClientConnectionNotifier) protected readonly connectionNotifier: ClientConnectionNotifier
     ) { }
 
     get shell(): ApplicationShell {
@@ -258,9 +259,10 @@ export class FrontendApplication {
         const startupElem = this.getStartupIndicator(host);
         if (startupElem) {
             return new Promise(resolve => {
-                window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(async () => {
                     startupElem.classList.add('theia-hidden');
                     console.log(`Finished loading frontend application after ${(performance.now() / 1000).toFixed(3)} seconds`);
+                    await this.connectionNotifier.clientConnected();
                     const preloadStyle = window.getComputedStyle(startupElem);
                     const transitionDuration = parseCssTime(preloadStyle.transitionDuration, 0);
                     window.setTimeout(() => {

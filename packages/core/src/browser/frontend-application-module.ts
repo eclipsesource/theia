@@ -30,7 +30,8 @@ import {
     MessageClient,
     InMemoryResources,
     messageServicePath,
-    InMemoryTextResourceResolver
+    InMemoryTextResourceResolver,
+    ClientConnectionNotifier
 } from '../common';
 import { KeybindingRegistry, KeybindingContext, KeybindingContribution } from './keybinding';
 import { FrontendApplication, FrontendApplicationContribution, DefaultFrontendApplicationContribution } from './frontend-application';
@@ -390,4 +391,8 @@ export const frontendApplicationModule = new ContainerModule((bind, unbind, isBo
         child.bind(Coordinate).toConstantValue(position);
         return child.get(BreadcrumbPopupContainer);
     });
+    bind(ClientConnectionNotifier).toDynamicValue(ctx => {
+        const connection = ctx.container.get(WebSocketConnectionProvider);
+        return connection.createProxy<ClientConnectionNotifier>('clientConnected');
+    }).inSingletonScope();
 });

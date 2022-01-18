@@ -37,6 +37,7 @@ const TIMER_WARNING_THRESHOLD = 50;
 const DEFAULT_PORT = environment.electron.is() ? 0 : 3000;
 const DEFAULT_HOST = 'localhost';
 const DEFAULT_SSL = false;
+const DEFAULT_FAST_STARTUP = false;
 
 export const BackendApplicationServer = Symbol('BackendApplicationServer');
 /**
@@ -107,6 +108,7 @@ export class BackendApplicationCliContribution implements CliContribution {
     cert: string | undefined;
     certkey: string | undefined;
     projectPath: string;
+    fastStartup: boolean;
 
     configure(conf: yargs.Argv): void {
         conf.option('port', { alias: 'p', description: 'The port the backend server listens on.', type: 'number', default: DEFAULT_PORT });
@@ -115,6 +117,7 @@ export class BackendApplicationCliContribution implements CliContribution {
         conf.option('cert', { description: 'Path to SSL certificate.', type: 'string' });
         conf.option('certkey', { description: 'Path to SSL certificate key.', type: 'string' });
         conf.option(APP_PROJECT_PATH, { description: 'Sets the application project directory', default: this.appProjectPath() });
+        conf.option('fastStartup', {description: 'delay plugin deployment to decrease startup time', type: 'boolean', default: DEFAULT_FAST_STARTUP});
     }
 
     setArguments(args: yargs.Arguments): void {
@@ -124,6 +127,7 @@ export class BackendApplicationCliContribution implements CliContribution {
         this.cert = args.cert as string;
         this.certkey = args.certkey as string;
         this.projectPath = args[APP_PROJECT_PATH] as string;
+        this.fastStartup = args['fastStartup'] as boolean;
     }
 
     protected appProjectPath(): string {

@@ -40,6 +40,7 @@ export * from './lsp-types';
 export * from './contribution-filter';
 export * from './nls';
 export * from './numbers';
+export * from './connection-notifier';
 
 import { environment } from '@theia/application-package/lib/environment';
 export { environment };

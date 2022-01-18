@@ -18,7 +18,7 @@ import { ContainerModule, decorate, injectable } from 'inversify';
 import { ApplicationPackage } from '@theia/application-package';
 import {
     bindContributionProvider, MessageService, MessageClient, ConnectionHandler, JsonRpcConnectionHandler,
-    CommandService, commandServicePath, messageServicePath
+    CommandService, commandServicePath, messageServicePath, ClientConnectionNotifier
 } from '../common';
 import { BackendApplication, BackendApplicationContribution, BackendApplicationCliContribution, BackendApplicationServer } from './backend-application';
 import { CliManager, CliContribution } from './cli';
@@ -109,4 +109,8 @@ export const backendApplicationModule = new ContainerModule(bind => {
 
     bind(EnvironmentUtils).toSelf().inSingletonScope();
     bind(ProcessUtils).toSelf().inSingletonScope();
+    bind(ConnectionHandler).toDynamicValue(({container}) =>
+        new JsonRpcConnectionHandler<never>('clientConnected', () => container.get<ClientConnectionNotifier>(ClientConnectionNotifier))
+    ).inSingletonScope();
+    bind(ClientConnectionNotifier).toSelf().inSingletonScope();
 });

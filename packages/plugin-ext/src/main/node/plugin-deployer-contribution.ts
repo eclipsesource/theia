@@ -14,21 +14,30 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import { BackendApplicationContribution } from '@theia/core/lib/node';
+import { BackendApplicationCliContribution, BackendApplicationContribution } from '@theia/core/lib/node';
+import { ClientConnectionNotifier } from '@theia/core/lib/common';
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { PluginDeployer } from '../../common/plugin-protocol';
-import { ILogger } from '@theia/core';
 
 @injectable()
 export class PluginDeployerContribution implements BackendApplicationContribution {
 
-    @inject(ILogger)
-    protected readonly logger: ILogger;
-
     @inject(PluginDeployer)
     protected pluginDeployer: PluginDeployer;
 
+    @inject(ClientConnectionNotifier)
+    protected readonly connectionNotifier: ClientConnectionNotifier;
+
+    @inject(BackendApplicationCliContribution)
+    protected readonly cliParams: BackendApplicationCliContribution;
+
     initialize(): void {
-        this.pluginDeployer.start();
+        if (this.cliParams.fastStartup) {
+            this.connectionNotifier.connectionEvent.on(ClientConnectionNotifier.CLIENT_CONNECTED, async () => {
+                this.pluginDeployer.start();
+            });
+        } else {
+            this.pluginDeployer.start();
+        }
     }
 }

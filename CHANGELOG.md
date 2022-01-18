@@ -3,6 +3,8 @@
 
 [1.22.0 Milestone](https://github.com/eclipse-theia/theia/milestone/30)
 
+- [plugin-ext] add --fastStartup flag to wait for frontend start to deploy the plugins. [#](https://github.com/eclipse-theia/theia/pull/) - Contributed on behalf of STMicroelectronics
+
 <a name="breaking_changes_1.22.0">[Breaking Changes:](#breaking_changes_1.22.0)</a>
 - [core] Removed `MarkdownRenderer` class [#10589](https://github.com/eclipse-theia/theia/pull/10589)
 - [core] `ContextKeyService` is now an interface. Extenders should extend `ContextKeyServiceDummyImpl` [#10546](https://github.com/eclipse-theia/theia/pull/10546)
