@@ -110,6 +110,7 @@ export interface Plugin {
     model: PluginModel;
     rawModel: PluginPackage;
     lifecycle: PluginLifecycle;
+    isUnderDevelopment: boolean;
 }
 
 export interface ConfigStorage {
@@ -193,7 +194,8 @@ export const emptyPlugin: Plugin = {
             version: 'empty'
         },
         packagePath: 'empty'
-    }
+    },
+    isUnderDevelopment: false
 };
 
 export interface PluginManagerInitializeParams {
