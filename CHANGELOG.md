@@ -12,6 +12,7 @@
 - [plugin] added support for `SnippetString.appendChoice` [#10969](https://github.com/eclipse-theia/theia/pull/10969) - Contributed on behalf of STMicroelectronics
 - [plugin] added support for `AccessibilityInformation` [#10961](https://github.com/eclipse-theia/theia/pull/10961) - Contributed on behalf of STMicroelectronics
 - [plugin] added missing properties `id`, `name` and `backgroundColor` to `StatusBarItem` [#11026](https://github.com/eclipse-theia/theia/pull/11026) - Contributed on behalf of STMicroelectronics
+- [core] Added support for moving webview-based views into a secondary window/tab. Added new extension `secondary-window-ui` that contributes the UI integration to use this. [#11048](https://github.com/eclipse-theia/theia/pull/11048)- Contributed on behalf of ST Microelectronics and Ericsson and by ARM and EclipseSource
 
 <a name="breaking_changes_1.25.0">[Breaking Changes:](#breaking_changes_1.25.0)</a>
 - [debug] 
