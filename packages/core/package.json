@@ -61,7 +61,6 @@
     "react-dom": "^16.8.0",
     "react-tooltip": "^4.2.21",
     "react-virtualized": "^9.20.0",
-    "reconnecting-websocket": "^4.2.0",
     "reflect-metadata": "^0.1.10",
     "route-parser": "^0.0.5",
     "safer-buffer": "^2.1.2",

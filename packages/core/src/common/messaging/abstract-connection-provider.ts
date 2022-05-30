@@ -71,14 +71,16 @@ export abstract class AbstractConnectionProvider<AbstractOptions extends object>
         return factory.createProxy();
     }
 
-    protected channelMultiPlexer: ChannelMultiplexer;
+    protected channelMultiPlexer?: ChannelMultiplexer;
 
-    constructor() {
-        this.channelMultiPlexer = this.createMultiplexer();
-    }
+    // A set of channel opening functions that are executed if the backend reconnects to restore the
+    // the channels that were open before the disconnect occurred.
+    protected reconnectChannelOpeners: Array<() => Promise<void>> = [];
 
-    protected createMultiplexer(): ChannelMultiplexer {
-        return new ChannelMultiplexer(this.createMainChannel());
+    protected initializeMultiplexer(): void {
+        const mainChannel = this.createMainChannel();
+        mainChannel.onMessage(() => this.onIncomingMessageActivityEmitter.fire());
+        this.channelMultiPlexer = new ChannelMultiplexer(mainChannel);
     }
 
     /**
@@ -91,18 +93,22 @@ export abstract class AbstractConnectionProvider<AbstractOptions extends object>
     }
 
     async openChannel(path: string, handler: (channel: Channel) => void, options?: AbstractOptions): Promise<void> {
+        if (!this.channelMultiPlexer) {
+            throw new Error('The channel multiplexer has not been initialized yet!');
+        }
         const newChannel = await this.channelMultiPlexer.open(path);
         newChannel.onClose(() => {
             const { reconnecting } = { reconnecting: true, ...options };
             if (reconnecting) {
-                this.openChannel(path, handler, options);
+                this.reconnectChannelOpeners.push(() => this.openChannel(path, handler, options));
             }
         });
+
         handler(newChannel);
     }
 
     /**
-     * Create the main connection that is used for multiplexing all channels.
+     * Create the main connection that is used for multiplexing all service channels.
      */
     protected abstract createMainChannel(): Channel;
 

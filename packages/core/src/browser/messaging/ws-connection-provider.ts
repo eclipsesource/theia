@@ -35,8 +35,6 @@ export interface WebSocketOptions {
 export class WebSocketConnectionProvider extends AbstractConnectionProvider<WebSocketOptions> {
 
     protected readonly onSocketDidOpenEmitter: Emitter<void> = new Emitter();
-    // Socket that is used by the main channel
-    protected socket: Socket;
     get onSocketDidOpen(): Event<void> {
         return this.onSocketDidOpenEmitter.event;
     }
@@ -50,18 +48,27 @@ export class WebSocketConnectionProvider extends AbstractConnectionProvider<WebS
         return container.get(WebSocketConnectionProvider).createProxy<T>(path, arg);
     }
 
-    protected createMainChannel(): Channel {
+    protected readonly socket: Socket;
+
+    constructor() {
+        super();
         const url = this.createWebSocketUrl(WebSocketChannel.wsPath);
-        const socket = this.createWebSocket(url);
-        const channel = new WebSocketChannel(this.toIWebSocket(socket));
-        socket.on('connect', () => {
+        this.socket = this.createWebSocket(url);
+        this.socket.on('connect', () => {
+            this.initializeMultiplexer();
+            if (this.reconnectChannelOpeners.length > 0) {
+                this.reconnectChannelOpeners.forEach(opener => opener());
+                this.reconnectChannelOpeners = [];
+            }
+            this.socket.on('disconnect', () => this.fireSocketDidClose());
+            this.socket.on('message', () => this.onIncomingMessageActivityEmitter.fire(undefined));
             this.fireSocketDidOpen();
         });
-        channel.onClose(() => this.fireSocketDidClose());
-        socket.connect();
-        this.socket = socket;
+        this.socket.connect();
+    }
 
-        return channel;
+    protected createMainChannel(): Channel {
+        return new WebSocketChannel(this.toIWebSocket(this.socket));
     }
 
     protected toIWebSocket(socket: Socket): IWebSocket {
@@ -70,7 +77,6 @@ export class WebSocketConnectionProvider extends AbstractConnectionProvider<WebS
                 socket.removeAllListeners('disconnect');
                 socket.removeAllListeners('error');
                 socket.removeAllListeners('message');
-                socket.close();
             },
             isConnected: () => socket.connected,
             onClose: cb => socket.on('disconnect', reason => cb(reason)),

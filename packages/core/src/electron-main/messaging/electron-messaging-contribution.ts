@@ -78,8 +78,8 @@ export class ElectronMessagingContribution implements ElectronMainApplicationCon
             }
         });
 
-        sender.once('did-navigate', () => multiPlexer.closeUnderlyingChannel({ reason: 'Window was refreshed' })); // When refreshing the browser window.
-        sender.once('destroyed', () => multiPlexer.closeUnderlyingChannel({ reason: 'Window was closed' })); // When closing the browser window.
+        sender.once('did-navigate', () => multiPlexer.onUnderlyingChannelClose({ reason: 'Window was refreshed' })); // When refreshing the browser window.
+        sender.once('destroyed', () => multiPlexer.onUnderlyingChannelClose({ reason: 'Window was closed' })); // When closing the browser window.
         const data = { channel: mainChannel, multiPlexer };
         this.windowChannelMultiplexer.set(sender.id, data);
         return data;

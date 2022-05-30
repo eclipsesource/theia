@@ -20,6 +20,7 @@ import { Emitter, Event } from '../event';
 import { WriteBuffer } from '../message-rpc';
 import { Uint8ArrayReadBuffer, Uint8ArrayWriteBuffer } from '../message-rpc/uint8-array-message-buffer';
 import { Channel, MessageProvider, ChannelCloseEvent } from '../message-rpc/channel';
+import { DisposableCollection } from '../disposable';
 
 /**
  * A channel that manages the main websocket connection between frontend and backend. All service channels
@@ -44,8 +45,12 @@ export class WebSocketChannel implements Channel {
         return this.onErrorEmitter.event;
     }
 
+    protected toDispose = new DisposableCollection();
+
     constructor(protected readonly socket: IWebSocket) {
+        this.toDispose.pushAll([this.onCloseEmitter, this.onMessageEmitter, this.onErrorEmitter]);
         socket.onClose((reason, code) => this.onCloseEmitter.fire({ reason, code }));
+        socket.onClose(() => this.close());
         socket.onError(error => this.onErrorEmitter.fire(error));
         // eslint-disable-next-line arrow-body-style
         socket.onMessage(data => this.onMessageEmitter.fire(() => {
@@ -62,8 +67,6 @@ export class WebSocketChannel implements Channel {
         result.onCommit(buffer => {
             if (this.socket.isConnected()) {
                 this.socket.send(buffer);
-            } else {
-                console.warn('Could not send message. Websocket is not connected');
             }
         });
 
@@ -71,10 +74,8 @@ export class WebSocketChannel implements Channel {
     }
 
     close(): void {
+        this.toDispose.dispose();
         this.socket.close();
-        this.onCloseEmitter.dispose();
-        this.onMessageEmitter.dispose();
-        this.onErrorEmitter.dispose();
     }
 }
 

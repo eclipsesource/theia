@@ -16,6 +16,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { CancellationToken, CancellationTokenSource } from '../cancellation';
+import { DisposableCollection } from '../disposable';
 import { Emitter, Event } from '../event';
 import { Deferred } from '../promise-util';
 import { Channel } from './channel';
@@ -40,6 +41,7 @@ export interface RpcProtocolOptions {
      */
     decoder?: RpcMessageDecoder
 }
+
 /**
  * Establish a bi-directional RPC protocol on top of a given channel. Bi-directional means to send
  * sends requests and notifications to the remote side as well as receiving requests and notifications from the remote side.
@@ -64,12 +66,14 @@ export class RpcProtocol {
         return this.onNotificationEmitter.event;
     }
 
+    protected toDispose = new DisposableCollection();
+
     constructor(public readonly channel: Channel, public readonly requestHandler: RequestHandler, options: RpcProtocolOptions = {}) {
         this.encoder = options.encoder ?? new RpcMessageEncoder();
         this.decoder = options.decoder ?? new RpcMessageDecoder();
-        const registration = channel.onMessage(readBuffer => this.handleMessage(this.decoder.parse(readBuffer())));
-        channel.onClose(() => registration.dispose());
-
+        this.toDispose.push(this.onNotificationEmitter);
+        this.toDispose.push(channel.onMessage(readBuffer => this.handleMessage(this.decoder.parse(readBuffer()))));
+        channel.onClose(() => this.toDispose.dispose());
     }
 
     handleMessage(message: RpcMessage): void {
@@ -103,7 +107,7 @@ export class RpcProtocol {
             this.pendingRequests.delete(id);
             replyHandler.resolve(value);
         } else {
-            console.warn(`reply: no handler for message: ${id}`);
+            throw new Error(`No reply handler for reply with id: ${id}`);
         }
     }
 
@@ -114,7 +118,7 @@ export class RpcProtocol {
                 this.pendingRequests.delete(id);
                 replyHandler.reject(error);
             } else {
-                console.warn(`error: no handler for message: ${id}`);
+                throw new Error(`No reply handler for error reply with id: ${id}`);
             }
         } catch (err) {
             throw err;
@@ -122,7 +126,6 @@ export class RpcProtocol {
     }
 
     sendRequest<T>(method: string, args: any[]): Promise<T> {
-
         const id = this.nextMessageId++;
         const reply = new Deferred<T>();
 
@@ -176,7 +179,6 @@ export class RpcProtocol {
     }
 
     protected async handleRequest(id: number, method: string, args: any[]): Promise<void> {
-
         const output = this.channel.getWriteBuffer();
 
         // Check if the last argument of the received args is the key for indicating that a cancellation token should be used
@@ -207,6 +209,9 @@ export class RpcProtocol {
     }
 
     protected async handleNotify(id: number, method: string, args: any[]): Promise<void> {
+        if (this.toDispose.disposed) {
+            return;
+        }
         this.onNotificationEmitter.fire({ method, args });
     }
 }

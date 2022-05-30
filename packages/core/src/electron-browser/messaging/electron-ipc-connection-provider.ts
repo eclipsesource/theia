@@ -36,6 +36,11 @@ export class ElectronIpcConnectionProvider extends AbstractConnectionProvider<El
         return container.get(ElectronIpcConnectionProvider).createProxy<T>(path, arg);
     }
 
+    constructor() {
+        super();
+        this.initializeMultiplexer();
+    }
+
     protected createMainChannel(): Channel {
         const onMessageEmitter = new Emitter<MessageProvider>();
         ipcRenderer.on(THEIA_ELECTRON_IPC_CHANNEL_NAME, (_event: ElectronEvent, data: Uint8Array) => {
@@ -46,7 +51,6 @@ export class ElectronIpcConnectionProvider extends AbstractConnectionProvider<El
             getWriteBuffer: () => {
                 const writer = new Uint8ArrayWriteBuffer();
                 writer.onCommit(buffer =>
-                    // The ipcRenderer cannot handle ArrayBuffers directly=> we have to convert to Uint8Array.
                     ipcRenderer.send(THEIA_ELECTRON_IPC_CHANNEL_NAME, buffer)
                 );
                 return writer;

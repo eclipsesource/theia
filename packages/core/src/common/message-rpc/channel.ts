@@ -14,6 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 // *****************************************************************************
 
+import { Disposable, DisposableCollection } from '../disposable';
 import { Emitter, Event } from '../event';
 import { ReadBuffer, WriteBuffer } from './message-buffer';
 
@@ -72,7 +73,9 @@ export type MessageProvider = () => ReadBuffer;
  */
 export class ForwardingChannel implements Channel {
 
+    protected toDispose = new DisposableCollection();
     constructor(readonly id: string, protected readonly closeHandler: () => void, protected readonly writeBufferSource: () => WriteBuffer) {
+        this.toDispose.pushAll([this.onCloseEmitter, this.onErrorEmitter, this.onMessageEmitter]);
     }
 
     onCloseEmitter: Emitter<ChannelCloseEvent> = new Emitter();
@@ -94,14 +97,9 @@ export class ForwardingChannel implements Channel {
         return this.writeBufferSource();
     }
 
-    send(message: Uint8Array): void {
-        const writeBuffer = this.getWriteBuffer();
-        writeBuffer.writeBytes(message);
-        writeBuffer.commit();
-    }
-
     close(): void {
         this.closeHandler();
+        this.toDispose.dispose();
     }
 }
 
@@ -120,7 +118,7 @@ export enum MessageTypes {
  * channel, so we rely on writers to the multiplexed channels to always commit their
  * messages and always in one go.
  */
-export class ChannelMultiplexer {
+export class ChannelMultiplexer implements Disposable {
     protected pendingOpen: Map<string, (channel: ForwardingChannel) => void> = new Map();
     protected openChannels: Map<string, ForwardingChannel> = new Map();
 
@@ -129,10 +127,15 @@ export class ChannelMultiplexer {
         return this.onOpenChannelEmitter.event;
     }
 
+    protected toDispose = new DisposableCollection();
+
     constructor(protected readonly underlyingChannel: Channel) {
-        this.underlyingChannel.onMessage(buffer => this.handleMessage(buffer()));
-        this.underlyingChannel.onClose(event => this.closeUnderlyingChannel(event));
-        this.underlyingChannel.onError(error => this.handleError(error));
+        this.toDispose.pushAll([
+            this.underlyingChannel.onMessage(buffer => this.handleMessage(buffer())),
+            this.underlyingChannel.onClose(event => this.onUnderlyingChannelClose(event)),
+            this.underlyingChannel.onError(error => this.handleError(error)),
+            this.onOpenChannelEmitter
+        ]);
     }
 
     protected handleError(error: unknown): void {
@@ -141,14 +144,19 @@ export class ChannelMultiplexer {
         });
     }
 
-    closeUnderlyingChannel(event?: ChannelCloseEvent): void {
+    onUnderlyingChannelClose(event?: ChannelCloseEvent): void {
+        if (!this.toDispose.disposed) {
+            this.toDispose.push(Disposable.create(() => {
+                this.pendingOpen.clear();
+                this.openChannels.forEach(channel => {
+                    channel.onCloseEmitter.fire(event ?? { reason: 'Multiplexer main channel has been closed from the remote side!' });
+                });
 
-        this.pendingOpen.clear();
-        this.openChannels.forEach(channel => {
-            channel.onCloseEmitter.fire(event ?? { reason: 'Multiplexer main channel has been closed from the remote side!' });
-        });
+                this.openChannels.clear();
+            }));
+            this.dispose();
+        }
 
-        this.openChannels.clear();
     }
 
     protected handleMessage(buffer: ReadBuffer): void {
@@ -243,6 +251,10 @@ export class ChannelMultiplexer {
 
     getOpenChannel(id: string): Channel | undefined {
         return this.openChannels.get(id);
+    }
+
+    dispose(): void {
+        this.toDispose.dispose();
     }
 }
 
