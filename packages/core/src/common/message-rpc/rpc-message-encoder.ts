@@ -15,6 +15,7 @@
 // *****************************************************************************
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { Packr as MsgPack } from 'msgpackr';
 import { ReadBuffer, WriteBuffer } from './message-buffer';
 
 /**
@@ -85,6 +86,92 @@ export class ResponseError extends Error {
 }
 
 /**
+ * Custom error thrown by the {@link RpcMessageEncoder} if an error occurred during the encoding and the
+ * object could not be written to the given {@link WriteBuffer}
+ */
+export class EncodingError extends Error {
+    constructor(msg: string, public cause?: Error) {
+        super(msg);
+    }
+}
+
+/**
+ * A `RpcMessageDecoder` parses a a binary message received via {@link ReadBuffer} into a {@link RpcMessage}
+ */
+export interface RpcMessageDecoder {
+    parse(buffer: ReadBuffer): RpcMessage;
+}
+
+/**
+ * A `RpcMessageEncoder` writes {@link RpcMessage} objects to a {@link WriteBuffer}. Note that it is
+ * up to clients to commit the message. This allows for multiple messages being
+ * encoded before sending.
+ */
+export interface RpcMessageEncoder {
+    cancel(buf: WriteBuffer, requestId: number): void;
+
+    notification(buf: WriteBuffer, requestId: number, method: string, args: any[]): void
+
+    request(buf: WriteBuffer, requestId: number, method: string, args: any[]): void
+
+    replyOK(buf: WriteBuffer, requestId: number, res: any): void
+
+    replyErr(buf: WriteBuffer, requestId: number, err: any): void
+
+}
+
+export const defaultMsgPack = new MsgPack({ moreTypes: true, encodeUndefinedAsNil: false, bundleStrings: true });
+export class MsgPackMessageEncoder implements RpcMessageEncoder {
+
+    constructor(protected readonly msgPack: MsgPack = defaultMsgPack) {
+
+    }
+
+    cancel(buf: WriteBuffer, requestId: number): void {
+        this.encode<CancelMessage>(buf, { type: RpcMessageType.Cancel, id: requestId });
+    }
+    notification(buf: WriteBuffer, requestId: number, method: string, args: any[]): void {
+        this.encode<NotificationMessage>(buf, { type: RpcMessageType.Notification, id: requestId, method, args });
+    }
+    request(buf: WriteBuffer, requestId: number, method: string, args: any[]): void {
+        this.encode<RequestMessage>(buf, { type: RpcMessageType.Request, id: requestId, method, args });
+    }
+    replyOK(buf: WriteBuffer, requestId: number, res: any): void {
+        this.encode<ReplyMessage>(buf, { type: RpcMessageType.Reply, id: requestId, res });
+    }
+    replyErr(buf: WriteBuffer, requestId: number, err: any): void {
+        this.encode<ReplyErrMessage>(buf, { type: RpcMessageType.ReplyErr, id: requestId, err });
+    }
+
+    encode<T = unknown>(buf: WriteBuffer, value: T): void {
+        try {
+            buf.writeBytes(this.msgPack.encode(value));
+        } catch (err) {
+            if (err instanceof Error) {
+                throw new EncodingError(`Error during encoding: '${err.message}'`, err);
+            }
+            throw err;
+        }
+    }
+
+}
+
+export class MsgPackMessageDecoder implements RpcMessageDecoder {
+    constructor(protected readonly msgPack: MsgPack = defaultMsgPack) {
+
+    }
+    decode<T = any>(buf: ReadBuffer): T {
+        const bytes = buf.readBytes();
+        return this.msgPack.decode(bytes);
+    }
+
+    parse(buffer: ReadBuffer): RpcMessage {
+        return this.decode(buffer);
+    }
+
+}
+
+/**
  * The tag values for the default {@link ValueEncoder}s & {@link ValueDecoder}s
  */
 
@@ -147,222 +234,13 @@ export interface ValueDecoder {
 }
 
 /**
- * Custom error thrown by the {@link RpcMessageEncoder} if an error occurred during the encoding and the
- * object could not be written to the given {@link WriteBuffer}
+ * Highly customizable {@link RpcMessageEncoder} implementation. Clients can register custom
+ * {@link ValueEncoder}s and {@link ValueEncoder}s to specially handling certain types of values.
+ * Objects are encoded recursively with the corresponding {@link ValueEncoder}.
+ * Compared to the default {@link MsgPackMessageEncoder} encoding times are higher (especially for large objects) so
+ * it's recommended to only use this encoder for edge cases where the capabilities of the default encoder don't suffice.
  */
-export class EncodingError extends Error {
-    constructor(msg: string) {
-        super(msg);
-    }
-}
-
-/**
- * A `RpcMessageDecoder` parses a a binary message received via {@link ReadBuffer} into a {@link RpcMessage}
- */
-export class RpcMessageDecoder {
-
-    protected decoders: Map<number, ValueDecoder> = new Map();
-
-    constructor() {
-        this.registerDecoders();
-    }
-
-    registerDecoders(): void {
-        this.registerDecoder(ObjectType.JSON, {
-            read: buf => {
-                const json = buf.readString();
-                return JSON.parse(json);
-            }
-        });
-        this.registerDecoder(ObjectType.Error, {
-            read: buf => {
-                const serializedError: SerializedError = JSON.parse(buf.readString());
-                const error = new Error(serializedError.message);
-                Object.assign(error, serializedError);
-                return error;
-            }
-        });
-
-        this.registerDecoder(ObjectType.ResponseError, {
-            read: buf => {
-                const error = JSON.parse(buf.readString());
-                return new ResponseError(error.code, error.message, error.data);
-            }
-        });
-        this.registerDecoder(ObjectType.ByteArray, {
-            read: buf => buf.readBytes()
-        });
-
-        this.registerDecoder(ObjectType.ObjectArray, {
-            read: buf => this.readArray(buf)
-        });
-
-        this.registerDecoder(ObjectType.Undefined, {
-            read: () => undefined
-        });
-
-        this.registerDecoder(ObjectType.Null, {
-            // eslint-disable-next-line no-null/no-null
-            read: () => null
-        });
-
-        this.registerDecoder(ObjectType.Object, {
-            read: (buf, recursiveRead) => {
-                const propertyCount = buf.readLength();
-                const result = Object.create({});
-                for (let i = 0; i < propertyCount; i++) {
-                    const key = buf.readString();
-                    const value = recursiveRead(buf);
-                    result[key] = value;
-                }
-                return result;
-            }
-        });
-
-        this.registerDecoder(ObjectType.String, {
-            read: (buf, recursiveRead) => buf.readString()
-        });
-
-        this.registerDecoder(ObjectType.Boolean, {
-            read: buf => buf.readUint8() === 1
-        });
-
-        this.registerDecoder(ObjectType.Number, {
-            read: buf => buf.readNumber()
-        });
-
-        this.registerDecoder(ObjectType.Map, {
-            read: buf => new Map(this.readArray(buf))
-        });
-
-        this.registerDecoder(ObjectType.Set, {
-            read: buf => new Set(this.readArray(buf))
-        });
-
-        this.registerDecoder(ObjectType.Function, {
-            read: () => ({})
-        });
-
-    }
-
-    /**
-     * Registers a new {@link ValueDecoder} for the given tag.
-     * After the successful registration the {@link tagIntType} is recomputed
-     * by retrieving the highest tag value and calculating the required Uint size to store it.
-     * @param tag the tag for which the decoder should be registered.
-     * @param decoder the decoder that should be registered.
-     */
-    registerDecoder(tag: number, decoder: ValueDecoder): void {
-        if (this.decoders.has(tag)) {
-            throw new Error(`Decoder already registered: ${tag}`);
-        }
-        this.decoders.set(tag, decoder);
-    }
-    parse(buf: ReadBuffer): RpcMessage {
-        try {
-            const msgType = buf.readUint8();
-
-            switch (msgType) {
-                case RpcMessageType.Request:
-                    return this.parseRequest(buf);
-                case RpcMessageType.Notification:
-                    return this.parseNotification(buf);
-                case RpcMessageType.Reply:
-                    return this.parseReply(buf);
-                case RpcMessageType.ReplyErr:
-                    return this.parseReplyErr(buf);
-                case RpcMessageType.Cancel:
-                    return this.parseCancel(buf);
-            }
-            throw new Error(`Unknown message type: ${msgType}`);
-        } catch (e) {
-            // exception does not show problematic content: log it!
-            console.log('failed to parse message: ' + buf);
-            throw e;
-        }
-    }
-
-    protected parseCancel(msg: ReadBuffer): CancelMessage {
-        const callId = msg.readUint32();
-        return {
-            type: RpcMessageType.Cancel,
-            id: callId
-        };
-    }
-
-    protected parseRequest(msg: ReadBuffer): RequestMessage {
-        const callId = msg.readUint32();
-        const method = msg.readString();
-        const args = this.readArray(msg);
-
-        return {
-            type: RpcMessageType.Request,
-            id: callId,
-            method: method,
-            args: args
-        };
-    }
-
-    protected parseNotification(msg: ReadBuffer): NotificationMessage {
-        const callId = msg.readUint32();
-        const method = msg.readString();
-        const args = this.readArray(msg);
-
-        return {
-            type: RpcMessageType.Notification,
-            id: callId,
-            method: method,
-            args: args
-        };
-    }
-
-    parseReply(msg: ReadBuffer): ReplyMessage {
-        const callId = msg.readUint32();
-        const value = this.readTypedValue(msg);
-        return {
-            type: RpcMessageType.Reply,
-            id: callId,
-            res: value
-        };
-    }
-
-    parseReplyErr(msg: ReadBuffer): ReplyErrMessage {
-        const callId = msg.readUint32();
-
-        const err = this.readTypedValue(msg);
-
-        return {
-            type: RpcMessageType.ReplyErr,
-            id: callId,
-            err
-        };
-    }
-
-    readArray(buf: ReadBuffer): any[] {
-        const length = buf.readLength();
-        const result = new Array(length);
-        for (let i = 0; i < length; i++) {
-            result[i] = this.readTypedValue(buf);
-        }
-        return result;
-    }
-
-    readTypedValue(buf: ReadBuffer): any {
-        const type = buf.readUint8();
-        const decoder = this.decoders.get(type);
-        if (!decoder) {
-            throw new Error(`No decoder for tag ${type}`);
-        }
-        return decoder.read(buf, innerBuffer => this.readTypedValue(innerBuffer));
-    }
-}
-
-/**
- * A `RpcMessageEncoder` writes {@link RpcMessage} objects to a {@link WriteBuffer}. Note that it is
- * up to clients to commit the message. This allows for multiple messages being
- * encoded before sending.
- */
-export class RpcMessageEncoder {
+export class RecursiveMessageEncoder implements RpcMessageEncoder {
 
     protected readonly encoders: [number, ValueEncoder][] = [];
     protected readonly registeredTags: Set<number> = new Set();
@@ -561,3 +439,206 @@ export class RpcMessageEncoder {
         }
     }
 }
+
+/**
+ * A {@link RpcMessageDecoder} implementation that can decode messages which have been encoded with a {@link RecursiveMessageEncoder}.
+ */
+export class RecursiveRpcMessageDecoder implements RpcMessageDecoder {
+
+    protected decoders: Map<number, ValueDecoder> = new Map();
+
+    constructor() {
+        this.registerDecoders();
+    }
+
+    registerDecoders(): void {
+        this.registerDecoder(ObjectType.JSON, {
+            read: buf => {
+                const json = buf.readString();
+                return JSON.parse(json);
+            }
+        });
+        this.registerDecoder(ObjectType.Error, {
+            read: buf => {
+                const serializedError: SerializedError = JSON.parse(buf.readString());
+                const error = new Error(serializedError.message);
+                Object.assign(error, serializedError);
+                return error;
+            }
+        });
+
+        this.registerDecoder(ObjectType.ResponseError, {
+            read: buf => {
+                const error = JSON.parse(buf.readString());
+                return new ResponseError(error.code, error.message, error.data);
+            }
+        });
+        this.registerDecoder(ObjectType.ByteArray, {
+            read: buf => buf.readBytes()
+        });
+
+        this.registerDecoder(ObjectType.ObjectArray, {
+            read: buf => this.readArray(buf)
+        });
+
+        this.registerDecoder(ObjectType.Undefined, {
+            read: () => undefined
+        });
+
+        this.registerDecoder(ObjectType.Null, {
+            // eslint-disable-next-line no-null/no-null
+            read: () => null
+        });
+
+        this.registerDecoder(ObjectType.Object, {
+            read: (buf, recursiveRead) => {
+                const propertyCount = buf.readLength();
+                const result = Object.create({});
+                for (let i = 0; i < propertyCount; i++) {
+                    const key = buf.readString();
+                    const value = recursiveRead(buf);
+                    result[key] = value;
+                }
+                return result;
+            }
+        });
+
+        this.registerDecoder(ObjectType.String, {
+            read: (buf, recursiveRead) => buf.readString()
+        });
+
+        this.registerDecoder(ObjectType.Boolean, {
+            read: buf => buf.readUint8() === 1
+        });
+
+        this.registerDecoder(ObjectType.Number, {
+            read: buf => buf.readNumber()
+        });
+
+        this.registerDecoder(ObjectType.Map, {
+            read: buf => new Map(this.readArray(buf))
+        });
+
+        this.registerDecoder(ObjectType.Set, {
+            read: buf => new Set(this.readArray(buf))
+        });
+
+        this.registerDecoder(ObjectType.Function, {
+            read: () => ({})
+        });
+
+    }
+
+    /**
+     * Registers a new {@link ValueDecoder} for the given tag.
+     * After the successful registration the {@link tagIntType} is recomputed
+     * by retrieving the highest tag value and calculating the required Uint size to store it.
+     * @param tag the tag for which the decoder should be registered.
+     * @param decoder the decoder that should be registered.
+     */
+    registerDecoder(tag: number, decoder: ValueDecoder): void {
+        if (this.decoders.has(tag)) {
+            throw new Error(`Decoder already registered: ${tag}`);
+        }
+        this.decoders.set(tag, decoder);
+    }
+
+    parse(buf: ReadBuffer): RpcMessage {
+        try {
+            const msgType = buf.readUint8();
+
+            switch (msgType) {
+                case RpcMessageType.Request:
+                    return this.parseRequest(buf);
+                case RpcMessageType.Notification:
+                    return this.parseNotification(buf);
+                case RpcMessageType.Reply:
+                    return this.parseReply(buf);
+                case RpcMessageType.ReplyErr:
+                    return this.parseReplyErr(buf);
+                case RpcMessageType.Cancel:
+                    return this.parseCancel(buf);
+            }
+            throw new Error(`Unknown message type: ${msgType}`);
+        } catch (e) {
+            // exception does not show problematic content: log it!
+            console.log('failed to parse message: ' + buf);
+            throw e;
+        }
+    }
+
+    protected parseCancel(msg: ReadBuffer): CancelMessage {
+        const callId = msg.readUint32();
+        return {
+            type: RpcMessageType.Cancel,
+            id: callId
+        };
+    }
+
+    protected parseRequest(msg: ReadBuffer): RequestMessage {
+        const callId = msg.readUint32();
+        const method = msg.readString();
+        const args = this.readArray(msg);
+
+        return {
+            type: RpcMessageType.Request,
+            id: callId,
+            method: method,
+            args: args
+        };
+    }
+
+    protected parseNotification(msg: ReadBuffer): NotificationMessage {
+        const callId = msg.readUint32();
+        const method = msg.readString();
+        const args = this.readArray(msg);
+
+        return {
+            type: RpcMessageType.Notification,
+            id: callId,
+            method: method,
+            args: args
+        };
+    }
+
+    protected parseReply(msg: ReadBuffer): ReplyMessage {
+        const callId = msg.readUint32();
+        const value = this.readTypedValue(msg);
+        return {
+            type: RpcMessageType.Reply,
+            id: callId,
+            res: value
+        };
+    }
+
+    protected parseReplyErr(msg: ReadBuffer): ReplyErrMessage {
+        const callId = msg.readUint32();
+
+        const err = this.readTypedValue(msg);
+
+        return {
+            type: RpcMessageType.ReplyErr,
+            id: callId,
+            err
+        };
+    }
+
+    readArray(buf: ReadBuffer): any[] {
+        const length = buf.readLength();
+        const result = new Array(length);
+        for (let i = 0; i < length; i++) {
+            result[i] = this.readTypedValue(buf);
+        }
+        return result;
+    }
+
+    readTypedValue(buf: ReadBuffer): any {
+        const type = buf.readUint8();
+        const decoder = this.decoders.get(type);
+        if (!decoder) {
+            throw new Error(`No decoder for tag ${type}`);
+        }
+        return decoder.read(buf, innerBuffer => this.readTypedValue(innerBuffer));
+    }
+}
+
