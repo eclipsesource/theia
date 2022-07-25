@@ -1930,6 +1930,7 @@ export class Task {
     private taskSource: string;
     private taskGroup: TaskGroup | undefined;
     private taskPresentationOptions: theia.TaskPresentationOptions;
+    private taskRunOptions: theia.RunOptions;
     constructor(
         taskDefinition: theia.TaskDefinition,
         scope: theia.WorkspaceFolder | theia.TaskScope.Global | theia.TaskScope.Workspace,
@@ -2101,6 +2102,17 @@ export class Task {
             value = Object.create(null);
         }
         this.taskPresentationOptions = value;
+    }
+
+    get runOptions(): theia.RunOptions {
+        return this.taskRunOptions;
+    }
+
+    set runOptions(value: theia.RunOptions) {
+        if (value === null || value === undefined) {
+            value = Object.create(null);
+        }
+        this.taskRunOptions = value;
     }
 }
 
