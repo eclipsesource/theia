@@ -26,6 +26,10 @@ import { bindSampleToolbarContribution } from './toolbar/sample-toolbar-contribu
 
 import '../../src/browser/style/branding.css';
 import { bindMonacoPreferenceExtractor } from './monaco-editor-preferences/monaco-editor-preference-extractor';
+import { RpcTestService, RPC_TEST_PATH } from '../common/rpc-test-service';
+import { WebSocketConnectionProvider } from '@theia/core/lib/browser';
+import { RpcTestCommandContribution } from './rcp-test/rpc-test-command-contribution';
+import { CommandContribution } from '@theia/core';
 
 export default new ContainerModule((
     bind: interfaces.Bind,
@@ -42,4 +46,11 @@ export default new ContainerModule((
     bindSampleFilteredCommandContribution(bind);
     bindSampleToolbarContribution(bind, rebind);
     bindMonacoPreferenceExtractor(bind);
+
+    bind(RpcTestService).toDynamicValue(ctx => {
+        const connection = ctx.container.get(WebSocketConnectionProvider);
+        return connection.createProxy<RpcTestService>(RPC_TEST_PATH);
+    }).inSingletonScope();
+    bind(RpcTestCommandContribution).toSelf().inSingletonScope();
+    bind(CommandContribution).toService(RpcTestCommandContribution);
 });

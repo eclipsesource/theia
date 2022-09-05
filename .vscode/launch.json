@@ -71,6 +71,7 @@
       "outFiles": [
         "${workspaceFolder}/examples/browser/src-gen/backend/*.js",
         "${workspaceFolder}/examples/browser/lib/**/*.js",
+        "${workspaceFolder}/examples/api-samples/lib/**/*.js",
         "${workspaceFolder}/packages/*/lib/**/*.js",
         "${workspaceFolder}/dev-packages/*/lib/**/*.js"
       ],
