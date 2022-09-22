@@ -26,6 +26,8 @@ import { bindSampleToolbarContribution } from './toolbar/sample-toolbar-contribu
 
 import '../../src/browser/style/branding.css';
 import { bindMonacoPreferenceExtractor } from './monaco-editor-preferences/monaco-editor-preference-extractor';
+import { TestService, testServicePath } from '../common/updater/test-service';
+import { WebSocketConnectionProvider } from '@theia/core/lib/browser';
 
 export default new ContainerModule((
     bind: interfaces.Bind,
@@ -42,4 +44,10 @@ export default new ContainerModule((
     bindSampleFilteredCommandContribution(bind);
     bindSampleToolbarContribution(bind, rebind);
     bindMonacoPreferenceExtractor(bind);
+    bind(TestService)
+        .toDynamicValue(ctx => {
+            const connection = ctx.container.get(WebSocketConnectionProvider);
+            return connection.createProxy<TestService>(testServicePath);
+        })
+        .inSingletonScope();
 });

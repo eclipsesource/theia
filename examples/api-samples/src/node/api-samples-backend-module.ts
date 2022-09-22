@@ -17,9 +17,19 @@
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { BackendApplicationServer } from '@theia/core/lib/node';
 import { SampleBackendApplicationServer } from './sample-backend-application-server';
+import { TestService, testServicePath } from '../common/updater/test-service';
+import { TestServiceImpl } from './test-service';
+import { ConnectionHandler, JsonRpcConnectionHandler } from '@theia/core';
 
 export default new ContainerModule(bind => {
     if (process.env.SAMPLE_BACKEND_APPLICATION_SERVER) {
         bind(BackendApplicationServer).to(SampleBackendApplicationServer).inSingletonScope();
     }
+    bind(TestService).to(TestServiceImpl).inSingletonScope();
+
+    bind(ConnectionHandler)
+        .toDynamicValue(
+            ctx =>
+                new JsonRpcConnectionHandler(testServicePath, client => ctx.container.get<TestService>(TestService)))
+        .inSingletonScope();
 });
