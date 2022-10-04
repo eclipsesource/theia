@@ -36,7 +36,7 @@ import { TabBarToolbarContribution, TabBarToolbarRegistry } from '@theia/core/li
 import { TERMINAL_WIDGET_FACTORY_ID, TerminalWidgetFactoryOptions, TerminalWidgetImpl } from './terminal-widget-impl';
 import { TerminalKeybindingContexts } from './terminal-keybinding-contexts';
 import { TerminalService } from './base/terminal-service';
-import { TerminalWidgetOptions, TerminalWidget } from './base/terminal-widget';
+import { TerminalWidgetOptions, TerminalWidget, TerminalLocation, ViewColumn } from './base/terminal-widget';
 import { UriAwareCommandHandler } from '@theia/core/lib/common/uri-command-handler';
 import { ShellTerminalServerProxy } from '../common/shell-terminal-protocol';
 import URI from '@theia/core/lib/common/uri';
@@ -644,20 +644,50 @@ export class TerminalFrontendContribution implements FrontendApplicationContribu
 
     // TODO: reuse WidgetOpenHandler.open
     open(widget: TerminalWidget, options?: WidgetOpenerOptions): void {
+        const area = widget.location === TerminalLocation.Editor ? 'main' : 'bottom';
+        const widgetOptions: ApplicationShell.WidgetOptions = { area: area, ...(options && options.widgetOptions) };
+        let preserveFocus = false;
+
+        if (typeof widget.location === 'object') {
+            if ('parentTerminal' in widget.location) {
+                widgetOptions.ref = this.getById(widget.location.parentTerminal);
+                widgetOptions.mode = 'split-right';
+            } else if ('viewColumn' in widget.location) {
+                preserveFocus = widget.location.preserveFocus ?? false;
+                switch (widget.location.viewColumn) {
+                    case ViewColumn.Active:
+                        widgetOptions.ref = this.shell.currentWidget;
+                        widgetOptions.mode = 'tab-before';
+                        break;
+                    case ViewColumn.Beside:
+                        widgetOptions.ref = this.shell.currentWidget;
+                        widgetOptions.mode = 'tab-after';
+                        break;
+                    default:
+                        const widgets = this.all.filter(t => t.isVisible);
+                        const index = widget.location.viewColumn - 1;
+                        if (index < widgets.length) {
+                            widgetOptions.ref = widgets[index];
+                            widgetOptions.mode = 'open-to-left';
+                        } else {
+                            widgetOptions.ref = widgets[widgets.length - 1];
+                            widgetOptions.mode = 'open-to-right';
+                        }
+                }
+            }
+        }
+
         const op: WidgetOpenerOptions = {
             mode: 'activate',
             ...options,
-            widgetOptions: {
-                area: 'bottom',
-                ...(options && options.widgetOptions)
-            }
+            widgetOptions: widgetOptions
         };
         if (!widget.isAttached) {
             this.shell.addWidget(widget, op.widgetOptions);
         }
-        if (op.mode === 'activate') {
+        if (op.mode === 'activate' && !preserveFocus) {
             this.shell.activateWidget(widget.id);
-        } else if (op.mode === 'reveal') {
+        } else if (op.mode === 'reveal' || preserveFocus) {
             this.shell.revealWidget(widget.id);
         }
     }

@@ -152,6 +152,7 @@ import {
     TextDocumentChangeReason,
     InputBoxValidationSeverity,
     TerminalLink,
+    TerminalLocation,
     InlayHint,
     InlayHintKind,
     InlayHintLabelPart,
@@ -1135,7 +1136,8 @@ export function createAPIFactory(
             ExtensionKind,
             InlineCompletionItem,
             InlineCompletionList,
-            InlineCompletionTriggerKind
+            InlineCompletionTriggerKind,
+            TerminalLocation
         };
     };
 }
