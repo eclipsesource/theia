@@ -230,7 +230,10 @@ module.exports = Promise.resolve()${this.compileElectronMainModuleImports(electr
         // Only process messages from Theia main window
         if (e.source === window.opener) {
             // Delegate message to iframe
-            document.getElementsByTagName('iframe').item(0).contentWindow.postMessage({ ...e.data }, '*');
+            const f = document.getElementsByTagName('iframe');
+            if (f) {
+                f.item(0).contentWindow.postMessage({ ...e.data }, '*');
+            }
         }
     });
     </script>

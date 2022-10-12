@@ -49,6 +49,7 @@ export interface TerminalWidgetFactoryOptions extends Partial<TerminalWidgetOpti
 export class TerminalWidgetImpl extends TerminalWidget implements StatefulWidget, ExtractableWidget {
     readonly isExtractable: boolean = true;
     secondaryWindow: Window | undefined;
+    isClosing: boolean = false;
 
     static LABEL = nls.localizeByDefault('Terminal');
 
