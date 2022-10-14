@@ -39,7 +39,7 @@ export class PluginDebugAdapterContribution {
 
     async createDebugSession(config: DebugConfiguration, workspaceFolder: string | undefined): Promise<string> {
         await this.pluginService.activateByDebug('onDebugAdapterProtocolTracker', config.type);
-        return this.debugExt.$createDebugSession(config, workspaceFolder);
+        return this.debugExt.$createDebugSession(config, config.parentSession?.id, workspaceFolder);
     }
 
     async terminateDebugSession(sessionId: string): Promise<void> {

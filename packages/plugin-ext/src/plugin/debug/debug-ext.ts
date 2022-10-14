@@ -313,13 +313,14 @@ export class DebugExtImpl implements DebugExt {
         return undefined;
     }
 
-    async $createDebugSession(debugConfiguration: theia.DebugConfiguration, workspaceFolderUri: string | undefined): Promise<string> {
+    async $createDebugSession(debugConfiguration: theia.DebugConfiguration, parentSessionId: string | undefined, workspaceFolderUri: string | undefined): Promise<string> {
         const sessionId = uuid.v4();
 
         const theiaSession: theia.DebugSession = {
             id: sessionId,
             type: debugConfiguration.type,
             name: debugConfiguration.name,
+            parentSession: parentSessionId ? this.sessions.get(parentSessionId) : undefined,
             workspaceFolder: this.toWorkspaceFolder(workspaceFolderUri),
             configuration: debugConfiguration,
             customRequest: async (command: string, args?: any) => {
