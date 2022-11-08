@@ -15,7 +15,7 @@
 // *****************************************************************************
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { addExtension, Packr as MsgPack } from 'msgpackr';
+import { Packr as MsgPack } from 'msgpackr';
 import { ReadBuffer, WriteBuffer } from './message-buffer';
 
 /**
@@ -121,27 +121,10 @@ export interface RpcMessageEncoder {
 }
 
 export const defaultMsgPack = new MsgPack({ moreTypes: true, encodeUndefinedAsNil: false, bundleStrings: false });
-// Add custom msgpackR extension for ResponseErrors.
-addExtension({
-    Class: ResponseError,
-    type: 1,
-    write: (instance: ResponseError) => {
-        const { code, data, message, name, stack } = instance;
-        return { code, data, message, name, stack };
-    },
-    read: data => {
-        const error = new ResponseError(data.code, data.message, data.data);
-        error.name = data.name;
-        error.stack = data.stack;
-        return error;
-    }
-});
 
 export class MsgPackMessageEncoder implements RpcMessageEncoder {
 
-    constructor(protected readonly msgPack: MsgPack = defaultMsgPack) {
-
-    }
+    constructor(protected readonly msgPack: MsgPack = defaultMsgPack) { }
 
     cancel(buf: WriteBuffer, requestId: number): void {
         this.encode<CancelMessage>(buf, { type: RpcMessageType.Cancel, id: requestId });
@@ -169,13 +152,11 @@ export class MsgPackMessageEncoder implements RpcMessageEncoder {
             throw err;
         }
     }
-
 }
 
 export class MsgPackMessageDecoder implements RpcMessageDecoder {
-    constructor(protected readonly msgPack: MsgPack = defaultMsgPack) {
+    constructor(protected readonly msgPack: MsgPack = defaultMsgPack) { }
 
-    }
     decode<T = any>(buf: ReadBuffer): T {
         const bytes = buf.readBytes();
         return this.msgPack.decode(bytes);
@@ -184,5 +165,4 @@ export class MsgPackMessageDecoder implements RpcMessageDecoder {
     parse(buffer: ReadBuffer): RpcMessage {
         return this.decode(buffer);
     }
-
 }
