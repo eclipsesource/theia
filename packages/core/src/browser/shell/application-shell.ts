@@ -34,7 +34,7 @@ import { FrontendApplicationStateService } from '../frontend-application-state';
 import { TabBarToolbarRegistry, TabBarToolbarFactory } from './tab-bar-toolbar';
 import { ContextKeyService } from '../context-key-service';
 import { Emitter } from '../../common/event';
-import { waitForRevealed, waitForClosed, PINNED_CLASS } from '../widgets';
+import { waitForRevealed, waitForClosed, PINNED_CLASS, ExtractableWidget } from '../widgets';
 import { CorePreferences } from '../core-preferences';
 import { BreadcrumbsRendererFactory } from '../breadcrumbs/breadcrumbs-renderer';
 import { Deferred } from '../../common/promise-util';
@@ -1561,14 +1561,19 @@ export class ApplicationShell extends Widget {
         if (!current) {
             return undefined;
         }
-        const saveableOptions = options && { shouldSave: () => options.save };
-        const pendingClose = SaveableWidget.is(current)
-            ? current.closeWithSaving(saveableOptions)
-            : (current.close(), waitForClosed(current));
-        await Promise.all([
-            pendingClose,
-            this.pendingUpdates
-        ]);
+
+        if (ExtractableWidget.is(current) && current.secondaryWindow && !current.isClosing) {
+            current.secondaryWindow!.close();
+        } else {
+            const saveableOptions = options && { shouldSave: () => options.save };
+            const pendingClose = SaveableWidget.is(current)
+                ? current.closeWithSaving(saveableOptions)
+                : (current.close(), waitForClosed(current));
+            await Promise.all([
+                pendingClose,
+                this.pendingUpdates
+            ]);
+        }
         return stack[0] || current;
     }
 

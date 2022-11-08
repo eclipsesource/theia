@@ -14,32 +14,53 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { BrowserWindow } from '../../../electron-shared/electron';
+import { ipcRenderer, BrowserWindow } from '../../../electron-shared/electron';
 import * as electronRemote from '../../../electron-shared/@electron/remote';
-import { injectable } from 'inversify';
+import { injectable, postConstruct } from 'inversify';
 import { DefaultSecondaryWindowService } from '../../browser/window/default-secondary-window-service';
+import { CloseSecondaryRequestArguments, CLOSE_SECONDARY_REQUESTED_SIGNAL } from '../../electron-common/messaging/electron-messages';
 
 @injectable()
 export class ElectronSecondaryWindowService extends DefaultSecondaryWindowService {
-    protected electronWindows: Map<string, BrowserWindow> = new Map();
 
-    protected override doCreateSecondaryWindow(onClose?: (closedWin: Window) => void): Window | undefined {
-        const id = this.nextWindowId();
+    private electronWindows: Map<string, BrowserWindow> = new Map();
+    private electronWindowsById: Map<string, () => Promise<boolean>> = new Map();
+
+    @postConstruct()
+    override init(): void {
+        super.init();
+        ipcRenderer.addListener(CLOSE_SECONDARY_REQUESTED_SIGNAL, (_sender, args: CloseSecondaryRequestArguments) => this.handleCloseRequestedEvent(args));
+    }
+
+    protected async handleCloseRequestedEvent(event: CloseSecondaryRequestArguments): Promise<void> {
+        const safeToClose = await this.safeToClose(event.windowId);
+        if (safeToClose) {
+            ipcRenderer.send(event.confirmChannel);
+        } else {
+            ipcRenderer.send(event.cancelChannel);
+        }
+    }
+
+    protected override doCreateSecondaryWindow(id: string, wouldLoseStateOnClosing: () => boolean, tryCloseWidget: (trySaving: boolean) => Promise<boolean>,
+        closed: (win: Window) => void): Window | undefined {
+        let win: Window | undefined = undefined;
         electronRemote.getCurrentWindow().webContents.once('did-create-window', newElectronWindow => {
-            newElectronWindow.setMenuBarVisibility(false);
+            // newElectronWindow.setMenuBarVisibility(false);
             this.electronWindows.set(id, newElectronWindow);
-            newElectronWindow.on('closed', () => {
+            const electronId = newElectronWindow.id.toString();
+            this.electronWindowsById.set(electronId, () => tryCloseWidget(true));
+            const closedHandler = () => {
+                if (closed) {
+                    closed(win!);
+                }
+
                 this.electronWindows.delete(id);
-                const browserWin = this.secondaryWindows.find(w => w.name === id);
-                if (browserWin) {
-                    this.handleWindowClosed(browserWin, onClose);
-                } else {
-                    console.warn(`Could not execute proper close handling for secondary window '${id}' because its frontend window could not be found.`);
-                };
-            });
+                this.electronWindowsById.delete(electronId);
+            };
+            newElectronWindow.once('closed', closedHandler);
         });
-        const win = window.open(DefaultSecondaryWindowService.SECONDARY_WINDOW_URL, id);
-        return win ?? undefined;
+        win = window.open(DefaultSecondaryWindowService.SECONDARY_WINDOW_URL, id, 'popup') || undefined;
+        return win;
     }
 
     override focus(win: Window): void {
@@ -52,6 +73,15 @@ export class ElectronSecondaryWindowService extends DefaultSecondaryWindowServic
             electronWindow.focus();
         } else {
             console.warn(`There is no known secondary window '${win.name}'. Thus, the window could not be focussed.`);
+        }
+    }
+
+    safeToClose(windowId: string): Promise<boolean> {
+        const closingHandler = this.electronWindowsById.get(windowId);
+        if (closingHandler) {
+            return closingHandler!();
+        } else {
+            return Promise.resolve(true);
         }
     }
 }

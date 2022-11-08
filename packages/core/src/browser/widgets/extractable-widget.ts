@@ -22,6 +22,9 @@ import { Widget } from './widget';
 export interface ExtractableWidget extends Widget {
     /** Set to `true` to mark the widget to be extractable. */
     isExtractable: boolean;
+
+    /** State variable to keep track of recursive attempty to close the secondary window */
+    isClosing: boolean;
     /** The secondary window that the window was extracted to or `undefined` if it is not yet extracted. */
     secondaryWindow: Window | undefined;
 }

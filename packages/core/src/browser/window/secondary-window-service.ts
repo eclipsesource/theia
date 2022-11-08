@@ -26,10 +26,12 @@ export interface SecondaryWindowService {
      * Creates a new secondary window for a widget to be extracted from the application shell.
      * The created window is closed automatically when the current theia instance is closed.
      *
-     * @param onClose optional callback that is invoked when the secondary window is closed
+     * @param wouldLoseStateOnClosing callback to determine whether save is necessary
+     * @param tryCloseWidget callback to try and close the widget. If the promise returns true, the window will be closed.
+     * @param onClosed optional callback that is invoked when the secondary window is closed
      * @returns the created window or `undefined` if it could not be created
      */
-    createSecondaryWindow(onClose?: (win: Window) => void): Window | undefined;
+    createSecondaryWindow(wouldLoseStateOnClosing: () => boolean, tryCloseWidget: (trySaving: boolean) => Promise<boolean>, closed: (win: Window) => void): Window | undefined;
 
     /** Handles focussing the given secondary window in the browser and on Electron. */
     focus(win: Window): void;

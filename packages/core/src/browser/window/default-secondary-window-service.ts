@@ -46,33 +46,44 @@ export class DefaultSecondaryWindowService implements SecondaryWindowService {
         });
     }
 
-    createSecondaryWindow(onClose?: (closedWin: Window) => void): Window | undefined {
-        const win = this.doCreateSecondaryWindow(onClose);
+    createSecondaryWindow(wouldLoseStateOnClosing: () => boolean, tryCloseWidget: (trySaving: boolean) => Promise<boolean>, closed: (win: Window) => void): Window | undefined {
+        const id = this.nextWindowId();
+        const win = this.doCreateSecondaryWindow(id, wouldLoseStateOnClosing, tryCloseWidget, closed);
         if (win) {
             this.secondaryWindows.push(win);
         }
         return win;
     }
 
-    protected doCreateSecondaryWindow(onClose?: (closedWin: Window) => void): Window | undefined {
-        const win = window.open(DefaultSecondaryWindowService.SECONDARY_WINDOW_URL, this.nextWindowId(), 'popup');
+    protected doCreateSecondaryWindow(id: string, wouldLoseStateOnClosing: () => boolean, tryCloseWidget: (trySaving: boolean) => Promise<boolean>,
+        closed: (win: Window) => void): Window | undefined {
+        const win = window.open(DefaultSecondaryWindowService.SECONDARY_WINDOW_URL, id, 'popup');
+
         if (win) {
             // Add the unload listener after the dom content was loaded because otherwise the unload listener is called already on open in some browsers (e.g. Chrome).
             win.addEventListener('DOMContentLoaded', () => {
+                win.addEventListener('beforeunload', evt => {
+                    if (wouldLoseStateOnClosing()) {
+                        evt.returnValue = '';
+                        evt.preventDefault();
+                        return '';
+                    }
+                }, { capture: true });
                 win.addEventListener('unload', () => {
-                    this.handleWindowClosed(win, onClose);
+                    tryCloseWidget(false);
+                    this.handleWindowClosed(win);
+                    closed(win);
                 });
             });
         }
         return win ?? undefined;
     }
 
-    protected handleWindowClosed(win: Window, onClose?: (closedWin: Window) => void): void {
+    protected handleWindowClosed(win: Window): void {
         const extIndex = this.secondaryWindows.indexOf(win);
         if (extIndex > -1) {
             this.secondaryWindows.splice(extIndex, 1);
         };
-        onClose?.(win);
     }
 
     focus(win: Window): void {

@@ -175,6 +175,7 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget, Extract
     protected hideTimeout: any | number | undefined;
 
     isExtractable: boolean = true;
+    isClosing: boolean = false;
     secondaryWindow: Window | undefined = undefined;
 
     @postConstruct()

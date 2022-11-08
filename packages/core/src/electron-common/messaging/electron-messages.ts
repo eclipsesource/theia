@@ -27,6 +27,10 @@ export const Restart = 'restart';
  */
 export const CLOSE_REQUESTED_SIGNAL = 'close-requested';
 /**
+ * Emitted by main when close requested.
+ */
+export const CLOSE_SECONDARY_REQUESTED_SIGNAL = 'close-secondary-requested';
+/**
  * Emitted by window when a reload is requested.
  */
 export const RELOAD_REQUESTED_SIGNAL = 'reload-requested';
@@ -39,4 +43,10 @@ export interface CloseRequestArguments {
     confirmChannel: string;
     cancelChannel: string;
     reason: StopReason;
+}
+
+export interface CloseSecondaryRequestArguments {
+    windowId: string;
+    confirmChannel: string;
+    cancelChannel: string;
 }

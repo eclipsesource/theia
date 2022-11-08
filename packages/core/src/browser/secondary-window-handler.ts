@@ -14,7 +14,6 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import debounce = require('lodash.debounce');
 import { inject, injectable } from 'inversify';
 import { BoxLayout, BoxPanel, ExtractableWidget, Widget } from './widgets';
 import { MessageService } from '../common/message-service';
@@ -23,6 +22,8 @@ import { Emitter } from '../common/event';
 import { SecondaryWindowService } from './window/secondary-window-service';
 import { KeybindingRegistry } from './keybinding';
 import { ColorApplicationContribution } from './color-application-contribution';
+import debounce = require('lodash.debounce');
+import { Saveable } from './saveable';
 
 /** Widget to be contained directly in a secondary window. */
 class SecondaryWindowRootWidget extends Widget {
@@ -40,7 +41,6 @@ class SecondaryWindowRootWidget extends Widget {
 }
 
 /**
- * Offers functionality to move a widget out of the main window to a newly created window.
  * Widgets must explicitly implement the `ExtractableWidget` interface to support this.
  *
  * This handler manages the opened secondary windows and sets up messaging between them and the Theia main window.
@@ -139,13 +139,32 @@ export class SecondaryWindowHandler {
             return;
         }
 
-        const newWindow = this.secondaryWindowService.createSecondaryWindow(closed => {
-            this.applicationShell.closeWidget(widget.id);
-            const extIndex = this.secondaryWindows.indexOf(closed);
-            if (extIndex > -1) {
-                this.secondaryWindows.splice(extIndex, 1);
-            }
-        });
+        const newWindow = this.secondaryWindowService.createSecondaryWindow(
+            () => {
+                const saveable = Saveable.get(widget);
+                return !!saveable && saveable.dirty && saveable.autoSave === 'off';
+            },
+            async trySaving => {
+                widget.isClosing = true;
+                // if trySaving is true, we should let the widget decide what to do
+                const saveable = Saveable.get(widget);
+                let closeOptions = undefined;
+                if (!trySaving) {
+                    closeOptions = {
+                        save: !!saveable && saveable.dirty && saveable.autoSave !== 'off'
+                    };
+                }
+
+                await this.applicationShell.closeWidget(widget.id, closeOptions);
+                widget.isClosing = false;
+                return widget.isDisposed;
+            },
+            closedWindow => {
+                const extIndex = this.secondaryWindows.indexOf(closedWindow);
+                if (extIndex > -1) {
+                    this.secondaryWindows.splice(extIndex, 1);
+                }
+            });
 
         if (!newWindow) {
             this.messageService.error('The widget could not be moved to a secondary window because the window creation failed. Please make sure to allow popups.');
@@ -156,7 +175,6 @@ export class SecondaryWindowHandler {
 
         const mainWindowTitle = document.title;
         newWindow.onload = () => {
-            this.keybindings.registerEventListeners(newWindow);
             // Use the widget's title as the window title
             // Even if the widget's label were malicious, this should be safe against XSS because the HTML standard defines this is inserted via a text node.
             // See https://html.spec.whatwg.org/multipage/dom.html#document.title
@@ -167,11 +185,14 @@ export class SecondaryWindowHandler {
                 console.error('Could not find dom element to attach to in secondary window');
                 return;
             }
+
+            const disposKeybindingsListener = this.keybindings.registerEventListeners(newWindow);
             const unregisterWithColorContribution = this.colorAppContribution.registerWindow(newWindow);
 
             widget.secondaryWindow = newWindow;
             const rootWidget = new SecondaryWindowRootWidget();
             rootWidget.addClass('secondary-widget-root');
+            rootWidget.id = 'root-' + widget.id;
             Widget.attach(rootWidget, element);
             rootWidget.addWidget(widget);
             widget.show();
@@ -181,11 +202,9 @@ export class SecondaryWindowHandler {
 
             // Close the window if the widget is disposed, e.g. by a command closing all widgets.
             widget.disposed.connect(() => {
+                disposKeybindingsListener.dispose();
                 unregisterWithColorContribution.dispose();
                 this.removeWidget(widget);
-                if (!newWindow.closed) {
-                    newWindow.close();
-                }
             });
 
             // debounce to avoid rapid updates while resizing the secondary window

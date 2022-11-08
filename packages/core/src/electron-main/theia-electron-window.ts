@@ -16,7 +16,8 @@
 
 import { FrontendApplicationConfig } from '@theia/application-package';
 import { FrontendApplicationState } from '../common/frontend-application-state';
-import { APPLICATION_STATE_CHANGE_SIGNAL, CLOSE_REQUESTED_SIGNAL, RELOAD_REQUESTED_SIGNAL, StopReason } from '../electron-common/messaging/electron-messages';
+import { APPLICATION_STATE_CHANGE_SIGNAL, CloseSecondaryRequestArguments, CLOSE_REQUESTED_SIGNAL, CLOSE_SECONDARY_REQUESTED_SIGNAL, RELOAD_REQUESTED_SIGNAL, StopReason }
+    from '../electron-common/messaging/electron-messages';
 import { BrowserWindow, BrowserWindowConstructorOptions, ipcMain, IpcMainEvent } from '../../electron-shared/electron';
 import { inject, injectable, postConstruct } from '../../shared/inversify';
 import { ElectronMainApplicationGlobals } from './electron-main-constants';
@@ -43,6 +44,12 @@ export const TheiaBrowserWindowOptions = Symbol('TheiaBrowserWindowOptions');
 
 export const WindowApplicationConfig = Symbol('WindowApplicationConfig');
 export type WindowApplicationConfig = FrontendApplicationConfig;
+
+enum ClosingState {
+    initial,
+    inProgress,
+    readyToClose
+}
 
 @injectable()
 export class TheiaElectronWindow {
@@ -75,6 +82,37 @@ export class TheiaElectronWindow {
         this.attachCloseListeners();
         this.trackApplicationState();
         this.attachReloadListener();
+        this.attachSecondaryWindowListener();
+    }
+
+    protected attachSecondaryWindowListener(): void {
+        createDisposableListener(this._window.webContents, 'did-create-window', (newWindow: BrowserWindow) => {
+            let closingState = ClosingState.initial;
+            newWindow.on('close', event => {
+                if (closingState === ClosingState.initial) {
+                    closingState = ClosingState.inProgress;
+                    event.preventDefault();
+                    this.checkSafeToCloseSecondaryWindow(newWindow).then(shouldClose => {
+                        if (shouldClose) {
+                            // removing the focus from the secondary window before close is necessary
+                            // to prevent "illegal access" errors. Unfortunately, it is unclear what 
+                            // exactly causes the errors.
+                            this._window.focus();
+                            setTimeout(() => {
+                                closingState = ClosingState.readyToClose;
+                                newWindow.close();
+                            }, 100);
+                        } else {
+                            closingState = ClosingState.initial;
+                        }
+                    });
+                } else if (closingState === ClosingState.inProgress) {
+                    // When the extracted widget is disposed programmatically, a dispose listener on it will try to close the window.
+                    // if we dispose the widget because of closing the window, we'll get a recursive call to window.close()
+                    event.preventDefault();
+                }
+            });
+        });
     }
 
     /**
@@ -135,6 +173,26 @@ export class TheiaElectronWindow {
             }
         }
         return false;
+    }
+
+    protected checkSafeToCloseSecondaryWindow(win: BrowserWindow): Promise<boolean> {
+        const confirmChannel = `safe-to-close-${this._window.id}`;
+        const cancelChannel = `notSafeToClose-${this._window.id}`;
+        const temporaryDisposables = new DisposableCollection();
+        return new Promise<boolean>(resolve => {
+            const params: CloseSecondaryRequestArguments = { windowId: win.id.toString(), confirmChannel, cancelChannel };
+            this._window.webContents.send(CLOSE_SECONDARY_REQUESTED_SIGNAL, params);
+            createDisposableListener(ipcMain, confirmChannel, (e: IpcMainEvent) => {
+                if (this.isSender(e)) {
+                    resolve(true);
+                }
+            }, temporaryDisposables);
+            createDisposableListener(ipcMain, cancelChannel, (e: IpcMainEvent) => {
+                if (this.isSender(e)) {
+                    resolve(false);
+                }
+            }, temporaryDisposables);
+        }).finally(() => temporaryDisposables.dispose());
     }
 
     protected checkSafeToStop(reason: StopReason): Promise<boolean> {
