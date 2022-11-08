@@ -98,8 +98,10 @@ export class TheiaElectronWindow {
                             // to prevent "illegal access" errors. Unfortunately, it is unclear what 
                             // exactly causes the errors.
                             this._window.focus();
-                            closingState = ClosingState.readyToClose;
-                            newWindow.close();
+                            setTimeout(() => {
+                                closingState = ClosingState.readyToClose;
+                                newWindow.close();
+                            }, 100);
                         } else {
                             closingState = ClosingState.initial;
                         }

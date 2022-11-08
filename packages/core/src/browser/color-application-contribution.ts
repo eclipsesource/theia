@@ -34,6 +34,7 @@ export class ColorApplicationContribution implements FrontendApplicationContribu
     protected readonly onDidChangeEmitter = new Emitter<void>();
     readonly onDidChange = this.onDidChangeEmitter.event;
     private readonly windows: Set<Window> = new Set();
+    protected readonly toUpdate = new Map<Window, DisposableCollection>();
 
     @inject(ColorRegistry)
     protected readonly colors: ColorRegistry;
@@ -61,21 +62,26 @@ export class ColorApplicationContribution implements FrontendApplicationContribu
         this.windows.add(win);
         this.updateWindow(win);
         this.onDidChangeEmitter.fire();
-        return Disposable.create(() => this.windows.delete(win));
+        return Disposable.create(() => {
+            this.toUpdate.delete(win);
+            this.windows.delete(win);
+        });
     }
 
-    protected readonly toUpdate = new DisposableCollection();
     protected update(): void {
-        this.toUpdate.dispose();
         this.windows.forEach(win => this.updateWindow(win));
         this.onDidChangeEmitter.fire();
     }
 
     protected updateWindow(win: Window): void {
+        this.toUpdate.get(win)?.dispose();
         const theme = 'theia-' + this.themeService.getCurrentTheme().type;
 
+        const localDisposables = new DisposableCollection();
+        this.toUpdate.set(win, localDisposables);
+
         win.document.body.classList.add(theme);
-        this.toUpdate.push(Disposable.create(() => win.document.body.classList.remove(theme)));
+        localDisposables.push(Disposable.create(() => win.document.body.classList.remove(theme)));
 
         const documentElement = win.document.documentElement;
         if (documentElement) {
@@ -84,7 +90,7 @@ export class ColorApplicationContribution implements FrontendApplicationContribu
                 if (variable) {
                     const { name, value } = variable;
                     documentElement.style.setProperty(name, value);
-                    this.toUpdate.push(Disposable.create(() => documentElement.style.removeProperty(name)));
+                    localDisposables.push(Disposable.create(() => documentElement.style.removeProperty(name)));
                 }
             }
         }

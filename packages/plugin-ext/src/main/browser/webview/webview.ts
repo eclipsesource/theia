@@ -240,15 +240,9 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget, Extract
     }
 
     protected forceHide(): void {
-        console.log('forcing hide');
         clearTimeout(this.hideTimeout);
         this.hideTimeout = undefined;
         this.toHide.dispose();
-    }
-
-    override dispose(): void {
-        console.log('disposing webview');
-        super.dispose();
     }
 
     protected doShow(): void {
@@ -272,9 +266,7 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget, Extract
         this.element = element;
         this.node.appendChild(this.element);
         this.toHide.push(Disposable.create(() => {
-            console.log('try remove element');
             if (this.element) {
-                console.log('removing');
                 this.element.remove();
                 this.element = undefined;
             }
