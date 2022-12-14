@@ -657,22 +657,18 @@ export class TerminalFrontendContribution implements FrontendApplicationContribu
                 switch (widget.location.viewColumn) {
                     case ViewColumn.Active:
                         widgetOptions.ref = this.shell.currentWidget;
-                        widgetOptions.mode = 'tab-before';
+                        widgetOptions.mode = 'tab-after';
                         break;
                     case ViewColumn.Beside:
                         widgetOptions.ref = this.shell.currentWidget;
-                        widgetOptions.mode = 'tab-after';
+                        widgetOptions.mode = 'split-right';
                         break;
                     default:
-                        const widgets = this.all.filter(t => t.isVisible);
-                        const index = widget.location.viewColumn - 1;
-                        if (index < widgets.length) {
-                            widgetOptions.ref = widgets[index];
-                            widgetOptions.mode = 'open-to-left';
-                        } else {
-                            widgetOptions.ref = widgets[widgets.length - 1];
-                            widgetOptions.mode = 'open-to-right';
-                        }
+                        widgetOptions.area = 'main';
+                        const mainAreaTerminals = this.shell.getWidgets('main').filter(w => w instanceof TerminalWidget && w.isVisible);
+                        const column = widget.location.viewColumn <= mainAreaTerminals.length ? widget.location.viewColumn : mainAreaTerminals.length;
+                        widgetOptions.mode = widget.location.viewColumn <= mainAreaTerminals.length ? 'split-left' : 'split-right';
+                        widgetOptions.ref = mainAreaTerminals[column - 1];
                 }
             }
         }
