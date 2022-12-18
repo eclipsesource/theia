@@ -150,14 +150,13 @@ export class TerminalServiceMainImpl implements TerminalServiceMain, TerminalLin
     }
 
     protected getTerminalLocation(options: TerminalOptions, parentId?: string): TerminalLocation | TerminalEditorLocationOptions | { parentTerminal: string; } | undefined {
-        if (options.location && typeof options.location === 'number') {
+        if (options.location && typeof options.location === 'number' && Object.values(TerminalLocation).includes(options.location)) {
             return options.location;
         } else if (options.location && typeof options.location === 'object') {
             if ('parentTerminal' in options.location) {
                 if (!parentId) {
                     throw new Error('parentTerminal is set but no parentId is provided');
                 }
-                console.log('parentId ' + parentId);
                 return { 'parentTerminal': parentId };
             } else {
                 return options.location;

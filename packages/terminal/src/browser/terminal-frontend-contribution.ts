@@ -645,7 +645,7 @@ export class TerminalFrontendContribution implements FrontendApplicationContribu
     // TODO: reuse WidgetOpenHandler.open
     open(widget: TerminalWidget, options?: WidgetOpenerOptions): void {
         const area = widget.location === TerminalLocation.Editor ? 'main' : 'bottom';
-        const widgetOptions: ApplicationShell.WidgetOptions = { area: area, ...(options && options.widgetOptions) };
+        const widgetOptions: ApplicationShell.WidgetOptions = { area: area, ...options?.widgetOptions };
         let preserveFocus = false;
 
         if (typeof widget.location === 'object') {
@@ -666,7 +666,7 @@ export class TerminalFrontendContribution implements FrontendApplicationContribu
                     default:
                         widgetOptions.area = 'main';
                         const mainAreaTerminals = this.shell.getWidgets('main').filter(w => w instanceof TerminalWidget && w.isVisible);
-                        const column = widget.location.viewColumn <= mainAreaTerminals.length ? widget.location.viewColumn : mainAreaTerminals.length;
+                        const column = Math.min(widget.location.viewColumn, mainAreaTerminals.length);
                         widgetOptions.mode = widget.location.viewColumn <= mainAreaTerminals.length ? 'split-left' : 'split-right';
                         widgetOptions.ref = mainAreaTerminals[column - 1];
                 }
