@@ -50,7 +50,7 @@ import { SelectionProviderCommandContribution } from './selection-provider-comma
 import { ViewColumnService } from './view-column-service';
 import { ViewContextKeyService } from './view/view-context-key-service';
 import { PluginViewWidget, PluginViewWidgetIdentifier } from './view/plugin-view-widget';
-import { TreeViewWidgetIdentifier, VIEW_ITEM_CONTEXT_MENU, PluginTree, TreeViewWidget, PluginTreeModel } from './view/tree-view-widget';
+import { TreeViewWidgetOptions, VIEW_ITEM_CONTEXT_MENU, PluginTree, TreeViewWidget, PluginTreeModel } from './view/tree-view-widget';
 import { RPCProtocol } from '../../common/rpc-protocol';
 import { LanguagesMainFactory, OutputChannelRegistryFactory } from '../../common';
 import { LanguagesMainImpl } from './languages-main';
@@ -80,6 +80,7 @@ import { bindTreeViewDecoratorUtilities, TreeViewDecoratorService } from './view
 import { CodeEditorWidgetUtil } from './menus/vscode-theia-menu-mappings';
 import { PluginMenuCommandAdapter } from './menus/plugin-menu-command-adapter';
 import './theme-icon-override';
+import { DnDFileContentStore } from './view/dnd-file-content-store';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
@@ -143,9 +144,10 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bindTreeViewDecoratorUtilities(bind);
     bind(PluginTreeViewNodeLabelProvider).toSelf().inSingletonScope();
     bind(LabelProviderContribution).toService(PluginTreeViewNodeLabelProvider);
+    bind(DnDFileContentStore).toSelf().inSingletonScope();
     bind(WidgetFactory).toDynamicValue(({ container }) => ({
         id: PLUGIN_VIEW_DATA_FACTORY_ID,
-        createWidget: (identifier: TreeViewWidgetIdentifier) => {
+        createWidget: (identifier: TreeViewWidgetOptions) => {
             const props = {
                 contextMenuPath: VIEW_ITEM_CONTEXT_MENU,
                 expandOnlyOnExpansionToggleClick: true,
@@ -161,7 +163,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
                 widget: TreeViewWidget,
                 decoratorService: TreeViewDecoratorService
             });
-            child.bind(TreeViewWidgetIdentifier).toConstantValue(identifier);
+            child.bind(TreeViewWidgetOptions).toConstantValue(identifier);
             return child.get(TreeWidget);
         }
     })).inSingletonScope();
