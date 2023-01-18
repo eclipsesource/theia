@@ -18,7 +18,7 @@
 
 import {
     TreeDataProvider, TreeView, TreeViewExpansionEvent, TreeItem, TreeItemLabel,
-    TreeViewSelectionChangeEvent, TreeViewVisibilityChangeEvent, CancellationToken
+    TreeViewSelectionChangeEvent, TreeViewVisibilityChangeEvent, CancellationToken, TreeViewOptions
 } from '@theia/plugin';
 // TODO: extract `@theia/util` for event, disposable, cancellation and common types
 // don't use @theia/core directly from plugin host
@@ -28,7 +28,7 @@ import { Disposable as PluginDisposable, ThemeIcon } from '../types-impl';
 import { Plugin, PLUGIN_RPC_CONTEXT, TreeViewsExt, TreeViewsMain, TreeViewItem, TreeViewRevealOptions } from '../../common/plugin-api-rpc';
 import { RPCProtocol } from '../../common/rpc-protocol';
 import { CommandRegistryImpl, CommandsConverter } from '../command-registry';
-import { TreeViewSelection } from '../../common';
+import { TreeViewItemReference } from '../../common';
 import { PluginIconPath } from '../plugin-icon-path';
 
 export class TreeViewsExtImpl implements TreeViewsExt {
@@ -39,16 +39,24 @@ export class TreeViewsExtImpl implements TreeViewsExt {
 
     constructor(rpc: RPCProtocol, readonly commandRegistry: CommandRegistryImpl) {
         this.proxy = rpc.getProxy(PLUGIN_RPC_CONTEXT.TREE_VIEWS_MAIN);
+
         commandRegistry.registerArgumentProcessor({
             processArgument: arg => {
-                if (!TreeViewSelection.is(arg)) {
+                if (TreeViewItemReference.is(arg)) {
+                    return this.toTreeItem(arg);
+                } else if (Array.isArray(arg)) {
+                    return arg.map(param => TreeViewItemReference.is(param) ? this.toTreeItem(param) : param);
+                } else {
                     return arg;
                 }
-                const { treeViewId, treeItemId } = arg;
-                const treeView = this.treeViews.get(treeViewId);
-                return treeView && treeView.getTreeItem(treeItemId);
             }
         });
+    }
+
+    protected toTreeItem(arg: TreeViewItemReference): any | undefined {
+        const { viewId, itemId } = arg;
+        const treeView = this.treeViews.get(viewId);
+        return treeView && treeView.getTreeItem(itemId);
     }
 
     registerTreeDataProvider<T>(plugin: Plugin, treeViewId: string, treeDataProvider: TreeDataProvider<T>): PluginDisposable {
@@ -60,12 +68,12 @@ export class TreeViewsExtImpl implements TreeViewsExt {
         });
     }
 
-    createTreeView<T>(plugin: Plugin, treeViewId: string, options: { treeDataProvider: TreeDataProvider<T> }): TreeView<T> {
+    createTreeView<T>(plugin: Plugin, treeViewId: string, options: TreeViewOptions<T>): TreeView<T> {
         if (!options || !options.treeDataProvider) {
             throw new Error('Options with treeDataProvider is mandatory');
         }
 
-        const treeView = new TreeViewExtImpl(plugin, treeViewId, options.treeDataProvider, this.proxy, this.commandRegistry.converter);
+        const treeView = new TreeViewExtImpl(plugin, treeViewId, options, this.proxy, this.commandRegistry.converter);
         this.treeViews.set(treeViewId, treeView);
 
         return {
@@ -198,15 +206,15 @@ class TreeViewExtImpl<T> implements Disposable {
     constructor(
         private plugin: Plugin,
         private treeViewId: string,
-        private treeDataProvider: TreeDataProvider<T>,
+        private options: TreeViewOptions<T>,
         private proxy: TreeViewsMain,
         readonly commandsConverter: CommandsConverter) {
 
-        proxy.$registerTreeDataProvider(treeViewId);
+        proxy.$registerTreeDataProvider(treeViewId, options.canSelectMany);
         this.toDispose.push(Disposable.create(() => this.proxy.$unregisterTreeDataProvider(treeViewId)));
 
-        if (treeDataProvider.onDidChangeTreeData) {
-            treeDataProvider.onDidChangeTreeData(() => {
+        if (options.treeDataProvider.onDidChangeTreeData) {
+            options.treeDataProvider.onDidChangeTreeData(() => {
                 this.pendingRefresh = proxy.$refresh(treeViewId);
             });
         }
@@ -276,7 +284,7 @@ class TreeViewExtImpl<T> implements Disposable {
             // root
             return [];
         }
-        const result = this.treeDataProvider.getParent && await this.treeDataProvider.getParent(element);
+        const result = this.options.treeDataProvider.getParent && await this.options.treeDataProvider.getParent(element);
         const parent = result ? result : undefined;
         const chain = await this.calculateRevealParentChain(parent);
         if (!chain) {
@@ -284,7 +292,7 @@ class TreeViewExtImpl<T> implements Disposable {
             return undefined;
         }
         const parentId = chain.length ? chain[chain.length - 1] : '';
-        const treeItem = await this.treeDataProvider.getTreeItem(element);
+        const treeItem = await this.options.treeDataProvider.getTreeItem(element);
         if (treeItem.id) {
             return chain.concat(treeItem.id);
         }
@@ -351,13 +359,13 @@ class TreeViewExtImpl<T> implements Disposable {
             this.nodes.set(parentId, { id: '', disposables: rootNodeDisposables, dispose: () => { rootNodeDisposables.dispose(); } });
         }
         // ask data provider for children for cached element
-        const result = await this.treeDataProvider.getChildren(parent);
+        const result = await this.options.treeDataProvider.getChildren(parent);
         if (result) {
             const treeItemPromises = result.map(async (value, index) => {
 
                 // Ask data provider for a tree item for the value
                 // Data provider must return theia.TreeItem
-                const treeItem = await this.treeDataProvider.getTreeItem(value);
+                const treeItem = await this.options.treeDataProvider.getTreeItem(value);
                 // Convert theia.TreeItem to the TreeViewItem
 
                 const label = this.getTreeItemLabel(treeItem);
@@ -474,13 +482,13 @@ class TreeViewExtImpl<T> implements Disposable {
     }
 
     async resolveTreeItem(treeItemId: string, token: CancellationToken): Promise<TreeViewItem | undefined> {
-        if (!this.treeDataProvider.resolveTreeItem) {
+        if (!this.options.treeDataProvider.resolveTreeItem) {
             return undefined;
         }
 
         const node = this.nodes.get(treeItemId);
         if (node && node.treeViewItem && node.pluginTreeItem && node.value) {
-            const resolved = await this.treeDataProvider.resolveTreeItem(node.pluginTreeItem, node.value, token) ?? node.pluginTreeItem;
+            const resolved = await this.options.treeDataProvider.resolveTreeItem(node.pluginTreeItem, node.value, token) ?? node.pluginTreeItem;
             node.treeViewItem.command = this.commandsConverter.toSafeCommand(resolved.command, node.disposables);
             node.treeViewItem.tooltip = resolved.tooltip;
             return node.treeViewItem;
@@ -490,7 +498,7 @@ class TreeViewExtImpl<T> implements Disposable {
     }
 
     hasResolveTreeItem(): boolean {
-        return !!this.treeDataProvider.resolveTreeItem;
+        return !!this.options.treeDataProvider.resolveTreeItem;
     }
 
     private selectedItemIds = new Set<string>();

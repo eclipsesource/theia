@@ -16,7 +16,7 @@
 
 import { URI } from '@theia/core/shared/vscode-uri';
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
-import { TreeViewsExt, TreeViewItemCollapsibleState, TreeViewItem, TreeViewSelection, ThemeIcon } from '../../../common/plugin-api-rpc';
+import { TreeViewsExt, TreeViewItemCollapsibleState, TreeViewItem, ThemeIcon, TreeViewItemReference } from '../../../common/plugin-api-rpc';
 import { Command } from '../../../common/plugin-api-rpc-model';
 import {
     TreeNode,
@@ -161,8 +161,9 @@ export namespace CompositeTreeViewNode {
 }
 
 @injectable()
-export class TreeViewWidgetIdentifier {
+export class TreeViewOptions {
     id: string;
+    multiSelect?: boolean;
 }
 
 @injectable()
@@ -171,8 +172,8 @@ export class PluginTree extends TreeImpl {
     @inject(PluginSharedStyle)
     protected readonly sharedStyle: PluginSharedStyle;
 
-    @inject(TreeViewWidgetIdentifier)
-    protected readonly identifier: TreeViewWidgetIdentifier;
+    @inject(TreeViewOptions)
+    protected readonly options: TreeViewOptions;
 
     @inject(MessageService)
     protected readonly notification: MessageService;
@@ -188,7 +189,7 @@ export class PluginTree extends TreeImpl {
     set proxy(proxy: TreeViewsExt | undefined) {
         this._proxy = proxy;
         if (proxy) {
-            this._hasTreeItemResolve = proxy.$hasResolveTreeItem(this.identifier.id);
+            this._hasTreeItemResolve = proxy.$hasResolveTreeItem(this.options.id);
         } else {
             this._hasTreeItemResolve = Promise.resolve(false);
         }
@@ -220,7 +221,7 @@ export class PluginTree extends TreeImpl {
 
     protected async fetchChildren(proxy: TreeViewsExt, parent: CompositeTreeNode): Promise<TreeViewItem[]> {
         try {
-            const children = await proxy.$getChildren(this.identifier.id, parent.id);
+            const children = await proxy.$getChildren(this.options.id, parent.id);
             const oldEmpty = this._isEmpty;
             this._isEmpty = !parent.id && (!children || children.length === 0);
             if (oldEmpty !== this._isEmpty) {
@@ -229,8 +230,8 @@ export class PluginTree extends TreeImpl {
             return children || [];
         } catch (e) {
             if (e) {
-                console.error(`Failed to fetch children for '${this.identifier.id}'`, e);
-                const label = this._viewInfo ? this._viewInfo.name : this.identifier.id;
+                console.error(`Failed to fetch children for '${this.options.id}'`, e);
+                const label = this._viewInfo ? this._viewInfo.name : this.options.id;
                 this.notification.error(`${label}: ${e.message}`);
             }
             return [];
@@ -288,7 +289,7 @@ export class PluginTree extends TreeImpl {
                 children: [],
                 command: item.command
             }, update);
-            return new ResolvableCompositeTreeViewNode(compositeNode, async (token: CancellationToken) => this._proxy?.$resolveTreeItem(this.identifier.id, item.id, token));
+            return new ResolvableCompositeTreeViewNode(compositeNode, async (token: CancellationToken) => this._proxy?.$resolveTreeItem(this.options.id, item.id, token));
         }
 
         // Node is a leaf
@@ -304,7 +305,7 @@ export class PluginTree extends TreeImpl {
             selected: false,
             command: item.command,
         }, update);
-        return new ResolvableTreeViewNode(treeNode, async (token: CancellationToken) => this._proxy?.$resolveTreeItem(this.identifier.id, item.id, token));
+        return new ResolvableTreeViewNode(treeNode, async (token: CancellationToken) => this._proxy?.$resolveTreeItem(this.options.id, item.id, token));
     }
 
     protected createTreeNodeUpdate(item: TreeViewItem): Partial<TreeViewNode> {
@@ -399,8 +400,8 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
     @inject(ContextKeyService)
     protected readonly contextKeys: ContextKeyService;
 
-    @inject(TreeViewWidgetIdentifier)
-    readonly identifier: TreeViewWidgetIdentifier;
+    @inject(TreeViewOptions)
+    readonly options: TreeViewOptions;
 
     @inject(PluginTreeModel)
     override readonly model: PluginTreeModel;
@@ -420,7 +421,7 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
     @postConstruct()
     protected override init(): void {
         super.init();
-        this.id = this.identifier.id;
+        this.id = this.options.id;
         this.addClass('theia-tree-view');
         this.node.style.height = '100%';
         this.model.onDidChangeWelcomeState(this.update, this);
@@ -549,38 +550,42 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
     protected override renderTailDecorations(node: TreeViewNode, props: NodeProps): React.ReactNode {
         return this.contextKeys.with({ view: this.id, viewItem: node.contextValue }, () => {
             const menu = this.menus.getMenu(VIEW_ITEM_INLINE_MENU);
-            const arg = this.toTreeViewSelection(node);
+            const args = this.toContextMenuArgs(node);
             const inlineCommands = menu.children.filter((item): item is ActionMenuNode => item instanceof ActionMenuNode);
             const tailDecorations = super.renderTailDecorations(node, props);
             return <React.Fragment>
                 {inlineCommands.length > 0 && <div className={TREE_NODE_SEGMENT_CLASS + ' flex'}>
-                    {inlineCommands.map((item, index) => this.renderInlineCommand(item, index, this.focusService.hasFocus(node), arg))}
+                    {inlineCommands.map((item, index) => this.renderInlineCommand(item, index, this.focusService.hasFocus(node), args))}
                 </div>}
                 {tailDecorations !== undefined && <div className={TREE_NODE_SEGMENT_CLASS + ' flex'}>{tailDecorations}</div>}
             </React.Fragment>;
         });
     }
 
-    toTreeViewSelection(node: TreeNode): TreeViewSelection {
-        return { treeViewId: this.id, treeItemId: node.id };
+    toTreeViewItemReference(node: TreeNode): TreeViewItemReference {
+        return { viewId: this.id, itemId: node.id };
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    protected renderInlineCommand(node: ActionMenuNode, index: number, tabbable: boolean, arg: any): React.ReactNode {
+    protected renderInlineCommand(node: ActionMenuNode, index: number, tabbable: boolean, args: any[]): React.ReactNode {
         const { icon } = node;
-        if (!icon || !this.commands.isVisible(node.command, arg) || !node.when || !this.contextKeys.match(node.when)) {
+        if (!icon || !this.commands.isVisible(node.command, args) || !node.when || !this.contextKeys.match(node.when)) {
             return false;
         }
         const className = [TREE_NODE_SEGMENT_CLASS, TREE_NODE_TAIL_CLASS, icon, ACTION_ITEM, 'theia-tree-view-inline-action'].join(' ');
         const tabIndex = tabbable ? 0 : undefined;
         return <div key={index} className={className} title={node.label} tabIndex={tabIndex} onClick={e => {
             e.stopPropagation();
-            this.commands.executeCommand(node.command, arg);
+            this.commands.executeCommand(node.command, ...args);
         }} />;
     }
 
-    protected override toContextMenuArgs(node: SelectableTreeNode): [TreeViewSelection] {
-        return [this.toTreeViewSelection(node)];
+    protected override toContextMenuArgs(target: SelectableTreeNode): [TreeViewItemReference, TreeViewItemReference[]] | [TreeViewItemReference] {
+        if (this.options.multiSelect) {
+            return [this.toTreeViewItemReference(target), this.model.selectedNodes.map(node => this.toTreeViewItemReference(node))];
+        } else {
+            return [this.toTreeViewItemReference(target)];
+        }
     }
 
     override setFlag(flag: Widget.Flag): void {
@@ -688,7 +693,7 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
                 const args = this.toContextMenuArgs(node);
                 const contextKeyService = this.contextKeyService.createOverlay([
                     ['viewItem', (TreeViewNode.is(node) && node.contextValue) || undefined],
-                    ['view', this.identifier.id]
+                    ['view', this.options.id]
                 ]);
                 setTimeout(() => this.contextMenuRenderer.render({
                     menuPath: contextMenuPath,
