@@ -54,9 +54,12 @@ export class TreeViewsMainImpl implements TreeViewsMain, Disposable {
         this.toDispose.dispose();
     }
 
-    async $registerTreeDataProvider(treeViewId: string): Promise<void> {
+    async $registerTreeDataProvider(treeViewId: string, showCollapseAll: boolean | undefined): Promise<void> {
         this.treeViewProviders.set(treeViewId, this.viewRegistry.registerViewDataProvider(treeViewId, async ({ state, viewInfo }) => {
-            const widget = await this.widgetManager.getOrCreateWidget<TreeViewWidget>(PLUGIN_VIEW_DATA_FACTORY_ID, { id: treeViewId });
+            const widget = await this.widgetManager.getOrCreateWidget<TreeViewWidget>(PLUGIN_VIEW_DATA_FACTORY_ID, {
+                id: treeViewId,
+                showCollapseAll: showCollapseAll
+            });
             widget.model.viewInfo = viewInfo;
             if (state) {
                 widget.restoreState(state);

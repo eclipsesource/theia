@@ -50,7 +50,7 @@ import { SelectionProviderCommandContribution } from './selection-provider-comma
 import { ViewColumnService } from './view-column-service';
 import { ViewContextKeyService } from './view/view-context-key-service';
 import { PluginViewWidget, PluginViewWidgetIdentifier } from './view/plugin-view-widget';
-import { TreeViewWidgetIdentifier, VIEW_ITEM_CONTEXT_MENU, PluginTree, TreeViewWidget, PluginTreeModel } from './view/tree-view-widget';
+import { TreeViewOptions, VIEW_ITEM_CONTEXT_MENU, PluginTree, TreeViewWidget, PluginTreeModel } from './view/tree-view-widget';
 import { RPCProtocol } from '../../common/rpc-protocol';
 import { LanguagesMainFactory, OutputChannelRegistryFactory } from '../../common';
 import { LanguagesMainImpl } from './languages-main';
@@ -145,7 +145,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(LabelProviderContribution).toService(PluginTreeViewNodeLabelProvider);
     bind(WidgetFactory).toDynamicValue(({ container }) => ({
         id: PLUGIN_VIEW_DATA_FACTORY_ID,
-        createWidget: (identifier: TreeViewWidgetIdentifier) => {
+        createWidget: (options: TreeViewOptions) => {
             const props = {
                 contextMenuPath: VIEW_ITEM_CONTEXT_MENU,
                 expandOnlyOnExpansionToggleClick: true,
@@ -161,7 +161,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
                 widget: TreeViewWidget,
                 decoratorService: TreeViewDecoratorService
             });
-            child.bind(TreeViewWidgetIdentifier).toConstantValue(identifier);
+            child.bind(TreeViewOptions).toConstantValue(options);
             return child.get(TreeWidget);
         }
     })).inSingletonScope();

@@ -161,8 +161,9 @@ export namespace CompositeTreeViewNode {
 }
 
 @injectable()
-export class TreeViewWidgetIdentifier {
+export class TreeViewOptions {
     id: string;
+    collapseShowAll?: boolean;
 }
 
 @injectable()
@@ -171,8 +172,8 @@ export class PluginTree extends TreeImpl {
     @inject(PluginSharedStyle)
     protected readonly sharedStyle: PluginSharedStyle;
 
-    @inject(TreeViewWidgetIdentifier)
-    protected readonly identifier: TreeViewWidgetIdentifier;
+    @inject(TreeViewOptions)
+    protected readonly options: TreeViewOptions;
 
     @inject(MessageService)
     protected readonly notification: MessageService;
@@ -188,7 +189,7 @@ export class PluginTree extends TreeImpl {
     set proxy(proxy: TreeViewsExt | undefined) {
         this._proxy = proxy;
         if (proxy) {
-            this._hasTreeItemResolve = proxy.$hasResolveTreeItem(this.identifier.id);
+            this._hasTreeItemResolve = proxy.$hasResolveTreeItem(this.options.id);
         } else {
             this._hasTreeItemResolve = Promise.resolve(false);
         }
@@ -220,7 +221,7 @@ export class PluginTree extends TreeImpl {
 
     protected async fetchChildren(proxy: TreeViewsExt, parent: CompositeTreeNode): Promise<TreeViewItem[]> {
         try {
-            const children = await proxy.$getChildren(this.identifier.id, parent.id);
+            const children = await proxy.$getChildren(this.options.id, parent.id);
             const oldEmpty = this._isEmpty;
             this._isEmpty = !parent.id && (!children || children.length === 0);
             if (oldEmpty !== this._isEmpty) {
@@ -229,8 +230,8 @@ export class PluginTree extends TreeImpl {
             return children || [];
         } catch (e) {
             if (e) {
-                console.error(`Failed to fetch children for '${this.identifier.id}'`, e);
-                const label = this._viewInfo ? this._viewInfo.name : this.identifier.id;
+                console.error(`Failed to fetch children for '${this.options.id}'`, e);
+                const label = this._viewInfo ? this._viewInfo.name : this.options.id;
                 this.notification.error(`${label}: ${e.message}`);
             }
             return [];
@@ -288,7 +289,7 @@ export class PluginTree extends TreeImpl {
                 children: [],
                 command: item.command
             }, update);
-            return new ResolvableCompositeTreeViewNode(compositeNode, async (token: CancellationToken) => this._proxy?.$resolveTreeItem(this.identifier.id, item.id, token));
+            return new ResolvableCompositeTreeViewNode(compositeNode, async (token: CancellationToken) => this._proxy?.$resolveTreeItem(this.options.id, item.id, token));
         }
 
         // Node is a leaf
@@ -304,7 +305,7 @@ export class PluginTree extends TreeImpl {
             selected: false,
             command: item.command,
         }, update);
-        return new ResolvableTreeViewNode(treeNode, async (token: CancellationToken) => this._proxy?.$resolveTreeItem(this.identifier.id, item.id, token));
+        return new ResolvableTreeViewNode(treeNode, async (token: CancellationToken) => this._proxy?.$resolveTreeItem(this.options.id, item.id, token));
     }
 
     protected createTreeNodeUpdate(item: TreeViewItem): Partial<TreeViewNode> {
@@ -399,8 +400,8 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
     @inject(ContextKeyService)
     protected readonly contextKeys: ContextKeyService;
 
-    @inject(TreeViewWidgetIdentifier)
-    readonly identifier: TreeViewWidgetIdentifier;
+    @inject(TreeViewOptions)
+    readonly options: TreeViewOptions;
 
     @inject(PluginTreeModel)
     override readonly model: PluginTreeModel;
@@ -420,7 +421,7 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
     @postConstruct()
     protected override init(): void {
         super.init();
-        this.id = this.identifier.id;
+        this.id = this.options.id;
         this.addClass('theia-tree-view');
         this.node.style.height = '100%';
         this.model.onDidChangeWelcomeState(this.update, this);
@@ -688,7 +689,7 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
                 const args = this.toContextMenuArgs(node);
                 const contextKeyService = this.contextKeyService.createOverlay([
                     ['viewItem', (TreeViewNode.is(node) && node.contextValue) || undefined],
-                    ['view', this.identifier.id]
+                    ['view', this.options.id]
                 ]);
                 setTimeout(() => this.contextMenuRenderer.render({
                     menuPath: contextMenuPath,
