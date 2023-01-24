@@ -876,6 +876,7 @@ export namespace ViewContainer {
             readonly order?: number;
             readonly weight?: number;
             readonly initiallyCollapsed?: boolean;
+            readonly showCollapseAll?: boolean;
             readonly canHide?: boolean;
             readonly initiallyHidden?: boolean;
             /**
@@ -934,6 +935,8 @@ export class ViewContainerPart extends BaseWidget {
 
     uncollapsedSize: number | undefined;
     animatedSize: number | undefined;
+
+    protected showCollapseAll: boolean = true;
 
     protected readonly toNoDisposeWrapped: Disposable;
 
@@ -995,6 +998,8 @@ export class ViewContainerPart extends BaseWidget {
         if (options.initiallyHidden && this.canHide) {
             this.hide();
         }
+        this.showCollapseAll = !!options.showCollapseAll;
+
     }
 
     get viewContainer(): ViewContainer | undefined {

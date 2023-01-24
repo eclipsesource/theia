@@ -152,7 +152,8 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
                 expansionTogglePadding: 22,
                 globalSelection: true,
                 leftPadding: 8,
-                search: true
+                search: true,
+                collapseShowAll: options.collapseShowAll
             };
             const child = createTreeContainer(container, {
                 props,

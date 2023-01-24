@@ -37,7 +37,7 @@ import {
 import { MenuPath, MenuModelRegistry, ActionMenuNode } from '@theia/core/lib/common/menu';
 import * as React from '@theia/core/shared/react';
 import { PluginSharedStyle } from '../plugin-shared-style';
-import { ACTION_ITEM, Widget } from '@theia/core/lib/browser/widgets/widget';
+import { ACTION_ITEM, codicon, Widget } from '@theia/core/lib/browser/widgets/widget';
 import { Emitter, Event } from '@theia/core/lib/common/event';
 import { MessageService } from '@theia/core/lib/common/message-service';
 import { View } from '../../../common/plugin-protocol';
@@ -49,7 +49,8 @@ import { AccessibilityInformation } from '@theia/plugin';
 import { ColorRegistry } from '@theia/core/lib/browser/color-registry';
 import { DecoratedTreeNode } from '@theia/core/lib/browser/tree/tree-decorator';
 import { WidgetDecoration } from '@theia/core/lib/browser/widget-decoration';
-import { CancellationTokenSource, CancellationToken } from '@theia/core/lib/common';
+import { TabBarToolbarContribution, TabBarToolbarRegistry } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
+import { CancellationTokenSource, CancellationToken, nls } from '@theia/core/lib/common';
 import { mixin } from '../../../common/types';
 import { Deferred } from '@theia/core/lib/common/promise-util';
 
@@ -390,7 +391,7 @@ export class PluginTreeModel extends TreeModelImpl {
 }
 
 @injectable()
-export class TreeViewWidget extends TreeViewWelcomeWidget {
+export class TreeViewWidget extends TreeViewWelcomeWidget implements TabBarToolbarContribution {
 
     protected _contextSelection = false;
 
@@ -418,9 +419,13 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
     @inject(ColorRegistry)
     protected readonly colorRegistry: ColorRegistry;
 
+    @inject(TabBarToolbarRegistry)
+    protected readonly toolbarRegistry: TabBarToolbarRegistry;
+
     @postConstruct()
     protected override init(): void {
         super.init();
+        this.registerToolbarItems(this.toolbarRegistry);
         this.id = this.options.id;
         this.addClass('theia-tree-view');
         this.node.style.height = '100%';
@@ -664,6 +669,13 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
         return React.createElement('div', this.createContainerAttributes(), this.renderSearchInfo(), this.renderTree(this.model));
     }
 
+    protected renderShowCollapseAll(): React.ReactNode {
+        // if (this.options.collapseShowAll) {
+        return <span className='collapse-all' onClick={this.collapseAll.bind(this)} title='Collapse All'>collapseAll</span>;
+        // }
+        // return undefined;
+    }
+
     protected renderSearchInfo(): React.ReactNode {
         if (this._message) {
             return <div className='theia-TreeViewInfo'>{this._message}</div>;
@@ -702,5 +714,15 @@ export class TreeViewWidget extends TreeViewWelcomeWidget {
         }
         event.stopPropagation();
         event.preventDefault();
+    }
+
+    registerToolbarItems(toolbar: TabBarToolbarRegistry): void {
+        const collapseAllCommand = {id: 'collapse-all', iconClass: codicon('collapse-all')};
+        toolbar.registerItem({
+            id: collapseAllCommand.id,
+            command: collapseAllCommand.id,
+            tooltip: nls.localizeByDefault('Collapse All'),
+            priority: 0
+        });
     }
 }

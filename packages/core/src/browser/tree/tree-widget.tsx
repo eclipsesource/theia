@@ -182,6 +182,8 @@ export class TreeWidget extends ReactWidget implements StatefulWidget {
 
     protected shouldScrollToRow = true;
 
+    protected showCollapseAll = true;
+
     constructor(
         @inject(TreeProps) readonly props: TreeProps,
         @inject(TreeModel) readonly model: TreeModel,
@@ -479,6 +481,12 @@ export class TreeWidget extends ReactWidget implements StatefulWidget {
         }
         // eslint-disable-next-line no-null/no-null
         return null;
+    }
+
+    protected collapseAll(): void {
+        if (this.model.root) {
+            console.log('collapseAll');
+        }
     }
 
     scrollArea: Element = this.node;

@@ -248,7 +248,7 @@ export class SearchInWorkspaceResultTreeWidget extends TreeWidget {
         return this.focusInputEmitter.event;
     }
 
-    collapseAll(): void {
+    override collapseAll(): void {
         for (const rootFolderNode of this.resultTree.values()) {
             for (const fileNode of rootFolderNode.children) {
                 this.expansionService.collapseNode(fileNode);
