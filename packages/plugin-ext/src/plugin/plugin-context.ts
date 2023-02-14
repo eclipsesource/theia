@@ -157,6 +157,7 @@ import {
     InputBoxValidationSeverity,
     TerminalLink,
     TerminalLocation,
+    TerminalExitReason,
     TerminalProfile,
     InlayHint,
     InlayHintKind,
@@ -1301,7 +1302,8 @@ export function createAPIFactory(
             TabInputNotebookDiff: NotebookDiffEditorTabInput,
             TabInputWebview: WebviewEditorTabInput,
             TabInputTerminal: TerminalEditorTabInput,
-            TerminalLocation
+            TerminalLocation,
+            TerminalExitReason
         };
     };
 }
