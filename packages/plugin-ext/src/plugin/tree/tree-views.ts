@@ -18,7 +18,7 @@
 
 import {
     TreeDataProvider, TreeView, TreeViewExpansionEvent, TreeItem, TreeItemLabel,
-    TreeViewSelectionChangeEvent, TreeViewVisibilityChangeEvent, CancellationToken, DataTransferFile, TreeViewOptions
+    TreeViewSelectionChangeEvent, TreeViewVisibilityChangeEvent, CancellationToken, DataTransferFile, TreeViewOptions, ViewBadge
 } from '@theia/plugin';
 // TODO: extract `@theia/util` for event, disposable, cancellation and common types
 // don't use @theia/core directly from plugin host
@@ -120,6 +120,12 @@ export class TreeViewsExtImpl implements TreeViewsExt {
             },
             set description(description: string) {
                 treeView.description = description;
+            },
+            get badge(): ViewBadge | undefined {
+                return treeView.badge;
+            },
+            set badge(badge: ViewBadge | undefined) {
+                treeView.badge = badge;
             },
             reveal: (element: T, revealOptions?: Partial<TreeViewRevealOptions>): Thenable<void> =>
                 treeView.reveal(element, revealOptions),
@@ -272,6 +278,15 @@ class TreeViewExtImpl<T> implements Disposable {
     set description(description: string) {
         this._description = description;
         this.proxy.$setDescription(this.treeViewId, this._description);
+    }
+
+    private _badge?: ViewBadge = undefined;
+    get badge(): ViewBadge | undefined {
+        return this._badge;
+    }
+    set badge(badge: ViewBadge | undefined) {
+        this._badge = badge;
+        this.proxy.$setBadge(this.treeViewId, this._badge);
     }
 
     getTreeItem(treeItemId: string): T | undefined {

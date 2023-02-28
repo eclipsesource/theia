@@ -59,7 +59,9 @@ export interface DescriptionWidget {
 
 export interface BadgeWidget {
     badge?: number;
+    badgeTooltip?: string;
     onDidChangeBadge: CommonEvent<void>;
+    onDidChangeBadgeTooltip: CommonEvent<void>;
 }
 
 export namespace DescriptionWidget {
@@ -70,7 +72,7 @@ export namespace DescriptionWidget {
 
 export namespace BadgeWidget {
     export function is(arg: unknown): arg is BadgeWidget {
-        return isObject(arg) && 'onDidChangeBadge' in arg;
+        return isObject(arg) && ('onDidChangeBadge' in arg || 'onDidChangeBadgeTooltip' in arg);
     }
 }
 
@@ -927,6 +929,8 @@ export class ViewContainerPart extends BaseWidget {
     readonly onDidChangeDescription = this.onDidChangeDescriptionEmitter.event;
     protected readonly onDidChangeBadgeEmitter = new Emitter<void>();
     readonly onDidChangeBadge = this.onDidChangeBadgeEmitter.event;
+    protected readonly onDidChangeBadgeTooltipEmitter = new Emitter<void>();
+    readonly onDidChangeBadgeTooltip = this.onDidChangeBadgeTooltipEmitter.event;
 
     protected readonly toolbar: TabBarToolbar;
 
@@ -963,6 +967,7 @@ export class ViewContainerPart extends BaseWidget {
 
         if (BadgeWidget.is(this.wrapped)) {
             this.wrapped?.onDidChangeBadge(() => this.onDidChangeBadgeEmitter.fire(), undefined, this.toDispose);
+            this.wrapped?.onDidChangeBadgeTooltip(() => this.onDidChangeBadgeTooltipEmitter.fire(), undefined, this.toDispose);
         }
 
         const { header, body, disposable } = this.createContent();
@@ -982,6 +987,7 @@ export class ViewContainerPart extends BaseWidget {
             this.onTitleChangedEmitter,
             this.onDidChangeDescriptionEmitter,
             this.onDidChangeBadgeEmitter,
+            this.onDidChangeBadgeTooltipEmitter,
             this.registerContextMenu(),
             this.onDidFocusEmitter,
             // focus event does not bubble, capture it
@@ -1172,8 +1178,12 @@ export class ViewContainerPart extends BaseWidget {
         const updateBadge = () => {
             const visibleToolBarItems = this.toolbarRegistry.visibleItems(this.wrapped).length > 0;
             const badge = BadgeWidget.is(this.wrapped) && this.wrapped.badge;
+            const badgeTooltip = BadgeWidget.is(this.wrapped) && this.wrapped.badgeTooltip;
             if (typeof badge === 'number' && !visibleToolBarItems) {
                 badgeSpan.innerText = badge.toString();
+                if (typeof badgeTooltip === 'string') {
+                    badgeSpan.title = badgeTooltip;
+                }
                 badgeContainer.style.display = badgeContainerDisplay;
             } else {
                 badgeContainer.style.display = 'none';
@@ -1191,6 +1201,7 @@ export class ViewContainerPart extends BaseWidget {
             this.onDidMove(updateTitle),
             this.onDidChangeDescription(updateDescription),
             this.onDidChangeBadge(updateBadge),
+            this.onDidChangeBadgeTooltip(updateBadge),
             this.onCollapsed(updateDescription)
         ]);
         header.appendChild(title);

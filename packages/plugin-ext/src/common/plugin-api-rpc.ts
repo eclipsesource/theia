@@ -743,6 +743,7 @@ export interface TreeViewsMain {
     $setMessage(treeViewId: string, message: string): void;
     $setTitle(treeViewId: string, title: string): void;
     $setDescription(treeViewId: string, description: string): void;
+    $setBadge(treeViewId: string, badge: theia.ViewBadge | undefined): void;
 }
 export class DataTransferFileDTO {
     constructor(readonly name: string, readonly contentId: string, readonly uri?: UriComponents) { }
