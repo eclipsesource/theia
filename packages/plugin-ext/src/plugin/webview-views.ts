@@ -83,7 +83,7 @@ export class WebviewViewsExtImpl implements WebviewViewsExt {
         const { provider, plugin } = entry;
 
         const webviewNoPanel = this.webviewsExt.createNewWebview({}, plugin, handle);
-        const revivedView = new WebviewViewExtImpl(handle, this.proxy, viewType, title, webviewNoPanel, true);
+        const revivedView = new WebviewViewExtImpl(handle, this.proxy, viewType, title, webviewNoPanel, true, { value: 3, tooltip: 'test creation' });
         this.webviewViews.set(handle, revivedView);
         await provider.resolveWebviewView(revivedView, { state }, cancellation);
     }
@@ -133,6 +133,7 @@ export class WebviewViewExtImpl implements theia.WebviewView {
     _isVisible: boolean;
     _title: string | undefined;
     _description: string | undefined;
+    _badge: theia.ViewBadge | undefined;
 
     constructor(
         handle: string,
@@ -141,6 +142,7 @@ export class WebviewViewExtImpl implements theia.WebviewView {
         title: string | undefined,
         webview: WebviewImpl,
         isVisible: boolean,
+        badge: theia.ViewBadge
     ) {
         this._viewType = viewType;
         this._title = title;
@@ -148,6 +150,7 @@ export class WebviewViewExtImpl implements theia.WebviewView {
         this.proxy = proxy;
         this._webview = webview;
         this._isVisible = isVisible;
+        this._badge = badge;
     }
     onDispose: Event<void>;
 
@@ -183,6 +186,19 @@ export class WebviewViewExtImpl implements theia.WebviewView {
         if (this._description !== value) {
             this._description = value;
             this.proxy.$setWebviewViewDescription(this.handle, value);
+        }
+    }
+
+    get badge(): theia.ViewBadge | undefined {
+        this.assertNotDisposed();
+        return this._badge;
+    }
+
+    set badge(badge: theia.ViewBadge | undefined) {
+        this.assertNotDisposed();
+        if (this._badge !== badge) {
+            this._badge = badge;
+            this.proxy.$setBadge(this.handle, badge);
         }
     }
 

@@ -1710,6 +1710,7 @@ export interface WebviewsMain {
     $reveal(handle: string, showOptions: theia.WebviewPanelShowOptions): void;
     $setTitle(handle: string, value: string): void;
     $setIconPath(handle: string, value: IconUrl | undefined): void;
+    $setBadge(handle: string, badge: theia.ViewBadge | undefined): void;
     $setHtml(handle: string, value: string): void;
     $setOptions(handle: string, options: theia.WebviewOptions): void;
     $postMessage(handle: string, value: any): Thenable<boolean>;
@@ -1735,6 +1736,7 @@ export interface WebviewViewsMain extends Disposable {
 
     $setWebviewViewTitle(handle: string, value: string | undefined): void;
     $setWebviewViewDescription(handle: string, value: string | undefined): void;
+    $setBadge(handle: string, badge: theia.ViewBadge | undefined): void;
 
     $show(handle: string, preserveFocus: boolean): void;
 }
