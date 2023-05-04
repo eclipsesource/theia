@@ -14,10 +14,10 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { DebugSessionContributionRegistry, DebugSessionContribution } from '@theia/debug/lib/browser/debug-session-contribution';
-import { injectable, inject, named, postConstruct } from '@theia/core/shared/inversify';
 import { ContributionProvider } from '@theia/core/lib/common/contribution-provider';
 import { Disposable } from '@theia/core/lib/common/disposable';
+import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
+import { DebugSessionContribution, DebugSessionContributionRegistry } from '@theia/debug/lib/browser/debug-session-contribution';
 
 /**
  * Debug session contribution registrator.
@@ -58,8 +58,10 @@ export class PluginDebugSessionContributionRegistry implements DebugSessionContr
         return this.contribs.get(debugType);
     }
 
+    // OVERRIDE so we can adapt the PluginDebugSessionFactory with the hierarchical version of PluginDebugSession
     registerDebugSessionContribution(contrib: DebugSessionContribution): Disposable {
         const { debugType } = contrib;
+        contrib.debugSessionFactory;
 
         if (this.contribs.has(debugType)) {
             console.warn(`Debug session contribution already registered for ${debugType}`);

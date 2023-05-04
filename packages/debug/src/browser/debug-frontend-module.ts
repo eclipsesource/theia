@@ -16,7 +16,7 @@
 
 import '../../src/browser/style/index.css';
 
-import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
+import { ContainerModule } from '@theia/core/shared/inversify';
 import { DebugConfigurationManager } from './debug-configuration-manager';
 import { DebugWidget } from './view/debug-widget';
 import { DebugPath, DebugService } from '../common/debug-service';
@@ -62,8 +62,9 @@ import { DebugViewModel } from './view/debug-view-model';
 import { DebugToolBar } from './view/debug-toolbar-widget';
 import { DebugSessionWidget } from './view/debug-session-widget';
 import { bindDisassemblyView } from './disassembly-view/disassembly-view-contribution';
+import { HierarchicalDebugSessionFactory, HierarchicalDebugThreadsWidget } from './view/hierarchical-extension';
 
-export default new ContainerModule((bind: interfaces.Bind) => {
+export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bindContributionProvider(bind, DebugContribution);
 
     bind(DebugCallStackItemTypeKey).toDynamicValue(({ container }) =>
@@ -133,4 +134,10 @@ export default new ContainerModule((bind: interfaces.Bind) => {
         }));
     }
     bindDisassemblyView(bind);
+
+    bind(WidgetFactory).toDynamicValue(({ container }) => ({
+        id: HierarchicalDebugThreadsWidget.FACTORY_ID,
+        createWidget: () => HierarchicalDebugThreadsWidget.createWidget(container)
+    }));
+    rebind(DebugSessionFactory).to(HierarchicalDebugSessionFactory).inSingletonScope();
 });

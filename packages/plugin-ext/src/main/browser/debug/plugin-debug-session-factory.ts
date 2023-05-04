@@ -14,26 +14,27 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { DefaultDebugSessionFactory } from '@theia/debug/lib/browser/debug-session-contribution';
-import { TerminalService } from '@theia/terminal/lib/browser/base/terminal-service';
-import { EditorManager } from '@theia/editor/lib/browser/editor-manager';
-import { BreakpointManager } from '@theia/debug/lib/browser/breakpoint/breakpoint-manager';
 import { LabelProvider } from '@theia/core/lib/browser/label-provider';
+import { ContributionProvider } from '@theia/core/lib/common/contribution-provider';
 import { MessageClient } from '@theia/core/lib/common/message-service-protocol';
-import { OutputChannelManager } from '@theia/output/lib/browser/output-channel';
+import { BreakpointManager } from '@theia/debug/lib/browser/breakpoint/breakpoint-manager';
+import { DebugContribution } from '@theia/debug/lib/browser/debug-contribution';
 import { DebugPreferences } from '@theia/debug/lib/browser/debug-preferences';
-import { DebugConfigurationSessionOptions } from '@theia/debug/lib/browser/debug-session-options';
 import { DebugSession } from '@theia/debug/lib/browser/debug-session';
 import { DebugSessionConnection } from '@theia/debug/lib/browser/debug-session-connection';
-import { TerminalWidgetOptions, TerminalWidget } from '@theia/terminal/lib/browser/base/terminal-widget';
-import { TerminalOptionsExt } from '../../../common/plugin-api-rpc';
+import { DefaultDebugSessionFactory } from '@theia/debug/lib/browser/debug-session-contribution';
+import { DebugConfigurationSessionOptions } from '@theia/debug/lib/browser/debug-session-options';
+import { HierarchicalDebugSession } from '@theia/debug/lib/browser/view/hierarchical-extension';
+import { EditorManager } from '@theia/editor/lib/browser/editor-manager';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
-import { DebugContribution } from '@theia/debug/lib/browser/debug-contribution';
-import { ContributionProvider } from '@theia/core/lib/common/contribution-provider';
+import { OutputChannelManager } from '@theia/output/lib/browser/output-channel';
+import { TerminalService } from '@theia/terminal/lib/browser/base/terminal-service';
+import { TerminalWidget, TerminalWidgetOptions } from '@theia/terminal/lib/browser/base/terminal-widget';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { PluginChannel } from '../../../common/connection';
+import { TerminalOptionsExt } from '../../../common/plugin-api-rpc';
 
-export class PluginDebugSession extends DebugSession {
+export class PluginDebugSession extends HierarchicalDebugSession {
     constructor(
         override readonly id: string,
         override readonly options: DebugConfigurationSessionOptions,
