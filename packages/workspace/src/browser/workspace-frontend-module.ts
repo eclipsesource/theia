@@ -16,7 +16,7 @@
 
 import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
 import { CommandContribution, MenuContribution } from '@theia/core/lib/common';
-import { WebSocketConnectionProvider, FrontendApplicationContribution, KeybindingContribution } from '@theia/core/lib/browser';
+import { FrontendApplicationContribution, KeybindingContribution } from '@theia/core/lib/browser';
 import {
     OpenFileDialogFactory,
     SaveFileDialogFactory,
@@ -30,7 +30,7 @@ import {
 import { StorageService } from '@theia/core/lib/browser/storage-service';
 import { LabelProviderContribution } from '@theia/core/lib/browser/label-provider';
 import { VariableContribution } from '@theia/variable-resolver/lib/browser';
-import { WorkspaceServer, workspacePath, CommonWorkspaceUtils } from '../common';
+import { WorkspaceServer, CommonWorkspaceUtils } from '../common';
 import { WorkspaceFrontendContribution } from './workspace-frontend-contribution';
 import { WorkspaceService } from './workspace-service';
 import { WorkspaceCommandContribution, FileMenuContribution, EditMenuContribution } from './workspace-commands';
@@ -63,10 +63,13 @@ export default new ContainerModule((bind: interfaces.Bind, unbind: interfaces.Un
     bind(WorkspaceService).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(WorkspaceService);
     bind(CanonicalUriService).toSelf().inSingletonScope();
-    bind(WorkspaceServer).toDynamicValue(ctx => {
-        const provider = ctx.container.get(WebSocketConnectionProvider);
-        return provider.createProxy<WorkspaceServer>(workspacePath);
-    }).inSingletonScope();
+    const mockServer: WorkspaceServer = {
+        getMostRecentlyUsedWorkspace: async (): Promise<string | undefined> => '',
+        setMostRecentlyUsedWorkspace: async (_uri: string): Promise<void> => { },
+        removeRecentWorkspace: async (_uri: string): Promise<void> => { },
+        getRecentWorkspaces: async (): Promise<string[]> => ['']
+    };
+    bind(WorkspaceServer).toConstantValue(mockServer);
 
     bind(WorkspaceFrontendContribution).toSelf().inSingletonScope();
     for (const identifier of [FrontendApplicationContribution, CommandContribution, KeybindingContribution, MenuContribution]) {

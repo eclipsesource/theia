@@ -15,13 +15,23 @@
 // *****************************************************************************
 
 import { ContainerModule } from 'inversify';
-import { AsyncLocalizationProvider, localizationPath } from '../../common/i18n/localization';
-import { WebSocketConnectionProvider } from '../messaging/ws-connection-provider';
+import { AsyncLocalizationProvider, LanguageInfo, Localization } from '../../common/i18n/localization';
 import { LanguageQuickPickService } from './language-quick-pick-service';
 
 export default new ContainerModule(bind => {
-    bind(AsyncLocalizationProvider).toDynamicValue(
-        ctx => ctx.container.get(WebSocketConnectionProvider).createProxy(localizationPath)
-    ).inSingletonScope();
+    const i18nMock: AsyncLocalizationProvider = {
+        getCurrentLanguage: async (): Promise<string> => 'eng',
+        setCurrentLanguage: async (_languageId: string): Promise<void> => {
+
+        },
+        getAvailableLanguages: async (): Promise<LanguageInfo[]> =>
+            []
+        ,
+        loadLocalization: async (_languageId: string): Promise<Localization> => ({
+            translations: {},
+            languageId: 'eng'
+        })
+    };
+    bind(AsyncLocalizationProvider).toConstantValue(i18nMock);
     bind(LanguageQuickPickService).toSelf().inSingletonScope();
 });

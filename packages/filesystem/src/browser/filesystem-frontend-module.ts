@@ -18,14 +18,14 @@ import '../../src/browser/style/index.css';
 
 import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
 import { ResourceResolver, CommandContribution } from '@theia/core/lib/common';
-import { WebSocketConnectionProvider, FrontendApplicationContribution, LabelProviderContribution, BreadcrumbsContribution } from '@theia/core/lib/browser';
+import { FrontendApplicationContribution, LabelProviderContribution, BreadcrumbsContribution } from '@theia/core/lib/browser';
 import { FileResourceResolver } from './file-resource';
 import { bindFileSystemPreferences } from './filesystem-preferences';
 import { FileSystemFrontendContribution } from './filesystem-frontend-contribution';
 import { FileUploadService } from './file-upload-service';
 import { FileTreeDecoratorAdapter, FileTreeLabelProvider } from './file-tree';
 import { FileService, FileServiceContribution } from './file-service';
-import { RemoteFileSystemProvider, RemoteFileSystemServer, remoteFileSystemPath, RemoteFileSystemProxyFactory } from '../common/remote-file-system-provider';
+import { RemoteFileSystemProvider, RemoteFileSystemServer, FileSystemProviderServer } from '../common/remote-file-system-provider';
 import { bindContributionProvider } from '@theia/core/lib/common/contribution-provider';
 import { RemoteFileServiceContribution } from './remote-file-service-contribution';
 import { FileSystemWatcherErrorHandler } from './filesystem-watcher-error-handler';
@@ -33,6 +33,8 @@ import { FilepathBreadcrumbsContribution } from './breadcrumbs/filepath-breadcru
 import { BreadcrumbsFileTreeWidget, createFileTreeBreadcrumbsWidget } from './breadcrumbs/filepath-breadcrumbs-container';
 import { FilesystemSaveResourceService } from './filesystem-save-resource-service';
 import { SaveResourceService } from '@theia/core/lib/browser/save-resource-service';
+import { MockedFileSystemProvider } from './mocked-filesystem';
+import { FileSystemProvider } from '../common/files';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bindFileSystemPreferences(bind);
@@ -40,9 +42,8 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bindContributionProvider(bind, FileServiceContribution);
     bind(FileService).toSelf().inSingletonScope();
 
-    bind(RemoteFileSystemServer).toDynamicValue(ctx =>
-        WebSocketConnectionProvider.createProxy(ctx.container, remoteFileSystemPath, new RemoteFileSystemProxyFactory())
-    );
+    bind(FileSystemProvider).to(MockedFileSystemProvider).inSingletonScope();
+    bind(RemoteFileSystemServer).to(FileSystemProviderServer).inSingletonScope();
     bind(RemoteFileSystemProvider).toSelf().inSingletonScope();
     bind(RemoteFileServiceContribution).toSelf().inSingletonScope();
     bind(FileServiceContribution).toService(RemoteFileServiceContribution);

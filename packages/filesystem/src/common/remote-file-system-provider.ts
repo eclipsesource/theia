@@ -16,7 +16,7 @@
 
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import URI from '@theia/core/lib/common/uri';
-import { Emitter } from '@theia/core/lib/common/event';
+import { Emitter, Event } from '@theia/core/lib/common/event';
 import { Disposable, DisposableCollection } from '@theia/core/lib/common/disposable';
 import { BinaryBuffer } from '@theia/core/lib/common/buffer';
 import {
@@ -330,6 +330,9 @@ export class RemoteFileSystemProvider implements Required<FileSystemProvider>, D
 export class FileSystemProviderServer implements RemoteFileSystemServer {
 
     private readonly BUFFER_SIZE = 64 * 1024;
+    // needed because users expect implicitly the RemoteFileSystemServer to be a RemoteFileSystemProxyFactory
+    onDidOpenConnection = Event.None;
+    onDidCloseConnection = Event.None;
 
     /**
      * Mapping of `watcherId` to a disposable watcher handle.

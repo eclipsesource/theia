@@ -25,17 +25,16 @@ import {
     bindContributionProvider,
     SelectionService,
     ResourceResolver,
-    CommandContribution, CommandRegistry, CommandService, commandServicePath,
+    CommandContribution, CommandRegistry, CommandService,
     MenuModelRegistry, MenuContribution,
-    MessageClient,
     InMemoryResources,
-    messageServicePath,
     InMemoryTextResourceResolver,
     UntitledResourceResolver,
     MenuCommandAdapterRegistry,
     MenuCommandExecutor,
     MenuCommandAdapterRegistryImpl,
-    MenuCommandExecutorImpl
+    MenuCommandExecutorImpl,
+    OS
 } from '../common';
 import { KeybindingRegistry, KeybindingContext, KeybindingContribution } from './keybinding';
 import { FrontendApplication, FrontendApplicationContribution, DefaultFrontendApplicationContribution } from './frontend-application';
@@ -56,12 +55,10 @@ import { LabelProvider, LabelProviderContribution, DefaultUriLabelProviderContri
 import { PreferenceService } from './preferences';
 import { ContextMenuRenderer, Coordinate } from './context-menu-renderer';
 import { ThemeService } from './theming';
-import { ConnectionStatusService, FrontendConnectionStatusService, ApplicationConnectionStatusContribution, PingService } from './connection-status-service';
 import { DiffUriLabelProviderContribution } from './diff-uris';
-import { ApplicationServer, applicationPath } from '../common/application-protocol';
-import { WebSocketConnectionProvider } from './messaging';
+import { ApplicationInfo, ApplicationServer, ExtensionInfo } from '../common/application-protocol';
 import { AboutDialog, AboutDialogProps } from './about-dialog';
-import { EnvVariablesServer, envVariablesPath, EnvVariable } from './../common/env-variables';
+import { EnvVariablesServer, EnvVariable } from './../common/env-variables';
 import { FrontendApplicationStateService } from './frontend-application-state';
 import { JsonSchemaStore, JsonSchemaContribution, DefaultJsonSchemaContribution } from './json-schema-store';
 import { TabBarToolbarRegistry, TabBarToolbarContribution, TabBarToolbarFactory, TabBarToolbar } from './shell/tab-bar-toolbar';
@@ -96,11 +93,10 @@ import { EncodingRegistry } from './encoding-registry';
 import { EncodingService } from '../common/encoding-service';
 import { AuthenticationService, AuthenticationServiceImpl } from '../browser/authentication-service';
 import { DecorationsService, DecorationsServiceImpl } from './decorations-service';
-import { keytarServicePath, KeytarService } from '../common/keytar-protocol';
 import { CredentialsService, CredentialsServiceImpl } from './credentials-service';
 import { ContributionFilterRegistry, ContributionFilterRegistryImpl } from '../common/contribution-filter';
 import { QuickCommandFrontendContribution } from './quick-input/quick-command-frontend-contribution';
-import { QuickPickService, quickPickServicePath } from '../common/quick-pick-service';
+import { QuickPickService } from '../common/quick-pick-service';
 import {
     QuickPickServiceImpl,
     QuickInputFrontendContribution,
@@ -123,7 +119,6 @@ import {
 } from './breadcrumbs';
 import { DockPanel, RendererHost } from './widgets';
 import { TooltipService, TooltipServiceImpl } from './tooltip-service';
-import { BackendRequestService, RequestService, REQUEST_SERVICE_PATH } from '@theia/request';
 import { bindFrontendStopwatch, bindBackendStopwatch } from './performance';
 import { SaveResourceService } from './save-resource-service';
 import { SecondaryWindowHandler } from './secondary-window-handler';
@@ -246,10 +241,7 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(ResourceResolver).toService(UntitledResourceResolver);
 
     bind(SelectionService).toSelf().inSingletonScope();
-    bind(CommandRegistry).toSelf().inSingletonScope().onActivation(({ container }, registry) => {
-        WebSocketConnectionProvider.createProxy(container, commandServicePath, registry);
-        return registry;
-    });
+    bind(CommandRegistry).toSelf().inSingletonScope();
     bind(CommandService).toService(CommandRegistry);
     bindContributionProvider(bind, CommandContribution);
 
@@ -265,11 +257,7 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bindContributionProvider(bind, KeybindingContext);
     bindContributionProvider(bind, KeybindingContribution);
 
-    bindMessageService(bind).onActivation(({ container }, messages) => {
-        const client = container.get(MessageClient);
-        WebSocketConnectionProvider.createProxy(container, messageServicePath, client);
-        return messages;
-    });
+    bindMessageService(bind);
 
     bind(LanguageService).toSelf().inSingletonScope();
 
@@ -294,10 +282,7 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(QuickHelpService).toSelf().inSingletonScope();
     bind(QuickAccessContribution).toService(QuickHelpService);
 
-    bind(QuickPickService).to(QuickPickServiceImpl).inSingletonScope().onActivation(({ container }, quickPickService: QuickPickService) => {
-        WebSocketConnectionProvider.createProxy(container, quickPickServicePath, quickPickService);
-        return quickPickService;
-    });
+    bind(QuickPickService).to(QuickPickServiceImpl).inSingletonScope();
 
     bind(MarkdownRenderer).to(MarkdownRendererImpl).inSingletonScope();
     bind(MarkdownRendererFactory).toFactory(({ container }) => () => container.get(MarkdownRenderer));
@@ -331,33 +316,26 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(DefaultJsonSchemaContribution).toSelf().inSingletonScope();
     bind(JsonSchemaContribution).toService(DefaultJsonSchemaContribution);
 
-    bind(PingService).toDynamicValue(ctx => {
-        // let's reuse a simple and cheap service from this package
-        const envServer: EnvVariablesServer = ctx.container.get(EnvVariablesServer);
-        return {
-            ping(): Promise<EnvVariable | undefined> {
-                return envServer.getValue('does_not_matter');
-            }
-        };
-    });
-    bind(FrontendConnectionStatusService).toSelf().inSingletonScope();
-    bind(ConnectionStatusService).toService(FrontendConnectionStatusService);
-    bind(FrontendApplicationContribution).toService(FrontendConnectionStatusService);
-    bind(ApplicationConnectionStatusContribution).toSelf().inSingletonScope();
-    bind(FrontendApplicationContribution).toService(ApplicationConnectionStatusContribution);
+    const mockedApplicationServer: ApplicationServer = {
+        getExtensionsInfos: async (): Promise<ExtensionInfo[]> => [],
+        getApplicationInfo: async (): Promise<ApplicationInfo | undefined> => undefined,
+        getBackendOS: async (): Promise<OS.Type> => OS.Type.Linux
+    };
 
-    bind(ApplicationServer).toDynamicValue(ctx => {
-        const provider = ctx.container.get(WebSocketConnectionProvider);
-        return provider.createProxy<ApplicationServer>(applicationPath);
-    }).inSingletonScope();
+    bind(ApplicationServer).toConstantValue(mockedApplicationServer);
 
     bind(AboutDialog).toSelf().inSingletonScope();
     bind(AboutDialogProps).toConstantValue({ title: 'Theia' });
 
-    bind(EnvVariablesServer).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
-        return connection.createProxy<EnvVariablesServer>(envVariablesPath);
-    }).inSingletonScope();
+    const varServer: EnvVariablesServer = {
+        getExecPath: async (): Promise<string> => '',
+        getVariables: async (): Promise<EnvVariable[]> => [],
+        getValue: async (_key: string): Promise<EnvVariable | undefined> => undefined,
+        getConfigDirUri: async (): Promise<string> => '',
+        getHomeDirUri: async (): Promise<string> => '',
+        getDrives: async (): Promise<string[]> => []
+    };
+    bind(EnvVariablesServer).toConstantValue(varServer);
 
     bind(ThemeService).toSelf().inSingletonScope();
 
@@ -398,11 +376,6 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(AuthenticationService).to(AuthenticationServiceImpl).inSingletonScope();
     bind(DecorationsService).to(DecorationsServiceImpl).inSingletonScope();
 
-    bind(KeytarService).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
-        return connection.createProxy<KeytarService>(keytarServicePath);
-    }).inSingletonScope();
-
     bind(CredentialsService).to(CredentialsServiceImpl);
 
     bind(ContributionFilterRegistry).to(ContributionFilterRegistryImpl).inSingletonScope();
@@ -431,10 +404,6 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
         child.bind(Coordinate).toConstantValue(position);
         return child.get(BreadcrumbPopupContainer);
     });
-
-    bind(BackendRequestService).toDynamicValue(ctx =>
-        WebSocketConnectionProvider.createProxy<RequestService>(ctx.container, REQUEST_SERVICE_PATH)
-    ).inSingletonScope();
 
     bindFrontendStopwatch(bind);
     bindBackendStopwatch(bind);

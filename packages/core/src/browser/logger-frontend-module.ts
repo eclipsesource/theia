@@ -15,12 +15,10 @@
 // *****************************************************************************
 
 import { ContainerModule, Container } from 'inversify';
-import { ILoggerServer, loggerPath, ConsoleLogger } from '../common/logger-protocol';
+import { ILoggerServer, ILoggerClient, LogLevel } from '../common/logger-protocol';
 import { ILogger, Logger, LoggerFactory, setRootLogger, LoggerName, rootLoggerName } from '../common/logger';
 import { LoggerWatcher } from '../common/logger-watcher';
-import { WebSocketConnectionProvider } from './messaging';
 import { FrontendApplicationContribution } from './frontend-application';
-import { EncodingError } from '../common/message-rpc/rpc-message-encoder';
 
 export const loggerFrontendModule = new ContainerModule(bind => {
     bind(FrontendApplicationContribution).toDynamicValue(ctx => ({
@@ -32,27 +30,19 @@ export const loggerFrontendModule = new ContainerModule(bind => {
     bind(LoggerName).toConstantValue(rootLoggerName);
     bind(ILogger).to(Logger).inSingletonScope().whenTargetIsDefault();
     bind(LoggerWatcher).toSelf().inSingletonScope();
-    bind(ILoggerServer).toDynamicValue(ctx => {
-        const loggerWatcher = ctx.container.get(LoggerWatcher);
-        const connection = ctx.container.get(WebSocketConnectionProvider);
-        const target = connection.createProxy<ILoggerServer>(loggerPath, loggerWatcher.getLoggerClient());
-        function get<K extends keyof ILoggerServer>(_: ILoggerServer, property: K): ILoggerServer[K] | ILoggerServer['log'] {
-            if (property === 'log') {
-                return (name, logLevel, message, params) => {
-                    ConsoleLogger.log(name, logLevel, message, params);
-                    return target.log(name, logLevel, message, params).catch(err => {
-                        if (err instanceof EncodingError) {
-                            // In case of an EncodingError no RPC call is sent to the backend `ILoggerServer`. Nevertheless, we want to continue normally.
-                            return;
-                        }
-                        throw err;
-                    });
-                };
-            }
-            return target[property];
+    const logger: ILoggerServer = {
+        setLogLevel: async (_name: string, _logLevel: number): Promise<void> => { },
+        getLogLevel: async (_name: string): Promise<number> => LogLevel.ERROR,
+        log: async (_name: string, _logLevel: number, message: unknown, _params: unknown[]): Promise<void> => {
+            console.log(message);
+        },
+        child: async (_name: string): Promise<void> => { },
+        dispose: (): void => {
+        },
+        setClient: (_client: ILoggerClient | undefined): void => {
         }
-        return new Proxy(target, { get });
-    }).inSingletonScope();
+    };
+    bind(ILoggerServer).toConstantValue(logger);
     bind(LoggerFactory).toFactory(ctx =>
         (name: string) => {
             const child = new Container({ defaultScope: 'Singleton' });
