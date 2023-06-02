@@ -1,0 +1,30 @@
+{
+  "name": "test-extension-3",
+  "keywords": [
+    "theia-extension"
+  ],
+  "version": "0.0.0",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "dependencies": {
+    "@theia/core": "1.38.0",
+    "@eclipse-emfcloud/modelserver-theia": "0.8.0-theia-cr03"
+  },
+  "devDependencies": {
+    "rimraf": "latest",
+    "typescript": "~4.5.5"
+  },
+  "scripts": {
+    "prepare": "yarn run clean && yarn run build",
+    "clean": "rimraf lib",
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "theiaExtensions": [
+    {
+      "frontend": "lib/browser/test-extension-frontend-module"
+    }
+  ]
+}
