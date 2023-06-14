@@ -7,6 +7,7 @@
 ## v1.39.0 - 06/29/2023
 
 - [debug] added support for conditional exception breakpoints [#12445](https://github.com/eclipse-theia/theia/pull/12445)
+- [vscode] added missing editor/lineNumber/context menu mapping - Contributed on behalf of STMicroelectronics
 
 <a name="breaking_changes_1.39.0">[Breaking Changes:](#breaking_changes_1.39.0)</a>
 
