@@ -34,6 +34,7 @@ import { QuickPickService } from '@theia/core/lib/common/quick-pick-service';
 import * as theia from '@theia/plugin';
 import { QuickPickValue } from '@theia/core/lib/browser/quick-input/quick-input-service';
 import { nls } from '@theia/core/lib/common/nls';
+import { isObject } from '@theia/core';
 
 export function getAuthenticationProviderActivationEvent(id: string): string { return `onAuthenticationRequest:${id}`; }
 
@@ -117,7 +118,7 @@ export class AuthenticationMainImpl implements AuthenticationMain {
         // We may need to prompt because we don't have a valid session modal flows
         if (options.createIfNone || options.forceNewSession) {
             const providerName = this.authenticationService.getLabel(providerId);
-            const detail = (typeof options.forceNewSession === 'object') ? options.forceNewSession!.detail : undefined;
+            const detail = isAuthenticationForceNewSessionOptions(options.forceNewSession) ? options.forceNewSession!.detail : undefined;
             const isAllowed = await this.loginPrompt(providerName, extensionName, !!options.forceNewSession, detail);
             if (!isAllowed) {
                 throw new Error('User did not consent to login.');
@@ -197,10 +198,12 @@ export class AuthenticationMainImpl implements AuthenticationMain {
         return allow;
     }
 
-    protected async loginPrompt(providerName: string, extensionName: string, recreatingSession: boolean, _detail?: string): Promise<boolean> {
-        const message = recreatingSession
+    protected async loginPrompt(providerName: string, extensionName: string, recreatingSession: boolean, detail?: string): Promise<boolean> {
+        let message = recreatingSession
             ? nls.localizeByDefault("The extension '{0}' wants you to sign in again using {1}.", extensionName, providerName)
             : nls.localizeByDefault("The extension '{0}' wants to sign in using {1}.", extensionName, providerName);
+
+        message = detail ? message + ' ' + detail : message;
         const choice = await this.messageService.info(message, 'Allow', 'Cancel');
         return choice === 'Allow';
     }
@@ -222,6 +225,10 @@ export class AuthenticationMainImpl implements AuthenticationMain {
     $onDidChangeSessions(providerId: string, event: theia.AuthenticationProviderAuthenticationSessionsChangeEvent): void {
         this.authenticationService.updateSessions(providerId, event);
     }
+}
+
+function isAuthenticationForceNewSessionOptions(arg: unknown): arg is theia.AuthenticationForceNewSessionOptions {
+    return isObject<theia.AuthenticationForceNewSessionOptions>(arg) && typeof arg.detail === 'string';
 }
 
 async function addAccountUsage(storageService: StorageService, providerId: string, accountName: string, extensionId: string, extensionName: string): Promise<void> {
