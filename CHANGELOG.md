@@ -7,6 +7,10 @@
 ## v1.39.0 - 06/29/2023
 
 - [debug] added support for conditional exception breakpoints [#12445](https://github.com/eclipse-theia/theia/pull/12445)
+- [core] made the `window.tabbar.enhancedPreview` preference an enum with 3 options: [#](https://github.com/eclipse-theia/theia/pull/) - Contributed on behalf of STMicroelectronics
+    - `classic`: Display a simple preview about the view, containing the name.
+    - `enhanced`: Display an enhanced preview containing the name and a caption. (The behavior introduced in [#12350](https://github.com/eclipse-theia/theia/pull/12350))
+    - `visual`: Display the enhanced preview together with a visual preview of the view. (The preview support was added with this PR)
 
 <a name="breaking_changes_1.39.0">[Breaking Changes:](#breaking_changes_1.39.0)</a>
 
