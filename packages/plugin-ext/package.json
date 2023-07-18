@@ -23,6 +23,7 @@
     "@theia/plugin": "1.39.0",
     "@theia/preferences": "1.39.0",
     "@theia/scm": "1.39.0",
+    "@theia/test": "1.39.0",
     "@theia/search-in-workspace": "1.39.0",
     "@theia/task": "1.39.0",
     "@theia/terminal": "1.39.0",

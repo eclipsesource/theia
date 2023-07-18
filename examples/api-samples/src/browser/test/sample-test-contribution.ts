@@ -108,7 +108,40 @@ export class SampleTestContribution implements TestContribution, CommandContribu
     }
 
     registerTestControllers(service: TestService): void {
+        this.init(testController);
         service.registerTestController(testController);
+    }
+
+    async init(testController: TestControllerImpl) {
+        const root = (await this.workspaceService.roots)[0];
+        const files = (await this.searchService.find('.json', {
+            rootUris: [root.resource.toString()],
+            limit: 1000
+        })).filter(uri => !this.usedUris.has(uri));
+        for (let i = 0; i < Math.min(10, files.length); i++) {
+            const fileUri = new URI(files[i]);
+            const relativePath = root.resource.path.relative(fileUri.path);
+            let collection = testController.items;
+
+            let dirUri = root.resource;
+
+            relativePath?.toString().split(Path.separator).forEach(name => {
+                dirUri = dirUri.withPath(dirUri.path.join(name));
+                let item = collection.get(name);
+                if (!item) {
+                    item = new TestItemImpl(dirUri, name);
+                    collection.add(item);
+                }
+                collection = item._children;
+            });
+            const meta: FileStatWithMetadata = await this.fileService.resolve(fileUri, { resolveMetadata: true });
+            const testItem = new TestItemImpl(fileUri, 'first test');
+            testItem.range = {
+                start: { line: 0, character: 0 },
+                end: { line: 0, character: Math.min(10, meta.size) }
+            };
+            collection.add(testItem);
+        }
     }
 }
 

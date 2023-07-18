@@ -1,0 +1,108 @@
+// *****************************************************************************
+// Copyright (C) 2023 STMicroelectronics and others.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0.
+//
+// This Source Code may also be made available under the following Secondary
+// Licenses when the conditions for such availability set forth in the Eclipse
+// Public License v. 2.0 are satisfied: GNU General Public License, version 2
+// with the GNU Classpath Exception which is available at
+// https://www.gnu.org/software/classpath/license.html.
+//
+// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
+// *****************************************************************************
+
+.theia-test {
+  padding: 5px;
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.theia-side-panel .theia-test {
+  padding-left: 19px;
+}
+
+.groups-outer-container:focus {
+  outline: 0;
+  box-shadow: none;
+  border: none;
+}
+
+.theia-test .noWrapInfo {
+  width: 100%;
+  align-items: center;
+}
+
+.theia-test .groups-outer-container {
+  overflow-y: auto;
+  width: 100%;
+  flex-grow: 1;
+}
+
+.theia-test-main-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.theia-test .testItem {
+  font-size: var(--theia-ui-font-size1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--theia-content-line-height);
+  line-height: var(--theia-content-line-height);
+  padding: 0px calc(var(--theia-ui-padding) / 2);
+}
+
+.theia-test .testItem:hover {
+  cursor: pointer;
+}
+
+.theia-test:focus-within .testItem:focus {
+  background: var(--theia-list-focusBackground);
+  color: var(--theia-list-focusForeground);
+}
+
+.theia-test:not(:focus-within) .testItem:not(:focus) {
+  background: var(--theia-list-inactiveFocusBackground);
+}
+
+.theia-test:focus-within .testItem.theia-mod-selected {
+  background: var(--theia-list-activeSelectionBackground);
+  color: var(--theia-list-activeSelectionForeground);
+}
+
+.theia-test:not(:focus-within) .testItem.theia-mod-selected {
+  background: var(--theia-list-inactiveSelectionBackground);
+  color: var(--theia-list-inactiveSelectionForeground);
+}
+
+.theia-test .testItem .path {
+  font-size: var(--theia-ui-font-size0);
+  margin-left: var(--theia-ui-padding);
+  opacity: 0.7;
+}
+
+.theia-test .testItem .status {
+  width: 16px;
+  text-align: center;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  font-size: var(--theia-ui-font-size0);
+}
+
+.test-theia-header {
+  display: flex;
+  align-items: center;
+}
+
+.test-theia-header:hover {
+  cursor: pointer;
+}
+
+.theia-test-panel {
+  overflow: visible;
+}
