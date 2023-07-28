@@ -13,25 +13,33 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { inject, injectable } from '@theia/core/shared/inversify';
+import { inject, injectable, } from '@theia/core/shared/inversify';
 import { MetricsContribution } from './metrics-contribution';
-import { MeasurementResult, Stopwatch } from '@theia/core';
+import { LogLevel, MeasurementResult, Stopwatch } from '@theia/core';
 import { MeasurementNotificationService } from '../common';
+import { LogLevelCliContribution } from '@theia/core/lib/node/logger-cli-contribution';
 
 const backendId = 'backend';
 const metricsName = 'theia_measurements';
 
 @injectable()
-export class MeasurementMetricsContribution implements MetricsContribution, MeasurementNotificationService {
+export class MeasurementMetricsBackendContribution implements MetricsContribution, MeasurementNotificationService {
     @inject(Stopwatch)
     protected backendStopwatch: Stopwatch;
 
-    protected metrics = '';
+    @inject(LogLevelCliContribution)
+    protected logLevelCli: LogLevelCliContribution;
+
+    protected metrics: string;
     protected frontendCounter = new Map<string, string>();
 
     startCollecting(): void {
+        if (this.logLevelCli.defaultLogLevel !== LogLevel.DEBUG) {
+            return;
+        }
         this.metrics += `# HELP ${metricsName} Theia stopwatch measurement results.\n`;
         this.metrics += `# TYPE ${metricsName} gauge\n`;
+        this.backendStopwatch.getCachedResults().forEach(result => this.onBackendMeasurement(result));
         this.backendStopwatch.onMeasurementResult(result => this.onBackendMeasurement(result));
     }
 
@@ -41,7 +49,7 @@ export class MeasurementMetricsContribution implements MetricsContribution, Meas
 
     protected appendMetricsValue(id: string, result: MeasurementResult): void {
         const { name, elapsed, startTime, context, owner } = result;
-        const labels: string = `id="${id}", name="${name}" ,startTime="${startTime}", elapsed="${elapsed}", owner="${owner}", context="${context}"`;
+        const labels: string = `id="${id}", name="${name}", startTime="${startTime}", owner="${owner}", context="${context}"`;
         const metricsValue = `${metricsName}{${labels}} ${elapsed}`;
         this.metrics += (metricsValue + '\n');
     }

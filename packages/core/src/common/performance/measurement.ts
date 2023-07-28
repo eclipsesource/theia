@@ -101,6 +101,11 @@ export interface MeasurementOptions {
      * @see {@link thresholdLogLevel}
      */
     thresholdMillis?: number;
+
+    /**
+     * Flag to indicate whether the stopwatch should cache measurement results for later retrieval.
+     */
+    cacheResults?: boolean
 }
 
 /**
@@ -111,7 +116,7 @@ export interface MeasurementResult {
     name: string;
 
     /** The time when the measurement recording has been started */
-    startTime: number
+    startTime: number;
 
     /**
      * The elapsed time measured, if it has been {@link stop stopped} and measured, or `NaN` if the platform disabled

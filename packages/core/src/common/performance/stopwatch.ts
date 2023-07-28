@@ -51,6 +51,8 @@ export abstract class Stopwatch {
     @inject(ILogger)
     protected readonly logger: ILogger;
 
+    protected cachedResults: MeasurementResult[] = [];
+
     protected onMeasurementResultEmitter = new Emitter<MeasurementResult>();
     get onMeasurementResult(): Event<MeasurementResult> {
         return this.onMeasurementResultEmitter.event;
@@ -59,6 +61,9 @@ export abstract class Stopwatch {
     constructor(protected readonly defaultLogOptions: LogOptions) {
         if (!defaultLogOptions.defaultLogLevel) {
             defaultLogOptions.defaultLogLevel = DEFAULT_LOG_LEVEL;
+        }
+        if (defaultLogOptions.cacheResults === undefined) {
+            defaultLogOptions.cacheResults = true;
         }
     }
 
@@ -106,7 +111,7 @@ export abstract class Stopwatch {
                 if (result.elapsed === undefined) {
                     const { startTime, duration } = measurement();
                     result.elapsed = duration;
-                    this.notifyListeners(name, startTime, duration, logOptions);
+                    this.handleCompletedMeasurement(name, startTime, duration, logOptions);
 
                 }
                 return result.elapsed;
@@ -121,14 +126,18 @@ export abstract class Stopwatch {
         return result;
     }
 
-    protected notifyListeners(name: string, startTime: number, elapsed: number, options: LogOptions): void {
-        this.onMeasurementResultEmitter.fire({
+    protected handleCompletedMeasurement(name: string, startTime: number, elapsed: number, options: LogOptions): void {
+        const result: MeasurementResult = {
             name,
             elapsed,
             startTime,
             context: options.context,
             owner: options.owner
-        });
+        };
+        if (options.cacheResults) {
+            this.cachedResults.push(result);
+        }
+        this.onMeasurementResultEmitter.fire(result);
     }
 
     protected mergeLogOptions(logOptions?: Partial<LogOptions>): LogOptions {
@@ -171,6 +180,10 @@ export abstract class Stopwatch {
         const timeFromStart = `Finished ${(options.now() / 1000).toFixed(3)} s after ${start}`;
         const whatWasMeasured = options.context ? `[${options.context}] ${activity}` : activity;
         this.logger.log(level, `${whatWasMeasured}: ${elapsed.toFixed(1)} ms [${timeFromStart}]`, ...(options.arguments ?? []));
+    }
+
+    getCachedResults(): MeasurementResult[] {
+        return [...this.cachedResults];
     }
 
 }

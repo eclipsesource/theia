@@ -15,7 +15,7 @@
 // *****************************************************************************
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser';
-import { MeasurementResult, Stopwatch } from '@theia/core';
+import { ILogger, LogLevel, MeasurementResult, Stopwatch } from '@theia/core';
 import { UUID } from '@theia/core/shared/@phosphor/coreutils';
 import { MeasurementNotificationService } from '../common';
 
@@ -27,9 +27,21 @@ export class MetricsFrontendApplicationContribution implements FrontendApplicati
     @inject(MeasurementNotificationService)
     protected notificationService: MeasurementNotificationService;
 
+    @inject(ILogger)
+    protected logger: ILogger;
+
     readonly id = UUID.uuid4();
 
     initialize(): void {
+        this.doInitialize();
+    }
+
+    protected async doInitialize(): Promise<void> {
+        const logLevel = await this.logger.getLogLevel();
+        if (logLevel !== LogLevel.DEBUG) {
+            return;
+        }
+        this.stopwatch.getCachedResults().forEach(result => this.notify(result));
         this.stopwatch.onMeasurementResult(result => this.notify(result));
     }
 

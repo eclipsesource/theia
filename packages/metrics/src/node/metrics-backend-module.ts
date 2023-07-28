@@ -22,20 +22,19 @@ import { NodeMetricsContribution } from './node-metrics-contribution';
 import { ExtensionMetricsContribution } from './extensions-metrics-contribution';
 import { MetricsBackendApplicationContribution } from './metrics-backend-application-contribution';
 import { measurementNotificationServicePath } from '../common';
-import { MeasurementMetricsContribution } from './measurement-metrics-contribution';
+import { MeasurementMetricsBackendContribution } from './measurement-metrics-contribution';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, MetricsContribution);
     bind(MetricsContribution).to(NodeMetricsContribution).inSingletonScope();
     bind(MetricsContribution).to(ExtensionMetricsContribution).inSingletonScope();
 
-    bind(MeasurementMetricsContribution).toSelf().inSingletonScope();
-    bind(MetricsContribution).toService(MeasurementMetricsContribution);
+    bind(MeasurementMetricsBackendContribution).toSelf().inSingletonScope();
+    bind(MetricsContribution).toService(MeasurementMetricsBackendContribution);
     bind(ConnectionHandler).toDynamicValue(ctx =>
         new RpcConnectionHandler(measurementNotificationServicePath,
-            () => ctx.container.get(MeasurementMetricsContribution)));
+            () => ctx.container.get(MeasurementMetricsBackendContribution)));
 
-    bind(MetricsBackendApplicationContribution).toSelf().inSingletonScope();
     bind(BackendApplicationContribution).to(MetricsBackendApplicationContribution).inSingletonScope();
 
 });
