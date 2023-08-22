@@ -16,6 +16,8 @@
 
 import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
 import { bindBrowserFSInitialization } from './filesystem/example-filesystem-initialization';
+import { CommandContribution, MenuContribution } from '@theia/core';
+import { ImportRepositoryFrontendContribution } from './git/import-repository-command';
 
 export default new ContainerModule((
     bind: interfaces.Bind,
@@ -24,4 +26,8 @@ export default new ContainerModule((
     rebind: interfaces.Rebind,
 ) => {
     bindBrowserFSInitialization(bind, rebind);
+
+    bind(ImportRepositoryFrontendContribution).toSelf().inSingletonScope();
+    bind(CommandContribution).toService(ImportRepositoryFrontendContribution);
+    bind(MenuContribution).toService(ImportRepositoryFrontendContribution);
 });
