@@ -4,6 +4,7 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "lib",
+    "resolveJsonModule": true,
     "lib": [
       "es6",
       "dom",

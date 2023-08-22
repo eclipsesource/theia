@@ -22,53 +22,60 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import debounce = require('@theia/core/shared/lodash.debounce');
-import { UUID } from '@theia/core/shared/@phosphor/coreutils';
-import { injectable, inject, interfaces, named, postConstruct } from '@theia/core/shared/inversify';
-import { PluginWorker } from './plugin-worker';
-import { PluginMetadata, getPluginId, HostedPluginServer, DeployedPlugin, PluginServer, PluginIdentifiers } from '../../common/plugin-protocol';
-import { HostedPluginWatcher } from './hosted-plugin-watcher';
-import { MAIN_RPC_CONTEXT, PluginManagerExt, ConfigStorage, UIKind } from '../../common/plugin-api-rpc';
-import { setUpPluginApi } from '../../main/browser/main-context';
-import { RPCProtocol, RPCProtocolImpl } from '../../common/rpc-protocol';
 import {
-    Disposable, DisposableCollection, Emitter, isCancelled,
-    ILogger, ContributionProvider, CommandRegistry, WillExecuteCommandEvent,
-    CancellationTokenSource, RpcProxy, ProgressService, nls
+    CancellationTokenSource,
+    CommandRegistry,
+    ContributionProvider,
+    Disposable, DisposableCollection, Emitter,
+    ILogger,
+    ProgressService,
+    RpcProxy,
+    WillExecuteCommandEvent,
+    isCancelled,
+    nls
 } from '@theia/core';
-import { PreferenceServiceImpl, PreferenceProviderProvider } from '@theia/core/lib/browser/preferences';
-import { WorkspaceService } from '@theia/workspace/lib/browser';
-import { PluginContributionHandler } from '../../main/browser/plugin-contribution-handler';
-import { getQueryParameters } from '../../main/browser/env-main';
-import { MainPluginApiProvider } from '../../common/plugin-ext-api-contribution';
-import { PluginPathsService } from '../../main/common/plugin-paths-protocol';
-import { getPreferences } from '../../main/browser/preference-registry-main';
-import { Deferred } from '@theia/core/lib/common/promise-util';
-import { DebugSessionManager } from '@theia/debug/lib/browser/debug-session-manager';
-import { DebugConfigurationManager } from '@theia/debug/lib/browser/debug-configuration-manager';
-import { WaitUntilEvent } from '@theia/core/lib/common/event';
-import { FileSearchService } from '@theia/file-search/lib/common/file-search-service';
-import { FrontendApplicationStateService } from '@theia/core/lib/browser/frontend-application-state';
-import { PluginViewRegistry } from '../../main/browser/view/plugin-view-registry';
-import { WillResolveTaskProvider, TaskProviderRegistry, TaskResolverRegistry } from '@theia/task/lib/browser/task-contribution';
-import { TaskDefinitionRegistry } from '@theia/task/lib/browser/task-definition-registry';
-import { WebviewEnvironment } from '../../main/browser/webview/webview-environment';
-import { WebviewWidget } from '../../main/browser/webview/webview';
-import { WidgetManager } from '@theia/core/lib/browser/widget-manager';
-import { TerminalService } from '@theia/terminal/lib/browser/base/terminal-service';
-import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
-import URI from '@theia/core/lib/common/uri';
 import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/frontend-application-config-provider';
-import { environment } from '@theia/core/shared/@theia/application-package/lib/environment';
+import { FrontendApplicationStateService } from '@theia/core/lib/browser/frontend-application-state';
 import { JsonSchemaStore } from '@theia/core/lib/browser/json-schema-store';
+import { PreferenceProviderProvider, PreferenceServiceImpl } from '@theia/core/lib/browser/preferences';
+import { WidgetManager } from '@theia/core/lib/browser/widget-manager';
+import { Measurement, Stopwatch } from '@theia/core/lib/common';
+import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
+import { WaitUntilEvent } from '@theia/core/lib/common/event';
+import { BasicChannel } from '@theia/core/lib/common/message-rpc/channel';
+import { Uint8ArrayReadBuffer, Uint8ArrayWriteBuffer } from '@theia/core/lib/common/message-rpc/uint8-array-message-buffer';
+import { Deferred } from '@theia/core/lib/common/promise-util';
+import URI from '@theia/core/lib/common/uri';
+import { UUID } from '@theia/core/shared/@phosphor/coreutils';
+import { environment } from '@theia/core/shared/@theia/application-package/lib/environment';
+import { inject, injectable, interfaces, named, postConstruct } from '@theia/core/shared/inversify';
+import { DebugConfigurationManager } from '@theia/debug/lib/browser/debug-configuration-manager';
+import { DebugSessionManager } from '@theia/debug/lib/browser/debug-session-manager';
+import { FileSearchService } from '@theia/file-search/lib/common/file-search-service';
 import { FileService, FileSystemProviderActivationEvent } from '@theia/filesystem/lib/browser/file-service';
-import { PluginCustomEditorRegistry } from '../../main/browser/custom-editors/plugin-custom-editor-registry';
-import { CustomEditorWidget } from '../../main/browser/custom-editors/custom-editor-widget';
-import { StandaloneServices } from '@theia/monaco-editor-core/esm/vs/editor/standalone/browser/standaloneServices';
 import { ILanguageService } from '@theia/monaco-editor-core/esm/vs/editor/common/languages/language';
 import { LanguageService } from '@theia/monaco-editor-core/esm/vs/editor/common/services/languageService';
-import { Measurement, Stopwatch } from '@theia/core/lib/common';
-import { Uint8ArrayReadBuffer, Uint8ArrayWriteBuffer } from '@theia/core/lib/common/message-rpc/uint8-array-message-buffer';
-import { BasicChannel } from '@theia/core/lib/common/message-rpc/channel';
+import { StandaloneServices } from '@theia/monaco-editor-core/esm/vs/editor/standalone/browser/standaloneServices';
+import { TaskProviderRegistry, TaskResolverRegistry, WillResolveTaskProvider } from '@theia/task/lib/browser/task-contribution';
+import { TaskDefinitionRegistry } from '@theia/task/lib/browser/task-definition-registry';
+import { TerminalService } from '@theia/terminal/lib/browser/base/terminal-service';
+import { WorkspaceService } from '@theia/workspace/lib/browser';
+import { ConfigStorage, MAIN_RPC_CONTEXT, PluginManagerExt, UIKind } from '../../common/plugin-api-rpc';
+import { MainPluginApiProvider } from '../../common/plugin-ext-api-contribution';
+import { DeployedPlugin, HostedPluginServer, PluginIdentifiers, PluginMetadata, PluginServer, getPluginId } from '../../common/plugin-protocol';
+import { RPCProtocol, RPCProtocolImpl } from '../../common/rpc-protocol';
+import { CustomEditorWidget } from '../../main/browser/custom-editors/custom-editor-widget';
+import { PluginCustomEditorRegistry } from '../../main/browser/custom-editors/plugin-custom-editor-registry';
+import { getQueryParameters } from '../../main/browser/env-main';
+import { setUpPluginApi } from '../../main/browser/main-context';
+import { PluginContributionHandler } from '../../main/browser/plugin-contribution-handler';
+import { getPreferences } from '../../main/browser/preference-registry-main';
+import { PluginViewRegistry } from '../../main/browser/view/plugin-view-registry';
+import { WebviewWidget } from '../../main/browser/webview/webview';
+import { WebviewEnvironment } from '../../main/browser/webview/webview-environment';
+import { PluginPathsService } from '../../main/common/plugin-paths-protocol';
+import { HostedPluginWatcher } from './hosted-plugin-watcher';
+import { PluginWorker } from './plugin-worker';
 
 export type PluginHost = 'frontend' | string;
 export type DebugActivationEvent = 'onDebugResolve' | 'onDebugInitialConfigurations' | 'onDebugAdapterProtocolTracker' | 'onDebugDynamicConfigurations';
@@ -439,10 +446,16 @@ export class HostedPluginSupport {
                 continue;
             }
 
-            const manager = await this.obtainManager(host, hostContributions, toDisconnect);
-            if (!manager) {
-                continue;
+            let manager: PluginManagerExt | undefined;
+            try {
+                manager = await this.obtainManager(host, hostContributions, toDisconnect);
+                if (!manager) {
+                    continue;
+                }
+            } catch (err) {
+                console.log(err);
             }
+            manager = manager!;
 
             const plugins = hostContributions.map(contributions => contributions.plugin.metadata);
             thenable.push((async () => {
@@ -461,7 +474,7 @@ export class HostedPluginSupport {
                         console.debug(`[${this.clientId}][${id}]: Started plugin.`);
                         toDisconnect.push(contributions.push(Disposable.create(() => {
                             console.debug(`[${this.clientId}][${id}]: Stopped plugin.`);
-                            manager.$stop(id);
+                            manager!.$stop(id);
                         })));
 
                         this.activateByWorkspaceContains(manager, plugin);
@@ -482,61 +495,66 @@ export class HostedPluginSupport {
     }
 
     protected async obtainManager(host: string, hostContributions: PluginContributions[], toDisconnect: DisposableCollection): Promise<PluginManagerExt | undefined> {
-        let manager = this.managers.get(host);
-        if (!manager) {
-            const pluginId = getPluginId(hostContributions[0].plugin.metadata.model);
-            const rpc = this.initRpc(host, pluginId);
-            toDisconnect.push(rpc);
+        try {
+            let manager = this.managers.get(host);
+            if (!manager) {
+                const pluginId = getPluginId(hostContributions[0].plugin.metadata.model);
+                const rpc = this.initRpc(host, pluginId);
+                toDisconnect.push(rpc);
 
-            manager = rpc.getProxy(MAIN_RPC_CONTEXT.HOSTED_PLUGIN_MANAGER_EXT);
-            this.managers.set(host, manager);
-            toDisconnect.push(Disposable.create(() => this.managers.delete(host)));
+                manager = rpc.getProxy(MAIN_RPC_CONTEXT.HOSTED_PLUGIN_MANAGER_EXT);
+                this.managers.set(host, manager);
+                toDisconnect.push(Disposable.create(() => this.managers.delete(host)));
 
-            const [extApi, globalState, workspaceState, webviewResourceRoot, webviewCspSource, defaultShell, jsonValidation] = await Promise.all([
-                this.server.getExtPluginAPI(),
-                this.pluginServer.getAllStorageValues(undefined),
-                this.pluginServer.getAllStorageValues({
-                    workspace: this.workspaceService.workspace?.resource.toString(),
-                    roots: this.workspaceService.tryGetRoots().map(root => root.resource.toString())
-                }),
-                this.webviewEnvironment.resourceRoot(host),
-                this.webviewEnvironment.cspSource(),
-                this.terminalService.getDefaultShell(),
-                this.jsonSchemaStore.schemas
-            ]);
-            if (toDisconnect.disposed) {
-                return undefined;
+                const [extApi, globalState, workspaceState, webviewResourceRoot, webviewCspSource, jsonValidation] = await Promise.all([
+                    this.server.getExtPluginAPI(),
+                    this.pluginServer.getAllStorageValues(undefined),
+                    this.pluginServer.getAllStorageValues({
+                        workspace: this.workspaceService.workspace?.resource.toString(),
+                        roots: this.workspaceService.tryGetRoots().map(root => root.resource.toString())
+                    }),
+                    this.webviewEnvironment.resourceRoot(host),
+                    this.webviewEnvironment.cspSource(),
+                    this.jsonSchemaStore.schemas
+                ]);
+                if (toDisconnect.disposed) {
+                    return undefined;
+                }
+
+                const isElectron = environment.electron.is();
+                await manager.$init({
+                    preferences: getPreferences(this.preferenceProviderProvider, this.workspaceService.tryGetRoots()),
+                    globalState,
+                    workspaceState,
+                    env: {
+                        queryParams: getQueryParameters(),
+                        language: nls.locale || nls.defaultLocale,
+                        shell: 'none',
+                        uiKind: isElectron ? UIKind.Desktop : UIKind.Web,
+                        appName: FrontendApplicationConfigProvider.get().applicationName,
+                        appHost: isElectron ? 'desktop' : 'web' // TODO: 'web' could be the embedder's name, e.g. 'github.dev'
+                    },
+                    extApi,
+                    webview: {
+                        webviewResourceRoot,
+                        webviewCspSource
+                    },
+                    jsonValidation
+                });
+                if (toDisconnect.disposed) {
+                    return undefined;
+                }
             }
-
-            const isElectron = environment.electron.is();
-            await manager.$init({
-                preferences: getPreferences(this.preferenceProviderProvider, this.workspaceService.tryGetRoots()),
-                globalState,
-                workspaceState,
-                env: {
-                    queryParams: getQueryParameters(),
-                    language: nls.locale || nls.defaultLocale,
-                    shell: defaultShell,
-                    uiKind: isElectron ? UIKind.Desktop : UIKind.Web,
-                    appName: FrontendApplicationConfigProvider.get().applicationName,
-                    appHost: isElectron ? 'desktop' : 'web' // TODO: 'web' could be the embedder's name, e.g. 'github.dev'
-                },
-                extApi,
-                webview: {
-                    webviewResourceRoot,
-                    webviewCspSource
-                },
-                jsonValidation
-            });
-            if (toDisconnect.disposed) {
-                return undefined;
-            }
+            return manager;
+        } catch (err) {
+            console.log('Error', err);
         }
-        return manager;
     }
 
     protected initRpc(host: PluginHost, pluginId: string): RPCProtocol {
-        const rpc = host === 'frontend' ? new PluginWorker().rpc : this.createServerRpc(host);
+        // const rpc = host === 'frontend' ? new PluginWorker().rpc : this.createServerRpc(host);
+        const rpc = new PluginWorker().rpc;
+
         setUpPluginApi(rpc, this.container);
         this.mainPluginApiProviders.getContributions().forEach(p => p.initialize(rpc, this.container));
         return rpc;
