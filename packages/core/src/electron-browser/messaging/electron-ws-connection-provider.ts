@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { injectable } from 'inversify';
-import { WebSocketConnectionProvider, WebSocketOptions } from '../../browser/messaging/ws-connection-provider';
+import { WebSocketConnectionProviderImpl, WebSocketOptions } from '../../browser/messaging/ws-connection-provider';
 import { FrontendApplicationContribution } from '../../browser/frontend-application';
 import { Channel } from '../../common';
 
@@ -25,7 +25,7 @@ import { Channel } from '../../common';
  * once the electron-browser window is refreshed. Otherwise, backend resources are not disposed.
  */
 @injectable()
-export class ElectronWebSocketConnectionProvider extends WebSocketConnectionProvider implements FrontendApplicationContribution {
+export class ElectronWebSocketConnectionProvider extends WebSocketConnectionProviderImpl implements FrontendApplicationContribution {
 
     /**
      * Do not try to reconnect when the frontend application is stopping. The browser is navigating away from this page.

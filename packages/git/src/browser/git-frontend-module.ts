@@ -51,10 +51,11 @@ export default new ContainerModule(bind => {
     bindDirtyDiff(bind);
     bindBlame(bind);
     bind(GitRepositoryTracker).toSelf().inSingletonScope();
-    bind(GitWatcherServerProxy).toDynamicValue(context => WebSocketConnectionProvider.createProxy(context.container, GitWatcherPath)).inSingletonScope();
+    bind(GitWatcherServerProxy).toDynamicValue(context =>
+        context.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider).createProxy(GitWatcherPath)).inSingletonScope();
     bind(GitWatcherServer).to(ReconnectingGitWatcherServer).inSingletonScope();
     bind(GitWatcher).toSelf().inSingletonScope();
-    bind(Git).toDynamicValue(context => WebSocketConnectionProvider.createProxy(context.container, GitPath)).inSingletonScope();
+    bind(Git).toDynamicValue(context => context.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider).createProxy(GitPath)).inSingletonScope();
 
     bind(GitContribution).toSelf().inSingletonScope();
     bind(CommandContribution).toService(GitContribution);

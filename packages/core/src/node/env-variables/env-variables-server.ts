@@ -20,7 +20,7 @@ import { injectable } from 'inversify';
 import * as drivelist from 'drivelist';
 import { EnvVariable, EnvVariablesServer } from '../../common/env-variables';
 import { isWindows } from '../../common/os';
-import { FileUri } from '../file-uri';
+import { FileUri } from '../../common/file-uri';
 
 @injectable()
 export class EnvVariablesServerImpl implements EnvVariablesServer {

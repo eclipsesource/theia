@@ -78,7 +78,7 @@ export default new ContainerModule(bind => {
     bind(LocationMapperService).toSelf().inSingletonScope();
 
     bind(MiniBrowserService).toDynamicValue(
-        ctx => WebSocketConnectionProvider.createProxy(ctx.container, MiniBrowserServicePath)
+        ctx => ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider).createProxy(MiniBrowserServicePath)
     ).inSingletonScope();
 
     bind(MiniBrowserFrontendSecurityWarnings).toSelf().inSingletonScope();

@@ -39,7 +39,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(CommandContribution).toService(HostedPluginFrontendContribution);
 
     bind(PluginDevServer).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return connection.createProxy<PluginDevServer>(pluginDevServicePath);
     }).inSingletonScope();
 });

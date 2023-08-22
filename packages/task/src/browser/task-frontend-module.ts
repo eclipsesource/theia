@@ -60,7 +60,7 @@ export default new ContainerModule(bind => {
     bind(TaskConfigurationManager).toSelf().inSingletonScope();
 
     bind(TaskServer).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         const taskWatcher = ctx.container.get(TaskWatcher);
         return connection.createProxy<TaskServer>(taskPath, taskWatcher.getTaskClient());
     }).inSingletonScope();

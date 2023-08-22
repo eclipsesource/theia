@@ -117,8 +117,31 @@ export class ApplicationPackageManager {
     start(args: string[] = []): cp.ChildProcess {
         if (this.pck.isElectron()) {
             return this.startElectron(args);
+        } else if (this.pck.isBrowserOnly()) {
+            return this.startBrowserOnly(args);
         }
         return this.startBrowser(args);
+    }
+
+    startBrowserOnly(args: string[]): cp.ChildProcess {
+        const { command, mainArgs, options } = this.adjustBrowserOnlyArgs(args);
+        return this.__process.spawnBin(command, mainArgs, options);
+    }
+
+    adjustBrowserOnlyArgs(args: string[]): Readonly<{ command: string, mainArgs: string[]; options: cp.SpawnOptions }> {
+        let { mainArgs, options } = this.adjustArgs(args);
+
+        mainArgs = ['serve', ...mainArgs];
+
+        const portIndex = mainArgs.findIndex(v => v.startsWith('--port'));
+        if (portIndex === -1) {
+            mainArgs.push('--port=3000');
+        }
+        const configIndex = mainArgs.findIndex(v => v.startsWith('--config') || v.startsWith('-c'));
+        if (configIndex === -1) {
+            mainArgs.push('--config=webpack.config.js');
+        }
+        return { command: 'webpack', mainArgs, options };
     }
 
     startElectron(args: string[]): cp.ChildProcess {

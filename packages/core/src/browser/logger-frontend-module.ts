@@ -34,7 +34,7 @@ export const loggerFrontendModule = new ContainerModule(bind => {
     bind(LoggerWatcher).toSelf().inSingletonScope();
     bind(ILoggerServer).toDynamicValue(ctx => {
         const loggerWatcher = ctx.container.get(LoggerWatcher);
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         const target = connection.createProxy<ILoggerServer>(loggerPath, loggerWatcher.getLoggerClient());
         function get<K extends keyof ILoggerServer>(_: ILoggerServer, property: K): ILoggerServer[K] | ILoggerServer['log'] {
             if (property === 'log') {

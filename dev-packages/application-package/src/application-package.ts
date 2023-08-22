@@ -142,6 +142,13 @@ export class ApplicationPackage {
         return this._frontendModules;
     }
 
+    get frontendOnlyModules(): Map<string, string> {
+        if (!this._frontendModules) {
+            this._frontendModules = this.computeModules('frontendOnly', 'frontend');
+        }
+        return this._frontendModules;
+    }
+
     get frontendElectronModules(): Map<string, string> {
         if (!this._frontendElectronModules) {
             this._frontendElectronModules = this.computeModules('frontendElectron', 'frontend');
@@ -243,6 +250,10 @@ export class ApplicationPackage {
         return this.target === ApplicationProps.ApplicationTarget.electron;
     }
 
+    isBrowserOnly(): boolean {
+        return this.target === ApplicationProps.ApplicationTarget['browser-only'];
+    }
+
     ifBrowser<T>(value: T): T | undefined;
     ifBrowser<T>(value: T, defaultValue: T): T;
     ifBrowser<T>(value: T, defaultValue?: T): T | undefined {
@@ -255,11 +266,23 @@ export class ApplicationPackage {
         return this.isElectron() ? value : defaultValue;
     }
 
+    ifBrowserOnly<T>(value: T): T | undefined;
+    ifBrowserOnly<T>(value: T, defaultValue: T): T;
+    ifBrowserOnly<T>(value: T, defaultValue?: T): T | undefined {
+        return this.isBrowserOnly() ? value : defaultValue;
+    }
+
     get targetBackendModules(): Map<string, string> {
+        if (this.isBrowserOnly()) {
+            return new Map();
+        }
         return this.ifBrowser(this.backendModules, this.backendElectronModules);
     }
 
     get targetFrontendModules(): Map<string, string> {
+        if (this.isBrowserOnly()) {
+            return this.frontendOnlyModules;
+        }
         return this.ifBrowser(this.frontendModules, this.frontendElectronModules);
     }
 

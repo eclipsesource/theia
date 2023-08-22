@@ -24,7 +24,7 @@ import { QuickAccessContribution } from '@theia/core/lib/browser/quick-input/qui
 
 export default new ContainerModule((bind: interfaces.Bind) => {
     bind(FileSearchService).toDynamicValue(ctx => {
-        const provider = ctx.container.get(WebSocketConnectionProvider);
+        const provider = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return provider.createProxy<FileSearchService>(fileSearchServicePath);
     }).inSingletonScope();
 

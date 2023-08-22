@@ -25,7 +25,7 @@ export function bindFrontendStopwatch(bind: interfaces.Bind): interfaces.Binding
 
 export function bindBackendStopwatch(bind: interfaces.Bind): interfaces.BindingWhenOnSyntax<unknown> {
     return bind(BackendStopwatch).toDynamicValue(({ container }) => {
-        const connection = container.get(WebSocketConnectionProvider);
+        const connection = container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return connection.createProxy<BackendStopwatch>(stopwatchPath);
     }).inSingletonScope();
 }

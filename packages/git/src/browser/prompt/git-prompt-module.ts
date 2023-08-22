@@ -25,5 +25,6 @@ export default new ContainerModule(bind => {
 
 export function bindPromptServer(bind: interfaces.Bind): void {
     bind(GitPromptServer).to(GitPromptServerImpl).inSingletonScope();
-    bind(GitPromptServerProxy).toDynamicValue(context => WebSocketConnectionProvider.createProxy(context.container, GitPrompt.WS_PATH)).inSingletonScope();
+    bind(GitPromptServerProxy).toDynamicValue(
+        context => context.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider).createProxy(GitPrompt.WS_PATH)).inSingletonScope();
 }

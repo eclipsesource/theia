@@ -247,7 +247,8 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
 
     bind(SelectionService).toSelf().inSingletonScope();
     bind(CommandRegistry).toSelf().inSingletonScope().onActivation(({ container }, registry) => {
-        WebSocketConnectionProvider.createProxy(container, commandServicePath, registry);
+        const connection = container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
+        connection.createProxy(commandServicePath, registry);
         return registry;
     });
     bind(CommandService).toService(CommandRegistry);
@@ -266,8 +267,9 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bindContributionProvider(bind, KeybindingContribution);
 
     bindMessageService(bind).onActivation(({ container }, messages) => {
+        const connection = container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         const client = container.get(MessageClient);
-        WebSocketConnectionProvider.createProxy(container, messageServicePath, client);
+        connection.createProxy(messageServicePath, client);
         return messages;
     });
 
@@ -295,7 +297,8 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(QuickAccessContribution).toService(QuickHelpService);
 
     bind(QuickPickService).to(QuickPickServiceImpl).inSingletonScope().onActivation(({ container }, quickPickService: QuickPickService) => {
-        WebSocketConnectionProvider.createProxy(container, quickPickServicePath, quickPickService);
+        const connection = container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
+        connection.createProxy(quickPickServicePath, quickPickService);
         return quickPickService;
     });
 
@@ -347,7 +350,7 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(FrontendApplicationContribution).toService(ApplicationConnectionStatusContribution);
 
     bind(ApplicationServer).toDynamicValue(ctx => {
-        const provider = ctx.container.get(WebSocketConnectionProvider);
+        const provider = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return provider.createProxy<ApplicationServer>(applicationPath);
     }).inSingletonScope();
 
@@ -355,7 +358,7 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(AboutDialogProps).toConstantValue({ title: 'Theia' });
 
     bind(EnvVariablesServer).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return connection.createProxy<EnvVariablesServer>(envVariablesPath);
     }).inSingletonScope();
 
@@ -399,7 +402,7 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(DecorationsService).to(DecorationsServiceImpl).inSingletonScope();
 
     bind(KeytarService).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return connection.createProxy<KeytarService>(keytarServicePath);
     }).inSingletonScope();
 
@@ -432,8 +435,10 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
         return child.get(BreadcrumbPopupContainer);
     });
 
-    bind(BackendRequestService).toDynamicValue(ctx =>
-        WebSocketConnectionProvider.createProxy<RequestService>(ctx.container, REQUEST_SERVICE_PATH)
+    bind<RequestService>(BackendRequestService).toDynamicValue(ctx => {
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
+        return connection.createProxy<RequestService>(REQUEST_SERVICE_PATH);
+    }
     ).inSingletonScope();
 
     bindFrontendStopwatch(bind);

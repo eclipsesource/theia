@@ -22,7 +22,9 @@ export class WebpackGenerator extends AbstractGenerator {
 
     async generate(): Promise<void> {
         await this.write(this.genConfigPath, this.compileWebpackConfig());
-        await this.write(this.genNodeConfigPath, this.compileNodeWebpackConfig());
+        if (!this.pck.isBrowserOnly()) {
+            await this.write(this.genNodeConfigPath, this.compileNodeWebpackConfig());
+        }
         if (await this.shouldGenerateUserWebpackConfig()) {
             await this.write(this.configPath, this.compileUserWebpackConfig());
         }
@@ -249,7 +251,13 @@ module.exports = [{
             module: /@theia\\/monaco-editor-core/,
             message: /require function is used in a way in which dependencies cannot be statically extracted/
         }
-    ]
+    ]${this.ifBrowserOnly(`,
+    devServer: {
+        static: {
+            directory: outputPath,
+        },
+        compress: false,
+    }`)}
 },
 {
     mode,
@@ -325,7 +333,7 @@ module.exports = [{
  */
 // @ts-check
 const configs = require('./${paths.basename(this.genConfigPath)}');
-const nodeConfig = require('./${paths.basename(this.genNodeConfigPath)}');
+${this.ifBrowserOnly('', `const nodeConfig = require('./${paths.basename(this.genNodeConfigPath)}');`)}
 
 /**
  * Expose bundled modules on window.theia.moduleName namespace, e.g.
@@ -338,7 +346,7 @@ configs[0].module.rules.push({
 
 module.exports = [
     ...configs,
-    nodeConfig.config
+    ${this.ifBrowserOnly('', 'nodeConfig.config')}
 ];`;
     }
 

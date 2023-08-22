@@ -23,7 +23,7 @@ import { inject, injectable } from '@theia/core/shared/inversify';
 import { Deferred } from '@theia/core/lib/common/promise-util';
 import { getTempDirPathAsync } from '@theia/plugin-ext/lib/main/node/temp-dir-util';
 import { PluginVSCodeEnvironment } from '../common/plugin-vscode-environment';
-import { FileUri } from '@theia/core/lib/node/file-uri';
+import { FileUri } from '@theia/core/lib/common/file-uri';
 
 export const isVSCodePluginFile = (pluginPath?: string) => Boolean(pluginPath && (pluginPath.endsWith('.vsix') || pluginPath.endsWith('.tgz')));
 

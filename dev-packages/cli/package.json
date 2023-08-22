@@ -51,6 +51,7 @@
     "puppeteer-core": "19.7.2",
     "puppeteer-to-istanbul": "1.4.0",
     "temp": "^0.9.1",
+    "webpack-dev-server": "^4.15.1",
     "yargs": "^15.3.1"
   },
   "devDependencies": {

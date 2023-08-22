@@ -96,7 +96,7 @@ export default new ContainerModule((bind: interfaces.Bind) => {
     bind(DebugInlineValueDecorator).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(DebugInlineValueDecorator);
 
-    bind(DebugService).toDynamicValue(context => WebSocketConnectionProvider.createProxy(context.container, DebugPath)).inSingletonScope();
+    bind(DebugService).toDynamicValue(context => context.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider).createProxy(DebugPath)).inSingletonScope();
     bind(DebugResourceResolver).toSelf().inSingletonScope();
     bind(ResourceResolver).toService(DebugResourceResolver);
 

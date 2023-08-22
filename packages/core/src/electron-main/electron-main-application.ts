@@ -23,7 +23,7 @@ import { promises as fs } from 'fs';
 import { fork, ForkOptions } from 'child_process';
 import { FrontendApplicationConfig } from '@theia/application-package/lib/application-props';
 import URI from '../common/uri';
-import { FileUri } from '../node/file-uri';
+import { FileUri } from '../common/file-uri';
 import { Deferred } from '../common/promise-util';
 import { MaybePromise } from '../common/types';
 import { ContributionProvider } from '../common/contribution-provider';

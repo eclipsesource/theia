@@ -39,7 +39,7 @@ import { VSXLanguageQuickPickService } from './vsx-language-quick-pick-service';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(VSXEnvironment)
-        .toDynamicValue(ctx => WebSocketConnectionProvider.createProxy(ctx.container, VSX_ENVIRONMENT_PATH))
+        .toDynamicValue(ctx => ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider).createProxy(VSX_ENVIRONMENT_PATH))
         .inSingletonScope();
     bind(VSXExtension).toSelf();
     bind(VSXExtensionFactory).toFactory(ctx => (option: VSXExtensionOptions) => {

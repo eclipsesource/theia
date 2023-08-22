@@ -95,13 +95,13 @@ export default new ContainerModule(bind => {
     }
 
     bind(ITerminalServer).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         const terminalWatcher = ctx.container.get(TerminalWatcher);
         return connection.createProxy<ITerminalServer>(terminalPath, terminalWatcher.getTerminalClient());
     }).inSingletonScope();
 
     bind(ShellTerminalServerProxy).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         const terminalWatcher = ctx.container.get(TerminalWatcher);
         return connection.createProxy<IShellTerminalServer>(shellTerminalPath, terminalWatcher.getTerminalClient());
     }).inSingletonScope();

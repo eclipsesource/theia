@@ -28,6 +28,6 @@ export default new ContainerModule((bind: interfaces.Bind) => {
         bind(serviceIdentifier).toService(ExternalTerminalFrontendContribution)
     );
     bind(ExternalTerminalService).toDynamicValue(ctx =>
-        WebSocketConnectionProvider.createProxy<ExternalTerminalService>(ctx.container, externalTerminalServicePath)
+        ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider).createProxy<ExternalTerminalService>(externalTerminalServicePath)
     ).inSingletonScope();
 });

@@ -60,7 +60,8 @@ export default new ContainerModule(bind => {
     // The object to call methods on the backend.
     bind(SearchInWorkspaceServer).toDynamicValue(ctx => {
         const client = ctx.container.get(SearchInWorkspaceClientImpl);
-        return WebSocketConnectionProvider.createProxy(ctx.container, SIW_WS_PATH, client);
+        const webSocketConnectionProvider = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
+        return webSocketConnectionProvider.createProxy(SIW_WS_PATH, client);
     }).inSingletonScope();
 
     bindSearchInWorkspacePreferences(bind);

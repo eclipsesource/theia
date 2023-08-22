@@ -218,7 +218,8 @@ export namespace ApplicationProps {
     export type Target = keyof typeof ApplicationTarget;
     export enum ApplicationTarget {
         browser = 'browser',
-        electron = 'electron'
+        electron = 'electron',
+        'browser-only' = 'browser-only'
     };
     export const DEFAULT: ApplicationProps = {
         ...NpmRegistryProps.DEFAULT,

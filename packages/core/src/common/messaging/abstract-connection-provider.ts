@@ -20,19 +20,35 @@ import { ConnectionHandler } from './handler';
 import { RpcProxy, RpcProxyFactory } from './proxy-factory';
 import { Channel, ChannelMultiplexer } from '../message-rpc/channel';
 
+export interface ConnectionProvider<AbstractOptions extends object> {
+    /**
+     * Create a proxy object to remote interface of T type
+     * over a web socket connection for the given path and proxy factory.
+     */
+    createProxy<T extends object>(path: string, factory: RpcProxyFactory<T>): RpcProxy<T>;
+    /**
+     * Create a proxy object to remote interface of T type
+     * over a web socket connection for the given path.
+     *
+     * An optional target can be provided to handle
+     * notifications and requests from a remote side.
+     */
+    createProxy<T extends object>(path: string, target?: object): RpcProxy<T>;
+
+    onIncomingMessageActivity: Event<void>;
+
+    listen(handler: ConnectionHandler, options?: AbstractOptions): void;
+    openChannel(path: string, handler: (channel: Channel) => void, options?: AbstractOptions): Promise<void>;
+}
+
 /**
  * Factor common logic according to `ElectronIpcConnectionProvider` and
  * `WebSocketConnectionProvider`. This class handles channels in a somewhat
  * generic way.
  */
 @injectable()
-export abstract class AbstractConnectionProvider<AbstractOptions extends object> {
+export abstract class AbstractConnectionProvider<AbstractOptions extends object> implements ConnectionProvider<AbstractOptions> {
 
-    /**
-     * Create a proxy object to remote interface of T type
-     * over an electron ipc connection for the given path and proxy factory.
-     */
-    static createProxy<T extends object>(container: interfaces.Container, path: string, factory: RpcProxyFactory<T>): RpcProxy<T>;
     /**
      * Create a proxy object to remote interface of T type
      * over an electron ipc connection for the given path.
@@ -49,19 +65,6 @@ export abstract class AbstractConnectionProvider<AbstractOptions extends object>
         return this.onIncomingMessageActivityEmitter.event;
     }
 
-    /**
-     * Create a proxy object to remote interface of T type
-     * over a web socket connection for the given path and proxy factory.
-     */
-    createProxy<T extends object>(path: string, factory: RpcProxyFactory<T>): RpcProxy<T>;
-    /**
-     * Create a proxy object to remote interface of T type
-     * over a web socket connection for the given path.
-     *
-     * An optional target can be provided to handle
-     * notifications and requests from a remote side.
-     */
-    createProxy<T extends object>(path: string, target?: object): RpcProxy<T>;
     createProxy<T extends object>(path: string, arg?: object): RpcProxy<T> {
         const factory = arg instanceof RpcProxyFactory ? arg : new RpcProxyFactory<T>(arg);
         this.listen({
@@ -111,5 +114,4 @@ export abstract class AbstractConnectionProvider<AbstractOptions extends object>
      * Create the main connection that is used for multiplexing all service channels.
      */
     protected abstract createMainChannel(): Channel;
-
 }

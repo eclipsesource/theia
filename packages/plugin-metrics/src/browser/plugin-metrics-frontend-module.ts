@@ -32,7 +32,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     rebind(OutputChannelRegistryMainImpl).to(PluginMetricsOutputChannelRegistry).inTransientScope();
 
     bind(PluginMetrics).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return connection.createProxy<PluginMetrics>(metricsJsonRpcPath);
     }).inSingletonScope();
 });

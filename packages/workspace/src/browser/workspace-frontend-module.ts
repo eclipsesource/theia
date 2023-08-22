@@ -64,7 +64,7 @@ export default new ContainerModule((bind: interfaces.Bind, unbind: interfaces.Un
     bind(FrontendApplicationContribution).toService(WorkspaceService);
     bind(CanonicalUriService).toSelf().inSingletonScope();
     bind(WorkspaceServer).toDynamicValue(ctx => {
-        const provider = ctx.container.get(WebSocketConnectionProvider);
+        const provider = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return provider.createProxy<WorkspaceServer>(workspacePath);
     }).inSingletonScope();
 

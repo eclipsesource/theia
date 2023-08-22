@@ -121,13 +121,13 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
         }
     }));
     bind(HostedPluginServer).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         const hostedWatcher = ctx.container.get(HostedPluginWatcher);
         return connection.createProxy<HostedPluginServer>(hostedServicePath, hostedWatcher.getHostedPluginClient());
     }).inSingletonScope();
 
     bind(PluginPathsService).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
+        const connection = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return connection.createProxy<PluginPathsService>(pluginPathsServicePath);
     }).inSingletonScope();
 
@@ -140,7 +140,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     }));
 
     bind(PluginServer).toDynamicValue(ctx => {
-        const provider = ctx.container.get(WebSocketConnectionProvider);
+        const provider = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return provider.createProxy<PluginServer>(pluginServerJsonRpcPath);
     }).inSingletonScope();
 
@@ -254,7 +254,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(PluginTerminalRegistry).toSelf().inSingletonScope();
 
     bind(LanguagePackService).toDynamicValue(ctx => {
-        const provider = ctx.container.get(WebSocketConnectionProvider);
+        const provider = ctx.container.get<WebSocketConnectionProvider>(WebSocketConnectionProvider);
         return provider.createProxy<LanguagePackService>(languagePackServicePath);
     }).inSingletonScope();
 });

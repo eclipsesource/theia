@@ -14,10 +14,10 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { injectable, interfaces, decorate, unmanaged } from 'inversify';
-import { RpcProxyFactory, RpcProxy, Emitter, Event, Channel } from '../../common';
+import { injectable, decorate, unmanaged } from 'inversify';
+import { RpcProxyFactory, Emitter, Event, Channel } from '../../common';
 import { Endpoint } from '../endpoint';
-import { AbstractConnectionProvider } from '../../common/messaging/abstract-connection-provider';
+import { AbstractConnectionProvider, ConnectionProvider } from '../../common/messaging/abstract-connection-provider';
 import { io, Socket } from 'socket.io-client';
 import { IWebSocket, WebSocketChannel } from '../../common/messaging/web-socket-channel';
 
@@ -31,8 +31,14 @@ export interface WebSocketOptions {
     reconnecting?: boolean;
 }
 
+export const WebSocketConnectionProvider = Symbol('WebsocketConnectionProvider');
+export interface WebSocketConnectionProvider extends ConnectionProvider<WebSocketOptions> {
+    onSocketDidOpen: Event<void>
+    onSocketDidClose: Event<void>
+};
+
 @injectable()
-export class WebSocketConnectionProvider extends AbstractConnectionProvider<WebSocketOptions> {
+export class WebSocketConnectionProviderImpl extends AbstractConnectionProvider<WebSocketOptions> implements WebSocketConnectionProvider {
 
     protected readonly onSocketDidOpenEmitter: Emitter<void> = new Emitter();
     get onSocketDidOpen(): Event<void> {
@@ -42,10 +48,6 @@ export class WebSocketConnectionProvider extends AbstractConnectionProvider<WebS
     protected readonly onSocketDidCloseEmitter: Emitter<void> = new Emitter();
     get onSocketDidClose(): Event<void> {
         return this.onSocketDidCloseEmitter.event;
-    }
-
-    static override createProxy<T extends object>(container: interfaces.Container, path: string, arg?: object): RpcProxy<T> {
-        return container.get(WebSocketConnectionProvider).createProxy<T>(path, arg);
     }
 
     protected readonly socket: Socket;

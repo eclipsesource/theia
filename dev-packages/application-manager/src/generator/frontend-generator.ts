@@ -95,15 +95,22 @@ const preloader = require('@theia/core/lib/browser/preloader');
 module.exports = preloader.preload().then(() => {
     const { FrontendApplication } = require('@theia/core/lib/browser');
     const { frontendApplicationModule } = require('@theia/core/lib/browser/frontend-application-module');
+    ${this.pck.ifBrowserOnly('const { frontendOnlyApplicationModule } = require(\'@theia/core/lib/browser-only/frontend-only-application-module\'); ')}
     const { messagingFrontendModule } = require('@theia/core/lib/${this.pck.isBrowser()
                 ? 'browser/messaging/messaging-frontend-module'
-                : 'electron-browser/messaging/electron-messaging-frontend-module'}');
+                : this.pck.isElectron()
+                    ? 'electron-browser/messaging/electron-messaging-frontend-module'
+                : 'browser-only/messaging/messaging-frontend-only-module'}');
     const { loggerFrontendModule } = require('@theia/core/lib/browser/logger-frontend-module');
 
     const container = new Container();
     container.load(frontendApplicationModule);
+    ${ this.pck.ifBrowserOnly('container.load(frontendOnlyApplicationModule);')}
     container.load(messagingFrontendModule);
     container.load(loggerFrontendModule);
+
+    ${this.ifBrowserOnly(`const { loggerFrontendOnlyModule } = require('@theia/core/lib/browser-only/logger-frontend-only-module');
+    container.load(loggerFrontendOnlyModule);`)}
 
     return Promise.resolve()${compiledModuleImports}
         .then(start).catch(reason => {

@@ -19,7 +19,7 @@ import fs = require('fs-extra');
 import path = require('path');
 import os = require('os');
 
-export type RebuildTarget = 'electron' | 'browser';
+export type RebuildTarget = 'electron' | 'browser' | 'browser-only';
 
 const EXIT_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
 
@@ -72,7 +72,7 @@ export function rebuild(target: RebuildTarget, options: RebuildOptions = {}): vo
     guardExit(async token => {
         if (target === 'electron' && !cacheExists) {
             process.exitCode = await rebuildElectronModules(cache, modules, forceAbi, token);
-        } else if (target === 'browser' && cacheExists) {
+        } else if (target !== 'electron' && cacheExists) {
             process.exitCode = await revertBrowserModules(cache, modules);
         } else {
             console.log(`native node modules are already rebuilt for ${target}`);
