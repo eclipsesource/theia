@@ -14,30 +14,30 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
+import { FrontendApplicationConfig } from '@theia/application-package/lib/application-props';
+import { ForkOptions, fork } from 'child_process';
+import { promises as fs } from 'fs';
 import { inject, injectable, named } from 'inversify';
-import { screen, app, BrowserWindow, WebContents, Event as ElectronEvent, BrowserWindowConstructorOptions, nativeImage } from '../../electron-shared/electron';
+import { AddressInfo } from 'net';
 import * as path from 'path';
 import { Argv } from 'yargs';
-import { AddressInfo } from 'net';
-import { promises as fs } from 'fs';
-import { fork, ForkOptions } from 'child_process';
-import { FrontendApplicationConfig } from '@theia/application-package/lib/application-props';
-import URI from '../common/uri';
-import { FileUri } from '../node/file-uri';
+import { BrowserWindow, BrowserWindowConstructorOptions, Event as ElectronEvent, WebContents, app, nativeImage, nativeTheme, screen } from '../../electron-shared/electron';
+import { Disposable, DisposableCollection, isOSX, isWindows } from '../common';
+import { ContributionProvider } from '../common/contribution-provider';
+import { StopReason } from '../common/frontend-application-state';
 import { Deferred } from '../common/promise-util';
 import { MaybePromise } from '../common/types';
-import { ContributionProvider } from '../common/contribution-provider';
-import { ElectronSecurityTokenService } from './electron-security-token-service';
-import { ElectronSecurityToken } from '../electron-common/electron-token';
-import Storage = require('electron-store');
-import { Disposable, DisposableCollection, isOSX, isWindows } from '../common';
+import URI from '../common/uri';
 import { DEFAULT_WINDOW_HASH } from '../common/window';
-import { TheiaBrowserWindowOptions, TheiaElectronWindow, TheiaElectronWindowFactory } from './theia-electron-window';
-import { ElectronMainApplicationGlobals } from './electron-main-constants';
-import { createDisposableListener } from './event-utils';
-import { TheiaRendererAPI } from './electron-api-main';
-import { StopReason } from '../common/frontend-application-state';
+import { ElectronSecurityToken } from '../electron-common/electron-token';
 import { dynamicRequire } from '../node/dynamic-require';
+import { FileUri } from '../node/file-uri';
+import { TheiaRendererAPI } from './electron-api-main';
+import { ElectronMainApplicationGlobals } from './electron-main-constants';
+import { ElectronSecurityTokenService } from './electron-security-token-service';
+import { createDisposableListener } from './event-utils';
+import { TheiaBrowserWindowOptions, TheiaElectronWindow, TheiaElectronWindowFactory } from './theia-electron-window';
+import Storage = require('electron-store');
 
 export { ElectronMainApplicationGlobals };
 
@@ -184,6 +184,8 @@ export class ElectronMainApplication {
     protected windows = new Map<number, TheiaElectronWindow>();
     protected restarting = false;
 
+    protected initialWindow?: BrowserWindow;
+
     get config(): FrontendApplicationConfig {
         if (!this._config) {
             throw new Error('You have to start the application first.');
@@ -195,6 +197,7 @@ export class ElectronMainApplication {
         this.useNativeWindowFrame = this.getTitleBarStyle(config) === 'native';
         this._config = config;
         this.hookApplicationEvents();
+        await this.showInitialWindow();
         const port = await this.startBackend();
         this._backendPort.resolve(port);
         await app.whenReady();
@@ -242,6 +245,16 @@ export class ElectronMainApplication {
         return this.didUseNativeWindowFrameOnStart.get(webContents.id) ? 'native' : 'custom';
     }
 
+    protected async showInitialWindow(): Promise<void> {
+        if (process.env.SKIP_INITIAL_WINDOW) {
+            app.whenReady().then(async () => {
+                const options = await this.getLastWindowOptions();
+                this.initialWindow = await this.createWindow({ ...options });
+                this.initialWindow.show();
+            });
+        }
+    }
+
     protected async launch(params: ElectronMainExecutionParams): Promise<void> {
         createYargs(params.argv, params.cwd)
             .command('$0 [file]', false,
@@ -251,14 +264,19 @@ export class ElectronMainApplication {
             ).parse();
     }
 
+    protected async resolveOptions(asyncOptions: MaybePromise<TheiaBrowserWindowOptions>): Promise<TheiaBrowserWindowOptions> {
+        let options = await asyncOptions;
+        options = this.avoidOverlap(options);
+        return options;
+    }
+
     /**
      * Use this rather than creating `BrowserWindow` instances from scratch, since some security parameters need to be set, this method will do it.
      *
      * @param options
      */
     async createWindow(asyncOptions: MaybePromise<TheiaBrowserWindowOptions> = this.getDefaultTheiaWindowOptions()): Promise<BrowserWindow> {
-        let options = await asyncOptions;
-        options = this.avoidOverlap(options);
+        const options = await this.resolveOptions(asyncOptions);
         const electronWindow = this.windowFactory(options, this.config);
         const id = electronWindow.window.webContents.id;
         this.windows.set(id, electronWindow);
@@ -303,6 +321,7 @@ export class ElectronMainApplication {
         return {
             show: false,
             title: this.config.applicationName,
+            backgroundColor: nativeTheme.shouldUseDarkColors ? 'black' : 'white',
             minWidth: 200,
             minHeight: 120,
             webPreferences: {
@@ -320,16 +339,27 @@ export class ElectronMainApplication {
     }
 
     async openDefaultWindow(): Promise<BrowserWindow> {
-        const [uri, electronWindow] = await Promise.all([this.createWindowUri(), this.createWindow()]);
+        const options = this.getDefaultTheiaWindowOptions();
+        const [uri, electronWindow] = await Promise.all([this.createWindowUri(), this.reuseOrCreateWindow(options)]);
         electronWindow.loadURL(uri.withFragment(DEFAULT_WINDOW_HASH).toString(true));
         return electronWindow;
     }
 
     protected async openWindowWithWorkspace(workspacePath: string): Promise<BrowserWindow> {
         const options = await this.getLastWindowOptions();
-        const [uri, electronWindow] = await Promise.all([this.createWindowUri(), this.createWindow(options)]);
+        const [uri, electronWindow] = await Promise.all([this.createWindowUri(), this.reuseOrCreateWindow(options)]);
         electronWindow.loadURL(uri.withFragment(encodeURI(workspacePath)).toString(true));
         return electronWindow;
+    }
+
+    protected async reuseOrCreateWindow(asyncOptions: MaybePromise<TheiaBrowserWindowOptions>): Promise<BrowserWindow> {
+        if (!this.initialWindow) {
+            return this.createWindow(asyncOptions);
+        }
+        // reset initial window after having it re-used once
+        const window = this.initialWindow;
+        this.initialWindow = undefined;
+        return window;
     }
 
     /** Configures native window creation, i.e. using window.open or links with target "_blank" in the frontend. */

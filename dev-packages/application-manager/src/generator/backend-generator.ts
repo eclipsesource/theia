@@ -51,7 +51,7 @@ const { default: electronMainApplicationModule } = require('@theia/core/lib/elec
 const { ElectronMainApplication, ElectronMainApplicationGlobals } = require('@theia/core/lib/electron-main/electron-main-application');
 const { Container } = require('inversify');
 const { resolve } = require('path');
-const { app } = require('electron');
+const { app, nativeTheme } = require('electron');
 
 // Fix the window reloading issue, see: https://github.com/electron/electron/issues/22119
 app.allowRendererProcessReuse = false;
