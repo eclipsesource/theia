@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { inject, injectable, named } from 'inversify';
-import { screen, app, BrowserWindow, WebContents, Event as ElectronEvent, BrowserWindowConstructorOptions, nativeImage } from '../../electron-shared/electron';
+import { screen, app, BrowserWindow, WebContents, Event as ElectronEvent, BrowserWindowConstructorOptions, nativeImage, nativeTheme } from '../../electron-shared/electron';
 import * as path from 'path';
 import { Argv } from 'yargs';
 import { AddressInfo } from 'net';
@@ -184,6 +184,8 @@ export class ElectronMainApplication {
     protected windows = new Map<number, TheiaElectronWindow>();
     protected restarting = false;
 
+    protected initialWindow?: BrowserWindow;
+
     get config(): FrontendApplicationConfig {
         if (!this._config) {
             throw new Error('You have to start the application first.');
@@ -195,6 +197,7 @@ export class ElectronMainApplication {
         this.useNativeWindowFrame = this.getTitleBarStyle(config) === 'native';
         this._config = config;
         this.hookApplicationEvents();
+        this.showInitialWindow();
         const port = await this.startBackend();
         this._backendPort.resolve(port);
         await app.whenReady();
@@ -240,6 +243,16 @@ export class ElectronMainApplication {
      */
     getTitleBarStyleAtStartup(webContents: WebContents): 'native' | 'custom' {
         return this.didUseNativeWindowFrameOnStart.get(webContents.id) ? 'native' : 'custom';
+    }
+
+    protected showInitialWindow(): void {
+        if (!process.env.SKIP_INITIAL_WINDOW) {
+            app.whenReady().then(async () => {
+                const options = await this.getLastWindowOptions();
+                this.initialWindow = await this.createWindow({ ...options });
+                this.initialWindow.show();
+            });
+        }
     }
 
     protected async launch(params: ElectronMainExecutionParams): Promise<void> {
@@ -303,6 +316,7 @@ export class ElectronMainApplication {
         return {
             show: false,
             title: this.config.applicationName,
+            backgroundColor: nativeTheme.shouldUseDarkColors ? '#1E1E1E' : '#FFFFFF',
             minWidth: 200,
             minHeight: 120,
             webPreferences: {
@@ -320,16 +334,27 @@ export class ElectronMainApplication {
     }
 
     async openDefaultWindow(): Promise<BrowserWindow> {
-        const [uri, electronWindow] = await Promise.all([this.createWindowUri(), this.createWindow()]);
+        const options = this.getDefaultTheiaWindowOptions();
+        const [uri, electronWindow] = await Promise.all([this.createWindowUri(), this.reuseOrCreateWindow(options)]);
         electronWindow.loadURL(uri.withFragment(DEFAULT_WINDOW_HASH).toString(true));
         return electronWindow;
     }
 
     protected async openWindowWithWorkspace(workspacePath: string): Promise<BrowserWindow> {
         const options = await this.getLastWindowOptions();
-        const [uri, electronWindow] = await Promise.all([this.createWindowUri(), this.createWindow(options)]);
+        const [uri, electronWindow] = await Promise.all([this.createWindowUri(), this.reuseOrCreateWindow(options)]);
         electronWindow.loadURL(uri.withFragment(encodeURI(workspacePath)).toString(true));
         return electronWindow;
+    }
+
+    protected async reuseOrCreateWindow(asyncOptions: MaybePromise<TheiaBrowserWindowOptions>): Promise<BrowserWindow> {
+        if (!this.initialWindow) {
+            return this.createWindow(asyncOptions);
+        }
+        // reset initial window after having it re-used once
+        const window = this.initialWindow;
+        this.initialWindow = undefined;
+        return window;
     }
 
     /** Configures native window creation, i.e. using window.open or links with target "_blank" in the frontend. */
