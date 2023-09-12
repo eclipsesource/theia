@@ -6,6 +6,7 @@
 
 ## v1.42.0
 
+- [core] Improve frontend startup time [#12936](https://github.com/eclipse-theia/theia/pull/12936) - Contributed by STMicroelectronics
 - [vsx-registry] added a hint to extension fetching ENOTFOUND errors [#12858](https://github.com/eclipse-theia/theia/pull/12858) - Contributed by STMicroelectronics
 
 ## v1.41.0 - 08/31/2023
