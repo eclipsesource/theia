@@ -1,0 +1,48 @@
+name: Next Build
+
+on:
+  push:
+    branches:
+      - master
+      - jf/local-next-build
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Publish Next Version
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Docker Build
+        shell: bash
+        run: |
+          mkdir /home/runner/work/theia/verdaccio
+          docker run --rm \
+            -e GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' \
+            -e AUTH_TOKEN='${{ secrets.GITHUB_TOKEN }}' \
+            -e PUBLISH='false' \
+            -u $(id -u ${USER}):$(id -g ${USER}) \
+            -v /home/runner/work/theia/theia:/tmp/theia \
+            -v /home/runner/work/theia/verdaccio:/tmp/verdaccio \
+            ghcr.io/eclipse-theia/theia-blueprint/blueprint-theia-builder:latest \
+            https://npm.pkg.github.com
+
+      - name: Use Python 3.x
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@theia"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: yarn publish:local:next
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
