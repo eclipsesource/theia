@@ -695,7 +695,11 @@ export class LanguagesMainImpl implements LanguagesMain, Disposable {
             extensionId: new ExtensionIdentifier(pluginInfo.id),
             displayName: pluginInfo.name,
             provideDocumentRangeFormattingEdits: (model, range: Range, options, token) =>
-                this.provideDocumentRangeFormattingEdits(handle, model, range, options, token)
+                this.provideDocumentRangeFormattingEdits(handle, model, range, options, token),
+            // @monaco-uplift
+            // after updating monaco > 1.81, the monaco DocumentRangeFormattingEditProvider will have this additional method
+            // provideDocumentRangesFormattingEdits: (model, ranges: Range[], options, token) =>
+            //    this.provideDocumentRangeFormattingEdits(handle, model, ranges, options, token),
         };
 
         return provider;
@@ -704,6 +708,11 @@ export class LanguagesMainImpl implements LanguagesMain, Disposable {
     protected provideDocumentRangeFormattingEdits(handle: number, model: monaco.editor.ITextModel,
         range: Range, options: monaco.languages.FormattingOptions, token: monaco.CancellationToken): monaco.languages.ProviderResult<monaco.languages.TextEdit[]> {
         return this.proxy.$provideDocumentRangeFormattingEdits(handle, model.uri, range, options, token);
+    }
+
+    protected provideDocumentRangesFormattingEdits(handle: number, model: monaco.editor.ITextModel,
+        ranges: Range[], options: monaco.languages.FormattingOptions, token: monaco.CancellationToken): monaco.languages.ProviderResult<monaco.languages.TextEdit[]> {
+        return this.proxy.$provideDocumentRangesFormattingEdits(handle, model.uri, ranges, options, token);
     }
 
     $registerOnTypeFormattingProvider(handle: number, pluginInfo: PluginInfo, selector: SerializedDocumentFilter[], autoFormatTriggerCharacters: string[]): void {

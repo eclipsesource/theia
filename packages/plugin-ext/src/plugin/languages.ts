@@ -517,6 +517,11 @@ export class LanguagesExtImpl implements LanguagesExt {
         options: FormattingOptions, token: theia.CancellationToken): Promise<TextEdit[] | undefined> {
         return this.withAdapter(handle, RangeFormattingAdapter, adapter => adapter.provideDocumentRangeFormattingEdits(URI.revive(resource), range, options, token), undefined);
     }
+
+    $provideDocumentRangesFormattingEdits(handle: number, resource: UriComponents, ranges: Range[],
+        options: FormattingOptions, token: theia.CancellationToken): Promise<TextEdit[] | undefined> {
+        return this.withAdapter(handle, RangeFormattingAdapter, adapter => adapter.provideDocumentRangesFormattingEdits(URI.revive(resource), ranges, options, token), undefined);
+    }
     // ### Document Range Formatting Edit end
 
     // ### On Type Formatting Edit begin

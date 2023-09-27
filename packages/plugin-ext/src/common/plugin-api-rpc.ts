@@ -1615,6 +1615,8 @@ export interface LanguagesExt {
         options: FormattingOptions, token: CancellationToken): Promise<TextEdit[] | undefined>;
     $provideDocumentRangeFormattingEdits(handle: number, resource: UriComponents, range: Range,
         options: FormattingOptions, token: CancellationToken): Promise<TextEdit[] | undefined>;
+    $provideDocumentRangesFormattingEdits(handle: number, resource: UriComponents, ranges: Range[],
+        options: FormattingOptions, token: CancellationToken): Promise<TextEdit[] | undefined>;
     $provideOnTypeFormattingEdits(
         handle: number,
         resource: UriComponents,

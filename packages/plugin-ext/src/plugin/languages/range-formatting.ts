@@ -45,4 +45,26 @@ export class RangeFormattingAdapter {
         });
     }
 
+    provideDocumentRangesFormattingEdits(resource: URI, ranges: Range[], options: FormattingOptions, token: theia.CancellationToken): Promise<TextEdit[] | undefined> {
+        const document = this.documents.getDocumentData(resource);
+        if (!document) {
+            return Promise.reject(new Error(`There are no document for ${resource}`));
+        }
+
+        const doc = document.document;
+
+        if (typeof this.provider['provideDocumentRangesFormattingEdits'] === 'function') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const result = Promise.resolve(this.provider.provideDocumentRangesFormattingEdits(doc, ranges.map(Converter.toRange), <any>options, token)).then(value => {
+                if (Array.isArray(value)) {
+                    return value.map(Converter.fromTextEdit);
+                }
+                return undefined;
+            });
+            return result;
+        }
+
+        return Promise.resolve(undefined);
+    }
+
 }

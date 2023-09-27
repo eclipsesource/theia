@@ -6,6 +6,8 @@
 
 ## v1.43.0 - Unreleased
 
+- [editor] add partial support of 'provideDocumentRangesFormattingEdits' in the `DocumentRangeFormattingEditProvider` VS Code API []()
+
 <a name="breaking_changes_1.43.0">[Breaking Changes:](#breaking_changes_1.43.0)</a>
 
 - [core] removed `SETTINGS_OPEN` menupath constant - replaced by `MANAGE_GENERAL` [#12803](https://github.com/eclipse-theia/theia/pull/12803)
