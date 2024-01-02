@@ -461,7 +461,7 @@ export class MenuCommandRegistry extends PhosphorCommandRegistry {
         const unregisterCommand = this.addCommand(id, {
             execute: () => commandExecutor.executeCommand(menuPath, id, ...args),
             label: menu.label,
-            icon: menu.icon,
+            iconClass: menu.icon,
             isEnabled: () => enabled,
             isVisible: () => visible,
             isToggled: () => toggled
@@ -475,7 +475,7 @@ export class MenuCommandRegistry extends PhosphorCommandRegistry {
             this.addKeyBinding({
                 command: id,
                 keys,
-                selector: '.p-Widget' // We have the PhosphorJS dependency anyway.
+                selector: '.lm-Widget' // We have the PhosphorJS dependency anyway.
             });
         }
         return Disposable.create(() => unregisterCommand.dispose());

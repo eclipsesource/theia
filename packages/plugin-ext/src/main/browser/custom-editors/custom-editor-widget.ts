@@ -28,7 +28,6 @@ import { CustomEditorModel } from './custom-editors-main';
 export class CustomEditorWidget extends WebviewWidget implements SaveableSource, NavigatableWidget {
     static override FACTORY_ID = 'plugin-custom-editor';
 
-    override id: string;
     resource: URI;
 
     protected _modelRef: Reference<CustomEditorModel>;

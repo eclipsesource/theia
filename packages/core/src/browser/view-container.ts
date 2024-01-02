@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { interfaces, injectable, inject, postConstruct } from 'inversify';
-import { IIterator, toArray, find, some, every, map, ArrayExt } from '@lumino/algorithm';
+import { toArray, find, some, every, map, ArrayExt } from '@lumino/algorithm';
 import {
     Widget, EXPANSION_TOGGLE_CLASS, COLLAPSED_CLASS, CODICON_TREE_ITEM_CLASSES, MessageLoop, Message, SplitPanel,
     BaseWidget, addEventListener, SplitLayout, LayoutItem, PanelLayout, addKeyListener, waitForRevealed, UnsafeWidgetUtilities, DockPanel, PINNED_CLASS
@@ -220,7 +220,7 @@ export class ViewContainer extends BaseWidget implements StatefulWidget, Applica
     }
 
     protected updateSplitterVisibility(): void {
-        const className = 'p-first-visible';
+        const className = 'lm-first-visible';
         let firstFound = false;
         for (const part of this.getParts()) {
             if (!part.isHidden && !firstFound) {
@@ -713,32 +713,32 @@ export class ViewContainer extends BaseWidget implements StatefulWidget, Applica
 
     protected override onBeforeAttach(msg: Message): void {
         super.onBeforeAttach(msg);
-        this.node.addEventListener('p-dragenter', this, true);
-        this.node.addEventListener('p-dragover', this, true);
-        this.node.addEventListener('p-dragleave', this, true);
-        this.node.addEventListener('p-drop', this, true);
+        this.node.addEventListener('lm-dragenter', this, true);
+        this.node.addEventListener('lm-dragover', this, true);
+        this.node.addEventListener('lm-dragleave', this, true);
+        this.node.addEventListener('lm-drop', this, true);
     }
 
     protected override onAfterDetach(msg: Message): void {
         super.onAfterDetach(msg);
-        this.node.removeEventListener('p-dragenter', this, true);
-        this.node.removeEventListener('p-dragover', this, true);
-        this.node.removeEventListener('p-dragleave', this, true);
-        this.node.removeEventListener('p-drop', this, true);
+        this.node.removeEventListener('lm-dragenter', this, true);
+        this.node.removeEventListener('lm-dragover', this, true);
+        this.node.removeEventListener('lm-dragleave', this, true);
+        this.node.removeEventListener('lm-drop', this, true);
     }
 
     handleEvent(event: Event): void {
         switch (event.type) {
-            case 'p-dragenter':
+            case 'lm-dragenter':
                 this.handleDragEnter(event as IDragEvent);
                 break;
-            case 'p-dragover':
+            case 'lm-dragover':
                 this.handleDragOver(event as IDragEvent);
                 break;
-            case 'p-dragleave':
+            case 'lm-dragleave':
                 this.handleDragLeave(event as IDragEvent);
                 break;
-            case 'p-drop':
+            case 'lm-drop':
                 this.handleDrop(event as IDragEvent);
                 break;
         }
@@ -844,7 +844,7 @@ export class ViewContainer extends BaseWidget implements StatefulWidget, Applica
                         proposedAction: 'move',
                         supportedActions: 'move'
                     });
-                    part.node.classList.add('p-mod-hidden');
+                    part.node.classList.add('lm-mod-hidden');
                     drag.start(event.clientX, event.clientY).then(dropAction => {
                         // The promise is resolved when the drag has ended
                         if (dropAction === 'move' && part.currentViewContainerId !== this.id) {
@@ -852,7 +852,7 @@ export class ViewContainer extends BaseWidget implements StatefulWidget, Applica
                             this.lastVisibleState = this.doStoreState();
                         }
                     });
-                    setTimeout(() => { part.node.classList.remove('p-mod-hidden'); }, 0);
+                    setTimeout(() => { part.node.classList.remove('lm-mod-hidden'); }, 0);
                 }, false));
     }
 
@@ -1364,7 +1364,7 @@ export class ViewContainerLayout extends SplitLayout {
         return (this as any)._items as Array<LayoutItem & ViewContainerLayout.Item>;
     }
 
-    override iter(): IIterator<ViewContainerPart> {
+    iter(): IterableIterator<ViewContainerPart> {
         return map(this.items, item => item.widget);
     }
 

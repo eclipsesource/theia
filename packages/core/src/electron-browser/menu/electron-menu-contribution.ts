@@ -192,10 +192,10 @@ export class ElectronMenuContribution extends BrowserMenuBarContribution impleme
     protected hideTopPanel(app: FrontendApplication): void {
         const itr = app.shell.children();
         let child = itr.next();
-        while (child) {
+        while (!child.done) {
             // Top panel for the menu contribution is not required for native Electron title bar.
-            if (child.id === 'theia-top-panel') {
-                child.setHidden(this.titleBarStyle !== 'custom');
+            if (child.value.id === 'theia-top-panel') {
+                child.value.setHidden(this.titleBarStyle !== 'custom');
                 break;
             } else {
                 child = itr.next();

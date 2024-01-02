@@ -228,7 +228,7 @@ export class TheiaDockPanel extends DockPanel {
         }
 
         const removedListener = () => {
-            if (!this.widgets().next()) {
+            if (!this.widgets().next().value) {
                 this.toDisposeOnToggleMaximized.dispose();
             }
         };

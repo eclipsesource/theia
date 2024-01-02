@@ -192,7 +192,7 @@ export class TabBarRenderer extends TabBar.Renderer {
                 this.renderLock(data, isInSidePanel)
             ),
             h.div({
-                className: 'p-TabBar-tabCloseIcon action-label',
+                className: 'lm-TabBar-tabCloseIcon action-label',
                 title: closeIconTitle,
                 onclick: this.handleCloseClickEvent
             })
@@ -202,7 +202,7 @@ export class TabBarRenderer extends TabBar.Renderer {
     override createTabClass(data: SideBarRenderData): string {
         let tabClass = super.createTabClass(data);
         if (!(data.visible ?? true)) {
-            tabClass += ' p-mod-invisible';
+            tabClass += ' lm-mod-invisible';
         }
         return tabClass;
     }
@@ -277,16 +277,16 @@ export class TabBarRenderer extends TabBar.Renderer {
         // No need to check for duplicate labels if the tab is rendered in the side panel (title is not displayed),
         // or if there are less than two files in the tab bar.
         if (isInSidePanel || (this.tabBar && this.tabBar.titles.length < 2)) {
-            return h.div({ className: 'p-TabBar-tabLabel', style }, data.title.label);
+            return h.div({ className: 'lm-TabBar-tabLabel', style }, data.title.label);
         }
         const originalToDisplayedMap = this.findDuplicateLabels([...this.tabBar!.titles]);
         const labelDetails: string | undefined = originalToDisplayedMap.get(data.title.caption);
         if (labelDetails) {
-            return h.div({ className: 'p-TabBar-tabLabelWrapper' },
-                h.div({ className: 'p-TabBar-tabLabel', style }, data.title.label),
-                h.div({ className: 'p-TabBar-tabLabelDetails', style }, labelDetails));
+            return h.div({ className: 'lm-TabBar-tabLabelWrapper' },
+                h.div({ className: 'lm-TabBar-tabLabel', style }, data.title.label),
+                h.div({ className: 'lm-TabBar-tabLabelDetails', style }, labelDetails));
         }
-        return h.div({ className: 'p-TabBar-tabLabel', style }, data.title.label);
+        return h.div({ className: 'lm-TabBar-tabLabel', style }, data.title.label);
     }
 
     renderBadge(data: SideBarRenderData, isInSidePanel?: boolean): VirtualElement {
@@ -302,7 +302,7 @@ export class TabBarRenderer extends TabBar.Renderer {
 
     renderLock(data: SideBarRenderData, isInSidePanel?: boolean): VirtualElement {
         return !isInSidePanel && data.title.className.includes(LOCKED_CLASS)
-            ? h.div({ className: 'p-TabBar-tabLock' })
+            ? h.div({ className: 'lm-TabBar-tabLock' })
             : h.div({});
     }
 
@@ -535,7 +535,7 @@ export class TabBarRenderer extends TabBar.Renderer {
                     visualPreviewDiv.append(clonedNode);
                     const visualPreview = visualPreviewDiv.children.item(visualPreviewDiv.children.length - 1);
                     if (visualPreview instanceof HTMLElement) {
-                        visualPreview.classList.remove('p-mod-hidden');
+                        visualPreview.classList.remove('lm-mod-hidden');
                         visualPreview.classList.add('enhanced-preview');
                         visualPreview.id = `preview:${widget.id}`;
 
@@ -602,7 +602,7 @@ export class TabBarRenderer extends TabBar.Renderer {
             event.preventDefault();
             let widget: Widget | undefined = undefined;
             if (this.tabBar) {
-                const titleIndex = Array.from(this.tabBar.contentNode.getElementsByClassName('p-TabBar-tab'))
+                const titleIndex = Array.from(this.tabBar.contentNode.getElementsByClassName('lm-TabBar-tab'))
                     .findIndex(node => node.contains(event.currentTarget as HTMLElement));
                 if (titleIndex !== -1) {
                     widget = this.tabBar.titles[titleIndex].owner;
@@ -704,7 +704,7 @@ export class ScrollableTabBar extends TabBar<Widget> {
     protected rewireDOM(): void {
         const contentNode = this.node.getElementsByClassName(ScrollableTabBar.Styles.TAB_BAR_CONTENT)[0];
         if (!contentNode) {
-            throw new Error("'this.node' does not have the content as a direct child with class name 'p-TabBar-content'.");
+            throw new Error(`'this.node' does not have the content as a direct child with class name '${ScrollableTabBar.Styles.TAB_BAR_CONTENT}'.`);
         }
         this.node.removeChild(contentNode);
         this.contentContainer = document.createElement('div');
@@ -769,14 +769,14 @@ export class ScrollableTabBar extends TabBar<Widget> {
                 if (this.orientation === 'horizontal') {
                     let availableWidth = this.scrollbarHost.clientWidth;
                     let effectiveWidth = availableWidth;
-                    if (!this.openTabsContainer.classList.contains('p-mod-hidden')) {
+                    if (!this.openTabsContainer.classList.contains('lm-mod-hidden')) {
                         availableWidth += this.openTabsContainer.getBoundingClientRect().width;
                     }
                     if (this.dynamicTabOptions.minimumTabSize * this.titles.length <= availableWidth) {
                         effectiveWidth += this.openTabsContainer.getBoundingClientRect().width;
-                        this.openTabsContainer.classList.add('p-mod-hidden');
+                        this.openTabsContainer.classList.add('lm-mod-hidden');
                     } else {
-                        this.openTabsContainer.classList.remove('p-mod-hidden');
+                        this.openTabsContainer.classList.remove('lm-mod-hidden');
                     }
                     this.tabSize = Math.max(Math.min(effectiveWidth / this.titles.length,
                         this.dynamicTabOptions.defaultTabSize), this.dynamicTabOptions.minimumTabSize);
@@ -784,7 +784,7 @@ export class ScrollableTabBar extends TabBar<Widget> {
             }
             this.node.classList.add('dynamic-tabs');
         } else {
-            this.openTabsContainer.classList.add('p-mod-hidden');
+            this.openTabsContainer.classList.add('lm-mod-hidden');
             this.node.classList.remove('dynamic-tabs');
         }
         for (let i = 0, n = this.titles.length; i < n; ++i) {
@@ -869,10 +869,10 @@ export class ScrollableTabBar extends TabBar<Widget> {
     /**
      * Overrides the `contentNode` property getter in PhosphorJS' TabBar.
      */
-    // @ts-expect-error TS2611 `TabBar<T>.contentNode` is declared as `readonly contentNode` but is implemented as a getter.
-    get contentNode(): HTMLUListElement {
-        return this.tabBarContainer.getElementsByClassName(ToolbarAwareTabBar.Styles.TAB_BAR_CONTENT)[0] as HTMLUListElement;
-    }
+    // @tsx-expect-error TS2611 `TabBar<T>.contentNode` is declared as `readonly contentNode` but is implemented as a getter.
+    // get contentNode(): HTMLUListElement {
+    //     return this.tabBarContainer.getElementsByClassName(ToolbarAwareTabBar.Styles.TAB_BAR_CONTENT)[0] as HTMLUListElement;
+    // }
 
     /**
      * Overrides the scrollable host from the parent class.
@@ -894,8 +894,8 @@ export namespace ScrollableTabBar {
     }
     export namespace Styles {
 
-        export const TAB_BAR_CONTENT = 'p-TabBar-content';
-        export const TAB_BAR_CONTENT_CONTAINER = 'p-TabBar-content-container';
+        export const TAB_BAR_CONTENT = 'lm-TabBar-content';
+        export const TAB_BAR_CONTENT_CONTAINER = 'lm-TabBar-content-container';
 
     }
 }
@@ -1081,18 +1081,18 @@ export class SideTabBar extends ScrollableTabBar {
 
     protected override onAfterAttach(msg: Message): void {
         this.updateTabs();
-        this.node.addEventListener('p-dragenter', this);
-        this.node.addEventListener('p-dragover', this);
-        this.node.addEventListener('p-dragleave', this);
-        document.addEventListener('p-drop', this);
+        this.node.addEventListener('lm-dragenter', this);
+        this.node.addEventListener('lm-dragover', this);
+        this.node.addEventListener('lm-dragleave', this);
+        document.addEventListener('lm-drop', this);
     }
 
     protected override onAfterDetach(msg: Message): void {
         super.onAfterDetach(msg);
-        this.node.removeEventListener('p-dragenter', this);
-        this.node.removeEventListener('p-dragover', this);
-        this.node.removeEventListener('p-dragleave', this);
-        document.removeEventListener('p-drop', this);
+        this.node.removeEventListener('lm-dragenter', this);
+        this.node.removeEventListener('lm-dragover', this);
+        this.node.removeEventListener('lm-dragleave', this);
+        document.removeEventListener('lm-drop', this);
     }
 
     protected override onUpdateRequest(msg: Message): void {
@@ -1185,13 +1185,13 @@ export class SideTabBar extends ScrollableTabBar {
                         paddingBottom
                     };
                     // Extract label size from the DOM
-                    const labelElements = hiddenTab.getElementsByClassName('p-TabBar-tabLabel');
+                    const labelElements = hiddenTab.getElementsByClassName('lm-TabBar-tabLabel');
                     if (labelElements.length === 1) {
                         const label = labelElements[0];
                         rd.labelSize = { width: label.clientWidth, height: label.clientHeight };
                     }
                     // Extract icon size from the DOM
-                    const iconElements = hiddenTab.getElementsByClassName('p-TabBar-tabIcon');
+                    const iconElements = hiddenTab.getElementsByClassName('lm-TabBar-tabIcon');
                     if (iconElements.length === 1) {
                         const icon = iconElements[0];
                         rd.iconSize = { width: icon.clientWidth, height: icon.clientHeight };
@@ -1298,13 +1298,13 @@ export class SideTabBar extends ScrollableTabBar {
                 this.onMouseMove(event as MouseEvent);
                 super.handleEvent(event);
                 break;
-            case 'p-dragenter':
+            case 'lm-dragenter':
                 this.onDragEnter(event as IDragEvent);
                 break;
-            case 'p-dragover':
+            case 'lm-dragover':
                 this.onDragOver(event as IDragEvent);
                 break;
-            case 'p-dragleave': case 'p-drop':
+            case 'lm-dragleave': case 'lm-drop':
                 this.cancelViewContainerDND();
                 break;
             default:
