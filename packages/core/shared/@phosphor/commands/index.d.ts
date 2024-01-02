@@ -1,1 +1,1 @@
-export * from '@phosphor/commands';
+export * from '@lumino/commands';

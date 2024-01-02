@@ -1,1 +1,1 @@
-export * from '@phosphor/algorithm';
+export * from '@lumino/algorithm';

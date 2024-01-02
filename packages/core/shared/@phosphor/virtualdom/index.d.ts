@@ -1,1 +1,1 @@
-export * from '@phosphor/virtualdom';
+export * from '@lumino/virtualdom';

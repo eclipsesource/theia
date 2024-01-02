@@ -1,1 +1,1 @@
-export * from '@phosphor/domutils';
+export * from '@lumino/domutils';

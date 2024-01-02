@@ -1,1 +1,1 @@
-export * from '@phosphor/dragdrop';
+export * from '@lumino/dragdrop';

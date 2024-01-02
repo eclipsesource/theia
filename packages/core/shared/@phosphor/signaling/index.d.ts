@@ -1,1 +1,1 @@
-export * from '@phosphor/signaling';
+export * from '@lumino/signaling';

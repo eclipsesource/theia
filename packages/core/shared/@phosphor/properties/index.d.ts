@@ -1,1 +1,1 @@
-export * from '@phosphor/properties';
+export * from '@lumino/properties';

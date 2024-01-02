@@ -1,1 +1,1 @@
-export * from '@phosphor/widgets';
+export * from '@lumino/widgets';

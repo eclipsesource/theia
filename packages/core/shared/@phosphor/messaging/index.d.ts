@@ -1,1 +1,1 @@
-export * from '@phosphor/messaging';
+export * from '@lumino/messaging';

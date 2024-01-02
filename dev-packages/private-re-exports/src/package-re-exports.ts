@@ -80,7 +80,7 @@ export async function resolveTheiaReExports(
         }),
         ...reExportsEqual.map<ReExportEqual>(pattern => {
             const [moduleName, exportNamespace = moduleName] = pattern.split(' as ', 2);
-            if (!/^[a-zA-Z_]\w/.test(exportNamespace)) {
+            if (!/^[a-zA-Z_@]\w/.test(exportNamespace)) {
                 console.warn(`"${exportNamespace}" is not a valid namespace (module: ${moduleName})`);
             }
             const [packageName, subModuleName] = parseModule(moduleName);

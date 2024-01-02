@@ -1,1 +1,1 @@
-export * from '@phosphor/coreutils';
+export * from '@lumino/coreutils';
