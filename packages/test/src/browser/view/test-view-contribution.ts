@@ -69,6 +69,13 @@ export namespace TestViewCommands {
         iconClass: codicon('run')
     });
 
+    export const RUN_TEST_WITH_COVERAGE: Command = Command.toDefaultLocalizedCommand({
+        id: TestCommandId.RunWithCoverageAction,
+        label: 'Run Test With Coverage',
+        category: 'Test',
+        iconClass: codicon('debug-coverage')
+    });
+
     export const RUN_TEST_WITH_PROFILE: Command = Command.toDefaultLocalizedCommand({
         id: TestCommandId.RunUsingProfileAction,
         category: 'Test',
@@ -192,6 +199,14 @@ export class TestViewContribution extends AbstractViewContribution<TestTreeWidge
             }
         });
 
+        commands.registerCommand(TestViewCommands.RUN_TEST_WITH_COVERAGE, {
+            isEnabled: t => TestItem.is(t),
+            isVisible: t => TestItem.is(t),
+            execute: t => {
+                this.testService.runTests(TestRunProfileKind.Coverage, [t]);
+            }
+        });
+
         commands.registerCommand(TestViewCommands.SELECT_DEFAULT_PROFILES, {
             isEnabled: t => TestItem.is(t),
             isVisible: t => TestItem.is(t),
@@ -260,9 +275,14 @@ export class TestViewContribution extends AbstractViewContribution<TestTreeWidge
             order: 'aa'
         });
         menus.registerMenuAction(TEST_VIEW_INLINE_MENU, {
-            commandId: TestViewCommands.GOTO_TEST.id,
+            commandId: TestViewCommands.RUN_TEST_WITH_COVERAGE.id,
             order: 'aaa'
         });
+        menus.registerMenuAction(TEST_VIEW_INLINE_MENU, {
+            commandId: TestViewCommands.GOTO_TEST.id,
+            order: 'aaaa'
+        });
+        
 
         menus.registerMenuAction(TEST_VIEW_CONTEXT_MENU, {
             commandId: TestViewCommands.RUN_TEST_WITH_PROFILE.id,

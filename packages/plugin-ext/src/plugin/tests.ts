@@ -240,7 +240,9 @@ class TestRun implements theia.TestRun {
     onDidEnd: Event<void> = this.onDidEndEmitter.event;
     private onWillFlushEmitter = new Emitter<void>();
     onWillFlush: Event<void> = this.onWillFlushEmitter.event;
-
+    private onDidDisposeEmitter = new Emitter<void>();
+    onDidDispose: Event<void> = this.onDidDisposeEmitter.event;
+    private disposed : boolean;
     readonly id: string;
     private testStateDeltas = new Map<theia.TestItem, TestStateChangeDTO>();
     private testOutputDeltas: TestOutputDTO[] = [];
@@ -261,6 +263,7 @@ class TestRun implements theia.TestRun {
 
         this.tokenSource = new CancellationTokenSource();
         this.token = this.tokenSource.token;
+        this.disposed = false;
 
         this.proxy.$notifyTestRunCreated(this.controller.id, { id: this.id, name: this.name, isRunning });
     }
@@ -287,10 +290,18 @@ class TestRun implements theia.TestRun {
         this.testOutputDeltas.push({ output, location: Convert.fromLocation(location), itemPath: checkTestInstance(test)?.path });
         this.changeBatcher.changeOccurred();
     }
-
+    addCoverage(fileCoverage: theia.FileCoverage): void {
+        //TODO: implement API
+    }
     end(): void {
         this.ended = true;
         this.proxy.$notifyTestRunEnded(this.controller.id, this.id);
+    }
+    dispose(): void {
+        if(!this.disposed) {
+            this.disposed = true;
+            this.onDidDisposeEmitter.fire();
+        }
     }
 
     private checkNotEnded(test: theia.TestItem): boolean {
@@ -530,6 +541,5 @@ export class TestRunProfile implements theia.TestRunProfile {
     }
 
     dispose(): void {
-    }
-
+    }   
 }

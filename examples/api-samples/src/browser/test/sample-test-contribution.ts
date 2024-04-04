@@ -140,6 +140,20 @@ export class SampleTestContribution implements TestContribution, CommandContribu
             }
         });
 
+        testController.addProfile({
+            kind: TestRunProfileKind.Coverage,
+            label: 'Sample run profile with Coverage #1',
+            isDefault: true,
+            canConfigure: true,
+            tag: '',
+            run: (name: string, included: readonly TestItem[], excluded: readonly TestItem[]) => {
+                testController.addRun(new TestRunImpl(testController, `sample-run-id-${this.nextRunId}`, `sample-profile-with-coverage-1-${this.nextRunId++}`));
+            },
+            configure: function (): void {
+                console.log('configuring the sample run profile with Coverage #1');
+            }
+        });
+
         service.registerTestController(testController);
     }
 }

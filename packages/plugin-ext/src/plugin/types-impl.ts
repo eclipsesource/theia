@@ -3723,3 +3723,77 @@ export class TerminalQuickFixOpener {
     constructor(uri: theia.Uri) { }
 }
 
+// #region TestCoverage
+export class TestCoverageCount {
+    covered: number;
+    total: number;
+
+    constructor(covered: number, total: number) {
+        this.covered = covered;
+        this.total = total;
+    }
+}
+
+export class FileCoverage {
+    detailedCoverage?: theia.FileCoverageDetail[];
+    
+    static fromDetails(uri:theia.Uri, details: FileCoverageDetail[]): FileCoverage {
+        const statements = new TestCoverageCount(0, 0);
+		const branches = new TestCoverageCount(0, 0);
+		const decl = new TestCoverageCount(0, 0);
+
+		for (const detail of details) {
+            if(StatementCoverage.is(detail)) {
+				statements.total += 1;
+				statements.covered += detail.executed ? 1 : 0;
+
+				for (const branch of detail.branches) {
+					branches.total += 1;
+					branches.covered += branch.executed ? 1 : 0;
+				}
+			} else {
+				decl.total += 1;
+				decl.covered += detail.executed ? 1 : 0;
+			}
+		}
+
+		const coverage = new FileCoverage(
+			uri,
+			statements,
+			branches.total > 0 ? branches : undefined,
+			decl.total > 0 ? decl : undefined,
+		);
+
+		coverage.detailedCoverage = details;
+
+		return coverage;
+    }
+
+    constructor(
+        public uri: theia.Uri,
+        public statementCoverage: TestCoverageCount,
+        public branchCoverage?: TestCoverageCount,
+        public declarationCoverage?: TestCoverageCount,
+    ) { }
+}
+
+export class StatementCoverage {
+    constructor(public executed: number | boolean, public location: Position | Range, public branches: BranchCoverage[] = []) { }
+}
+
+export namespace StatementCoverage {
+    export function is(coverage: unknown): coverage is StatementCoverage {
+        return isObject(coverage) && 'branches' in coverage;
+    }     
+}
+
+export class BranchCoverage {
+    constructor(public executed: number | boolean, public location?: Position | Range, public label?: string) { }
+}
+
+export class DeclarationCoverage {
+    constructor(public name: string, public executed: number | boolean, public location: Position | Range) { }
+}
+
+export type FileCoverageDetail = StatementCoverage | DeclarationCoverage;
+// #endregion

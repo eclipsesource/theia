@@ -56,6 +56,7 @@ export const enum TestCommandId {
     RunCurrentFile = 'testing.runCurrentFile',
     RunSelectedAction = 'testing.runSelected',
     RunUsingProfileAction = 'testing.runUsing',
+    RunWithCoverageAction = 'testing.coverage',
     SearchForTestExtension = 'testing.searchForTestExtension',
     SelectDefaultTestProfiles = 'testing.selectDefaultTestProfiles',
     ShowMostRecentOutputAction = 'testing.showMostRecentOutput',

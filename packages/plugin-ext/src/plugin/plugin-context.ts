@@ -203,7 +203,12 @@ import {
     TerminalOutputAnchor,
     TerminalQuickFixTerminalCommand,
     TerminalQuickFixOpener,
-    TestResultState
+    TestResultState,
+    TestCoverageCount,
+    BranchCoverage,
+    StatementCoverage,
+    DeclarationCoverage,
+    FileCoverage
 } from './types-impl';
 import { AuthenticationExtImpl } from './authentication-ext';
 import { SymbolKind } from '../common/plugin-api-rpc-model';
@@ -1402,7 +1407,12 @@ export function createAPIFactory(
             TerminalQuickFixTerminalCommand,
             TerminalQuickFixOpener,
             EditSessionIdentityMatch,
-            TestResultState
+            TestResultState,
+            BranchCoverage,
+            DeclarationCoverage,
+            FileCoverage,
+            StatementCoverage,
+            TestCoverageCount
         };
     };
 }
