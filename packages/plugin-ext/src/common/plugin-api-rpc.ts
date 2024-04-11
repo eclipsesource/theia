@@ -123,7 +123,7 @@ import { LanguagePackBundle } from './language-pack-service';
 import { AccessibilityInformation } from '@theia/core/lib/common/accessibility';
 
 import { TreeDelta } from '@theia/test/lib/common/tree-delta';
-import { TestItemDTO, TestOutputDTO, TestRunDTO, TestRunProfileDTO, TestRunRequestDTO, TestStateChangeDTO } from './test-types';
+import { FileCoverageDTO, TestItemDTO, TestOutputDTO, TestRunDTO, TestRunProfileDTO, TestRunRequestDTO, TestStateChangeDTO } from './test-types';
 import { ArgumentProcessor } from './commands';
 
 export interface PreferenceData {
@@ -2242,7 +2242,7 @@ export interface TestingMain {
     // Test runs
 
     $notifyTestRunCreated(controllerId: string, run: TestRunDTO): void;
-    $notifyTestStateChanged(controllerId: string, runId: string, stateChanges: TestStateChangeDTO[], outputChanges: TestOutputDTO[]): void;
+    $notifyTestStateChanged(controllerId: string, runId: string, stateChanges: TestStateChangeDTO[], outputChanges: TestOutputDTO[], fileCoverageChanges: FileCoverageDTO[]): void;
     $notifyTestRunEnded(controllerId: string, runId: string): void;
 }
 

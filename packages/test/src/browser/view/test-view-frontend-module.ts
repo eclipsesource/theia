@@ -35,13 +35,17 @@ import { TestOutputUIModel } from './test-output-ui-model';
 import { TestRunTree, TestRunTreeWidget } from './test-run-widget';
 import { TestResultViewContribution } from './test-result-view-contribution';
 import { TEST_RUNS_CONTEXT_MENU, TestRunViewContribution } from './test-run-view-contribution';
+import { TEST_COVERAGE_CONTEXT_MENU, TestCoverageViewContribution } from './test-coverage-view-contribution';
 import { TestContextKeyService } from './test-context-key-service';
+import { TestCoverageTree, TestCoverageTreeWidget } from './test-coverage-widget';
+import { DefaultTestCoverageService, TestCoverageService } from '../test-coverage-service';
 
 export default new ContainerModule(bind => {
 
     bindContributionProvider(bind, TestContribution);
     bind(TestContextKeyService).toSelf().inSingletonScope();
     bind(TestService).to(DefaultTestService).inSingletonScope();
+    bind(TestCoverageService).to(DefaultTestCoverageService).inSingletonScope();
 
     bind(WidgetFactory).toDynamicValue(({ container }) => ({
         id: TestOutputWidget.ID,
@@ -75,6 +79,15 @@ export default new ContainerModule(bind => {
         createWidget: () => container.get<TestRunTreeWidget>(TestRunTreeWidget)
     })).inSingletonScope();
 
+    bind(TestCoverageTreeWidget).toDynamicValue(({ container }) => {
+        const child = createTestCoverageContainer(container);
+        return child.get(TestCoverageTreeWidget);
+    });
+    bind(WidgetFactory).toDynamicValue(({ container }) => ({
+        id: TestCoverageTreeWidget.ID,
+        createWidget: () => container.get<TestCoverageTreeWidget>(TestCoverageTreeWidget)
+    })).inSingletonScope();
+
     bind(WidgetFactory).toDynamicValue(({ container }) => ({
         id: TEST_VIEW_CONTAINER_ID,
         createWidget: async () => {
@@ -88,6 +101,11 @@ export default new ContainerModule(bind => {
                 canHide: false,
                 initiallyCollapsed: false
             });
+            widget = await container.get(WidgetManager).getOrCreateWidget(TestCoverageTreeWidget.ID);
+            viewContainer.addWidget(widget, {
+                canHide: true,
+                initiallyCollapsed: false,
+            });
             widget = await container.get(WidgetManager).getOrCreateWidget(TestRunTreeWidget.ID);
             viewContainer.addWidget(widget, {
                 canHide: true,
@@ -98,6 +116,7 @@ export default new ContainerModule(bind => {
 
     bindViewContribution(bind, TestViewContribution);
     bindViewContribution(bind, TestRunViewContribution);
+    bindViewContribution(bind, TestCoverageViewContribution);
     bindViewContribution(bind, TestResultViewContribution);
     bindViewContribution(bind, TestOutputViewContribution);
     bind(FrontendApplicationContribution).toService(TestViewContribution);
@@ -117,6 +136,19 @@ export function createTestTreeContainer(parent: interfaces.Container): Container
             contextMenuPath: TEST_VIEW_CONTEXT_MENU
         },
         widget: TestTreeWidget,
+    });
+}
+
+export function createTestCoverageContainer(parent: interfaces.Container): Container {
+    return createTreeContainer(parent, {
+        tree: TestCoverageTree,
+        props: {
+            virtualized: false,
+            search: true,
+            multiSelect: false,
+            contextMenuPath: TEST_COVERAGE_CONTEXT_MENU
+        },
+        widget: TestCoverageTreeWidget
     });
 }
 

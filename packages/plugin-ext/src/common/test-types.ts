@@ -54,6 +54,19 @@ export interface TestOutputDTO {
     readonly itemPath?: string[];
 }
 
+export interface FileCoverageDTO {
+    readonly itemPath: string[];
+    readonly uri:UriComponents;
+    statementCoverage: TestCoverageCountDTO;
+    branchCoverage?: TestCoverageCountDTO;
+    declarationCoverage?: TestCoverageCountDTO;
+}
+
+export interface TestCoverageCountDTO {
+    covered: number,
+    total: number
+}
+
 export enum TestExecutionState {
     Queued = 1,
     Running = 2,

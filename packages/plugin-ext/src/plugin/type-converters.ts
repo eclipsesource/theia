@@ -34,7 +34,7 @@ import { BinaryBuffer } from '@theia/core/lib/common/buffer';
 import { CellRange, isTextStreamMime } from '@theia/notebook/lib/common';
 import { MarkdownString as MarkdownStringDTO } from '@theia/core/lib/common/markdown-rendering';
 
-import { TestItemDTO, TestMessageDTO } from '../common/test-types';
+import { FileCoverageDTO, TestCoverageCountDTO, TestItemDTO, TestMessageDTO } from '../common/test-types';
 import { ThemeIcon } from '@theia/monaco-editor-core/esm/vs/base/common/themables';
 
 const SIDE_GROUP = -2;
@@ -1745,4 +1745,27 @@ export namespace TestItem {
         return result;
 
     }
+}
+
+
+export namespace FileCoverage {
+    export function from(fileCoverage: theia.FileCoverage): FileCoverageDTO {
+        return {
+            itemPath: fileCoverage.uri.path.split('/'),
+            uri: fileCoverage.uri,
+            statementCoverage: TestCoverageCount.from(fileCoverage.statementCoverage)!,
+            branchCoverage: TestCoverageCount.from(fileCoverage.branchCoverage),
+            declarationCoverage: TestCoverageCount.from(fileCoverage.declarationCoverage)
+        };
+    }
+}
+
+export namespace TestCoverageCount {
+    export function from(testCoverageCount?: theia.TestCoverageCount) : TestCoverageCountDTO | undefined {
+        return testCoverageCount ? { 
+            covered: testCoverageCount.covered,
+            total: testCoverageCount.total
+        } : undefined; 
+    }
+
 }

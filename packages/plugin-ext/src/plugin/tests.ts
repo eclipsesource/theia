@@ -40,7 +40,8 @@ import { TestItemImpl, TestItemCollection } from './test-item';
 import { AccumulatingTreeDeltaEmitter, TreeDelta } from '@theia/test/lib/common/tree-delta';
 import {
     TestItemDTO, TestOutputDTO, TestExecutionState, TestRunProfileDTO,
-    TestRunProfileKind, TestRunRequestDTO, TestStateChangeDTO, TestItemReference, TestMessageArg, TestMessageDTO
+    TestRunProfileKind, TestRunRequestDTO, TestStateChangeDTO, TestItemReference, TestMessageArg, TestMessageDTO,
+    FileCoverageDTO
 } from '../common/test-types';
 import { ChangeBatcher, observableProperty } from '@theia/test/lib/common/collections';
 import { TestRunRequest } from './types-impl';
@@ -246,6 +247,7 @@ class TestRun implements theia.TestRun {
     readonly id: string;
     private testStateDeltas = new Map<theia.TestItem, TestStateChangeDTO>();
     private testOutputDeltas: TestOutputDTO[] = [];
+    private fileCoverageDeltas: FileCoverageDTO[] = [];
     private changeBatcher = new ChangeBatcher(() => {
         this.emitChange();
     }, 200);
@@ -291,7 +293,8 @@ class TestRun implements theia.TestRun {
         this.changeBatcher.changeOccurred();
     }
     addCoverage(fileCoverage: theia.FileCoverage): void {
-        //TODO: implement API
+        this.fileCoverageDeltas.push(Convert.FileCoverage.from(fileCoverage));
+        this.changeBatcher.changeOccurred();
     }
     end(): void {
         this.ended = true;
@@ -321,8 +324,9 @@ class TestRun implements theia.TestRun {
 
     emitChange() {
         this.onWillFlushEmitter.fire();
-        this.proxy.$notifyTestStateChanged(this.controller.id, this.id, [...this.testStateDeltas.values()], this.testOutputDeltas);
+        this.proxy.$notifyTestStateChanged(this.controller.id, this.id, [...this.testStateDeltas.values()], this.testOutputDeltas, this.fileCoverageDeltas);
         this.testOutputDeltas = [];
+        this.fileCoverageDeltas = [];
         this.testStateDeltas = new Map();
     }
 

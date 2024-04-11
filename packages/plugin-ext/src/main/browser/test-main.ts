@@ -18,6 +18,7 @@ import { SimpleObservableCollection, TreeCollection, observableProperty } from '
 import {
     TestController, TestItem, TestOutputItem, TestRun, TestRunProfile, TestService, TestState, TestStateChangedEvent
 } from '@theia/test/lib/browser/test-service';
+import { FileCoverage } from '@theia/test/lib/browser/test-coverage-service';
 import { AccumulatingTreeDeltaEmitter, CollectionDelta, DeltaKind, TreeDelta, TreeDeltaBuilder } from '@theia/test/lib/common/tree-delta';
 import { Emitter, Location, Range } from '@theia/core/shared/vscode-languageserver-protocol';
 import { Range as PluginRange, Location as PluginLocation } from '../../common/plugin-api-rpc-model';
@@ -26,9 +27,10 @@ import { CancellationToken, Disposable, Event, URI } from '@theia/core';
 import { MAIN_RPC_CONTEXT, TestControllerUpdate, TestingExt, TestingMain } from '../../common';
 import { RPCProtocol } from '../../common/rpc-protocol';
 import { interfaces } from '@theia/core/shared/inversify';
-import { TestExecutionState, TestItemDTO, TestItemReference, TestOutputDTO, TestRunDTO, TestRunProfileDTO, TestStateChangeDTO } from '../../common/test-types';
+import { FileCoverageDTO, TestExecutionState, TestItemDTO, TestItemReference, TestOutputDTO, TestRunDTO, TestRunProfileDTO, TestStateChangeDTO } from '../../common/test-types';
 import { TestRunProfileKind } from '../../plugin/types-impl';
 import { CommandRegistryMainImpl } from './command-registry-main';
+
 
 export class TestItemCollection extends TreeCollection<string, TestItemImpl, TestItemImpl | TestControllerImpl> {
     override add(item: TestItemImpl): TestItemImpl | undefined {
@@ -260,6 +262,7 @@ class TestRunImpl implements TestRun {
     private testStates: Map<TestItem, TestState> = new Map();
     private outputIndices: Map<TestItem, number[]> = new Map();
     private outputs: TestOutputItem[] = [];
+    private fileCoverages: Map <URI, FileCoverage> = new Map();
     private onDidChangePropertyEmitter = new Emitter<{ name?: string; isRunning?: boolean; }>();
     onDidChangeProperty: Event<{ name?: string; isRunning?: boolean; }> = this.onDidChangePropertyEmitter.event;
 
@@ -325,7 +328,10 @@ class TestRunImpl implements TestRun {
     private onDidChangeTestOutputEmitter: Emitter<[TestItem | undefined, TestOutputItem][]> = new Emitter();
     onDidChangeTestOutput: Event<[TestItem | undefined, TestOutputItem][]> = this.onDidChangeTestOutputEmitter.event;
 
-    applyChanges(stateChanges: TestStateChangeDTO[], outputChanges: TestOutputDTO[]): void {
+    private onDidChangeFileCoverageEmitter: Emitter<[URI, FileCoverage][]> = new Emitter();
+    onDidChangeFileCoverage: Event<[URI, FileCoverage][]> = this.onDidChangeFileCoverageEmitter.event;
+
+    applyChanges(stateChanges: TestStateChangeDTO[], outputChanges: TestOutputDTO[], fileCoverageChanges: FileCoverageDTO[]): void {
         const stateEvents: TestStateChangedEvent[] = [];
         stateChanges.forEach(change => {
             const item = this.controller.findItem(change.itemPath);
@@ -357,8 +363,25 @@ class TestRunImpl implements TestRun {
             outputEvents.push([item, output]);
         });
 
+        const fileCoverageEvents: [URI, FileCoverage][] = [];
+
+        
+        fileCoverageChanges.forEach(change =>  {
+            const fileCoverage : FileCoverage = {
+                uri: URI.fromComponents(change.uri),
+                path: change.itemPath,
+                statementCoverage: change.statementCoverage,
+                branchCoverage: change.branchCoverage,
+                declarationCoverage: change.declarationCoverage
+           }
+           this.fileCoverages.set(fileCoverage.uri, fileCoverage);
+           
+           fileCoverageEvents.push([fileCoverage.uri, fileCoverage]);
+        });
+        
         this.onDidChangeTestStateEmitter.fire(stateEvents);
         this.onDidChangeTestOutputEmitter.fire(outputEvents);
+        this.onDidChangeFileCoverageEmitter.fire(fileCoverageEvents);
     }
 
     get items(): readonly TestItem[] {
@@ -617,8 +640,8 @@ export class TestingMainImpl implements TestingMain {
     $notifyTestRunCreated(controllerId: string, run: TestRunDTO): void {
         this.withController(controllerId).addRun(run.id, run.name, run.isRunning);
     }
-    $notifyTestStateChanged(controllerId: string, runId: string, stateChanges: TestStateChangeDTO[], outputChanges: TestOutputDTO[]): void {
-        this.withController(controllerId).withRun(runId).applyChanges(stateChanges, outputChanges);
+    $notifyTestStateChanged(controllerId: string, runId: string, stateChanges: TestStateChangeDTO[], outputChanges: TestOutputDTO[], fileCoverageChanges: FileCoverageDTO[]): void {
+        this.withController(controllerId).withRun(runId).applyChanges(stateChanges, outputChanges, fileCoverageChanges);
     }
 
     $notifyTestRunEnded(controllerId: string, runId: string): void {
