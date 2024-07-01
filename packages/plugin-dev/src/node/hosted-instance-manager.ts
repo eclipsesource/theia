@@ -20,10 +20,11 @@ import * as cp from 'child_process';
 import * as fs from '@theia/core/shared/fs-extra';
 import * as net from 'net';
 import * as path from 'path';
+import * as os from 'os';
 import URI from '@theia/core/lib/common/uri';
 import { ContributionProvider } from '@theia/core/lib/common/contribution-provider';
 import { HostedPluginUriPostProcessor, HostedPluginUriPostProcessorSymbolName } from './hosted-plugin-uri-postprocessor';
-import { environment, isWindows } from '@theia/core';
+import { isWindows } from '@theia/core';
 import { FileUri } from '@theia/core/lib/common/file-uri';
 import { LogType } from '@theia/plugin-ext/lib/common/types';
 import { HostedPluginSupport } from '@theia/plugin-ext/lib/hosted/node/hosted-plugin';
@@ -240,23 +241,22 @@ export abstract class AbstractHostedInstanceManager implements HostedInstanceMan
     }
 
     protected async getStartCommand(port?: number, debugConfig?: PluginDebugConfiguration): Promise<string[]> {
-
-        const processArguments = process.argv;
-        let command: string[];
-        if (environment.electron.is()) {
-            command = ['yarn', 'theia', 'start'];
-        } else {
-            command = processArguments.filter((arg, index, args) => {
-                // remove --port=X and --port X arguments if set
-                // remove --plugins arguments
-                if (arg.startsWith('--port') || args[index - 1] === '--port') {
-                    return;
-                } else {
-                    return arg;
-                }
-
-            });
+        if (!port) {
+            port = process.env.HOSTED_PLUGIN_PORT ?
+                Number(process.env.HOSTED_PLUGIN_PORT) :
+                (debugConfig?.debugPort ? Number(debugConfig.debugPort) : DEFAULT_HOSTED_PLUGIN_PORT);
         }
+        const processArguments = process.argv;
+        const command = processArguments.filter((arg, index, args) => {
+            // remove --port=X and --port X arguments if set
+            // remove --plugins arguments
+            if (arg.startsWith('--port') || args[index - 1] === '--port') {
+                return;
+            } else {
+                return arg;
+            }
+
+        });
         if (process.env.HOSTED_PLUGIN_HOSTNAME) {
             command.push('--hostname=' + process.env.HOSTED_PLUGIN_HOSTNAME);
         }
@@ -365,18 +365,22 @@ export class NodeHostedPluginRunner extends AbstractHostedInstanceManager {
         }
         return options;
     }
-
-    protected override async getStartCommand(port?: number, debugConfig?: PluginDebugConfiguration): Promise<string[]> {
-        if (!port) {
-            port = process.env.HOSTED_PLUGIN_PORT ?
-                Number(process.env.HOSTED_PLUGIN_PORT) :
-                (debugConfig?.debugPort ? Number(debugConfig.debugPort) : DEFAULT_HOSTED_PLUGIN_PORT);
-        }
-        return super.getStartCommand(port, debugConfig);
-    }
 }
 
 @injectable()
 export class ElectronNodeHostedPluginRunner extends AbstractHostedInstanceManager {
+    protected override async getStartCommand(port?: number, debugConfig?: PluginDebugConfiguration): Promise<string[]> {
+        const command = await super.getStartCommand(port, debugConfig);
+        command.push(`--electronUserData="${this.getTempDir()}/theia-extension-host/${this.getTimestamp()}"`);
+        return command;
+    }
 
+    protected getTempDir(): string {
+        const tempDir = os.tmpdir();
+        return process.platform === 'darwin' ? fs.realpathSync(tempDir) : tempDir;
+    }
+
+    protected getTimestamp(): string {
+        return `${Math.round(new Date().getTime() / 1000)}`;
+    }
 }
