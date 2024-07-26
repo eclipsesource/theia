@@ -27,7 +27,8 @@ import {
     ChatRequestModel,
     ChatResponseModel,
 } from './chat-model';
-import { AgentDispatcher } from './agent-dispatcher';
+import { ChatAgentService } from './chat-agent-service';
+import { ILogger } from '@theia/core';
 
 export interface ChatSendRequestData {
     /**
@@ -58,8 +59,11 @@ export interface ChatService {
 
 @injectable()
 export class ChatServiceImpl implements ChatService {
-    @inject(AgentDispatcher)
-    protected _agentDispatcher: AgentDispatcher;
+    @inject(ChatAgentService)
+    protected _agentService: ChatAgentService;
+
+    @inject(ILogger)
+    protected logger: ILogger;
 
     protected _sessions: ChatModelImpl[] = [];
 
@@ -112,9 +116,14 @@ export class ChatServiceImpl implements ChatService {
             }
         });
 
-        // TODO collect the correct agent and ask it to handle the request and response
-        // could also be done as part of the agent dispatching
-        this._agentDispatcher.performRequest(requestModel);
+        const chatAgents = this._agentService.getAgents();
+        if (chatAgents.length > 0) {
+            // TODO collect the correct agent and ask it to handle the request and response
+            // could also be done as part of the agent dispatching
+            chatAgents[0].invoke(requestModel);
+        } else {
+            this.logger.error('No ChatAgents available to handle request!');
+        }
         return requestReturnData;
     }
 }
