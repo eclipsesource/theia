@@ -14,15 +14,23 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ContainerModule } from '@theia/core/shared/inversify';
-import { CodeCompletionAgent, CodeCompletionAgentImpl } from '../common/code-completion-agent';
-import { AICodeCompletionProvider } from './ai-code-completion-provider';
-import { AIFrontendApplicationContribution } from './ai-code-frontend-application-contribution';
-import { FrontendApplicationContribution } from '@theia/core/lib/browser';
+import * as monaco from '@theia/monaco-editor-core';
 
-export default new ContainerModule(bind => {
-    bind(CodeCompletionAgentImpl).toSelf().inSingletonScope();
-    bind(CodeCompletionAgent).toService(CodeCompletionAgentImpl);
-    bind(AICodeCompletionProvider).toSelf().inSingletonScope();
-    bind(FrontendApplicationContribution).to(AIFrontendApplicationContribution).inSingletonScope();
-});
+import { FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { AICodeCompletionProvider } from './ai-code-completion-provider';
+import { inject, injectable } from '@theia/core/shared/inversify';
+
+@injectable()
+export class AIFrontendApplicationContribution implements FrontendApplicationContribution {
+    @inject(AICodeCompletionProvider)
+    private codeCompletionProvider: AICodeCompletionProvider;
+
+    onStart(): void {
+        // Add your code here to be executed when the application starts
+        monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
+    }
+
+    onStop(): void {
+        // Add your code here to be executed when the application stops
+    }
+}
