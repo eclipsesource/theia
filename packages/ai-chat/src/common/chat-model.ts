@@ -125,8 +125,8 @@ export interface Location {
 }
 export function isLocation(obj: unknown): obj is Location {
     return !!obj && typeof obj === 'object' &&
-        'uri' in obj && obj.uri instanceof URI &&
-        'position' in obj && Position.is(obj.position);
+        'uri' in obj && (obj as { uri: unknown }).uri instanceof URI &&
+        'position' in obj && Position.is((obj as { position: unknown }).position);
 }
 
 export interface CommandChatResponseContent
@@ -169,7 +169,7 @@ export const isCodeChatResponseContent = (
     typeof (obj as { code: unknown }).code === 'string'
     && 'language' in obj
     && typeof (obj as { language: unknown }).language === 'string'
-    && 'location' in obj && isLocation(obj.location);
+    && 'location' in obj && isLocation((obj as { location: unknown }).location);
 
 export type ChatResponseContent =
     | BaseChatResponseContent
@@ -303,6 +303,43 @@ export class MarkdownChatResponseContentImpl implements MarkdownChatResponseCont
         return true;
     }
     // TODO add codeblock? add link?
+}
+
+export class CodeChatResponseContentImpl implements CodeChatResponseContent {
+    kind: 'code' = 'code';
+    protected _code: string;
+    protected _language: string;
+    protected _location?: Location;
+
+    constructor(code: string, language: string, location?: Location) {
+        this._code = code;
+        this._language = language;
+        this._location = location;
+    }
+
+    get code(): string {
+        return this._code;
+    }
+
+    get language(): string {
+        return this._language;
+    }
+
+    get location(): Location | undefined {
+        return this._location;
+    }
+
+    asString(): string {
+        return `\`\`\`${this._language}\n${this._code}\n\`\`\``;
+    }
+
+    merge(nextChatResponseContent: CodeChatResponseContent): boolean {
+        if (this._language === nextChatResponseContent.language) {
+            this._code += `\n${nextChatResponseContent.code}`;
+            return true;
+        }
+        return false;
+    }
 }
 
 export class CommandChatResponseContentImpl implements CommandChatResponseContent {
