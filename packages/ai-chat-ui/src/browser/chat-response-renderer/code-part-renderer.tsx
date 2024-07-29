@@ -28,6 +28,7 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
 import * as DOMPurify from '@theia/core/shared/dompurify';
 import { EditorManager } from '@theia/editor/lib/browser';
+import { URI } from '@theia/core';
 
 @injectable()
 export class CodePartRenderer
@@ -49,7 +50,8 @@ export class CodePartRenderer
         // FIXME do not hard code the language
         const highlightedCode = hljs.highlight(response.code, { language: 'typescript' }).value;
 
-        const title = response.location?.uri?.toString() ?? 'Generated Code';
+        const title = this.getTitle(response.location?.uri);
+
         return (
             <div className="theia-CodePartRenderer-root">
                 <div className="theia-CodePartRenderer-top">
@@ -67,6 +69,10 @@ export class CodePartRenderer
                 </div>
             </div>
         );
+    }
+
+    private getTitle(uri: URI | undefined): string {
+        return uri?.path?.toString().split('/').pop() ?? 'Generated Code';
     }
 
     private writeCodeToClipboard(code: string): void {
