@@ -17,15 +17,13 @@
 import { Agent, LanguageModelSelector, PromptTemplate } from '@theia/ai-core/lib/common';
 import { Position } from 'vscode';
 
-export class CodeCompletionAgent implements Agent {
-    getCompletions(text: string, position: Position): any[] {
-        throw new Error('Method not implemented.');
-    }
+export const CodeCompletionAgent = Symbol('CodeCompletionAgent');
+export interface CodeCompletionAgent extends Agent {
+    getCompletions(text: string, position: Position): any[];
     id: string;
     name: string;
     description: string;
     variables: string[];
     promptTemplates: PromptTemplate[];
     languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[];
-
 }

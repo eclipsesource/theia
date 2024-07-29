@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { CompletionItemProvider, CompletionItem, TextDocument, Position, CancellationToken, ProviderResult, CompletionContext } from 'vscode';
-import { CodeCompletionAgent } from './codeCompletionAgent';
+import { CodeCompletionAgent } from '../common/code-completion-agent';
 import { inject } from '@theia/core/shared/inversify';
 
 export class AICodeCompletionProvider implements CompletionItemProvider {
