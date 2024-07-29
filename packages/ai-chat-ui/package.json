@@ -5,6 +5,7 @@
   "dependencies": {
     "@theia/ai-chat": "1.49.0",
     "@theia/core": "1.49.0",
+    "@theia/editor": "1.49.0",
     "@theia/filesystem": "1.49.0",
     "@theia/workspace": "1.49.0",
     "highlight.js": "^11.10.0",

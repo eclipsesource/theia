@@ -27,6 +27,7 @@ import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
 import * as DOMPurify from '@theia/core/shared/dompurify';
+import { EditorManager } from '@theia/editor/lib/browser';
 
 @injectable()
 export class CodePartRenderer
@@ -34,6 +35,9 @@ export class CodePartRenderer
 
     @inject(ClipboardService)
     protected readonly clipboardService: ClipboardService;
+
+    @inject(EditorManager)
+    protected readonly editorManager: EditorManager;
 
     canHandle(response: ChatResponseContent): number {
         if (isCodeChatResponseContent(response)) {
@@ -47,22 +51,43 @@ export class CodePartRenderer
 
         const title = response.location?.uri?.toString() ?? 'Generated Code';
         return (
-            <div>
-                <div className="top">
-                    <div className="left">{title}</div>
-                    <div className="right">
+            <div className="theia-CodePartRenderer-root">
+                <div className="theia-CodePartRenderer-top">
+                    <div className="theia-CodePartRenderer-left">{title}</div>
+                    <div className="theia-CodePartRenderer-right">
                         <button onClick={this.writeCodeToClipboard.bind(this, response.code)}>Copy</button>
-                        <button>Insert at Cursor</button>
+                        <button onClick={this.insertCode.bind(this, response.code)}>Insert at Cursor</button>
                     </div>
                 </div>
-                <pre>
-                    <code dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightedCode) }}></code>
-                </pre>
+                <div className="theia-CodePartRenderer-separator"></div>
+                <div className="theia-CodePartRenderer-bottom">
+                    <pre>
+                        <code dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightedCode) }}></code>
+                    </pre>
+                </div>
             </div>
         );
     }
 
     private writeCodeToClipboard(code: string): void {
         this.clipboardService.writeText(code);
+    }
+
+    protected insertCode(code: string): void {
+        const editor = this.editorManager.currentEditor;
+        if (editor) {
+            const currentEditor = editor.editor;
+            const selection = currentEditor.selection;
+
+            // Insert the text at the current cursor position
+            // If there is a selection, replace the selection with the text
+            currentEditor.executeEdits([{
+                range: {
+                    start: selection.start,
+                    end: selection.end
+                },
+                newText: code
+            }]);
+        }
     }
 }
