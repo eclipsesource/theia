@@ -22,6 +22,7 @@
 import { Command, Emitter, Event, generateUuid } from '@theia/core';
 import { MarkdownString, MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
 import { ParsedChatRequest } from './chat-parsed-request';
+import { ChatAgentLocation } from './chat-agents';
 
 /**********************
  * INTERFACES AND TYPE GUARDS
@@ -54,6 +55,7 @@ export interface ChatRemoveRequestEvent {
 export interface ChatModel {
     readonly onDidChange: Event<ChatChangeEvent>;
     readonly id: string;
+    readonly location: ChatAgentLocation;
     getRequests(): ChatRequestModel[];
 }
 
@@ -175,7 +177,7 @@ export class ChatModelImpl implements ChatModel {
     protected _requests: ChatRequestModelImpl[];
     protected _id: string;
 
-    constructor() {
+    constructor(public readonly location = ChatAgentLocation.Panel) {
         // TODO accept serialized data as a parameter to restore a previously saved ChatModel
         this._requests = [];
         this._id = generateUuid();
@@ -189,8 +191,8 @@ export class ChatModelImpl implements ChatModel {
         return this._id;
     }
 
-    addRequest(request: ChatRequest, parseChatRequest: ParsedChatRequest): ChatRequestModelImpl {
-        const requestModel = new ChatRequestModelImpl(this, request, parseChatRequest);
+    addRequest(request: ChatRequest, parsedChatRequest: ParsedChatRequest): ChatRequestModelImpl {
+        const requestModel = new ChatRequestModelImpl(this, request, parsedChatRequest);
         this._requests.push(requestModel);
         this._onDidChangeEmitter.fire({
             kind: 'addRequest',
@@ -292,7 +294,7 @@ export class CommandChatResponseContentImpl implements CommandChatResponseConten
         return this._command;
     }
 
-    get commandHandler(): (() => Promise<void>)|undefined {
+    get commandHandler(): (() => Promise<void>) | undefined {
         return this._commandHandler;
     }
 

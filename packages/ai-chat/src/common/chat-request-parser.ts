@@ -22,6 +22,7 @@
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgentService } from './chat-agent-service';
 import { ChatAgentLocation } from './chat-agents';
+import { ChatRequest } from './chat-model';
 import {
     chatAgentLeader,
     ChatRequestAgentPart,
@@ -32,30 +33,25 @@ import {
     ParsedChatRequest,
     ParsedChatRequestPart,
 } from './chat-parsed-request';
-import { ChatVariablesService } from './chat-variable-service';
 
 const agentReg = /^@([\w_\-\.]+)(?=(\s|$|\b))/i; // An @-agent
-const variableReg = /^#([\w_\-]+)(:\d+)?(?=(\s|$|\b))/i; // A #-variable with an optional numeric : arg (@response:2)
+const variableReg = /^#([\w_\-]+)(?::([\w_\-_\/\\.:]+))?(?=(\s|$|\b))/i; // A #-variable with an optional : arg (#file:workspace/path/name.ext)
 // const slashReg = /\/([\w_\-]+)(?=(\s|$|\b))/i; // A / command
 
 export const ChatRequestParser = Symbol('ChatRequestParser');
 export interface ChatRequestParser {
-    parseChatRequest(message: string): ParsedChatRequest;
+    parseChatRequest(request: ChatRequest, location: ChatAgentLocation): ParsedChatRequest;
 }
 
 @injectable()
 export class ChatRequestParserImpl {
     constructor(
-        @inject(ChatAgentService) private readonly agentService: ChatAgentService,
-        @inject(ChatVariablesService) private readonly variableService: ChatVariablesService,
+        @inject(ChatAgentService) private readonly agentService: ChatAgentService
     ) { }
 
-    parseChatRequest(
-        message: string,
-        location: ChatAgentLocation = ChatAgentLocation.Panel
-    ): ParsedChatRequest {
+    parseChatRequest(request: ChatRequest, location: ChatAgentLocation): ParsedChatRequest {
         const parts: ParsedChatRequestPart[] = [];
-
+        const message = request.text;
         for (let i = 0; i < message.length; i++) {
             const previousChar = message.charAt(i - 1);
             const char = message.charAt(i);
@@ -106,10 +102,7 @@ export class ChatRequestParserImpl {
             );
         }
 
-        return {
-            parts,
-            text: message,
-        };
+        return { request, parts };
     }
 
     private tryToParseAgent(
@@ -173,20 +166,9 @@ export class ChatRequestParserImpl {
         }
 
         const [full, name] = nextVariableMatch;
-        const variableArg = nextVariableMatch[2] ?? '';
+        const variableArg = nextVariableMatch[2];
         const varRange = new OffsetRangeImpl(offset, offset + full.length);
 
-        // TODO - not really handling duplicate variables names yet
-        const variable = this.variableService.getVariable(name);
-        if (variable) {
-            return new ChatRequestVariablePart(
-                varRange,
-                name,
-                variableArg,
-                variable.id
-            );
-        }
-
-        return;
+        return new ChatRequestVariablePart(varRange, name, variableArg);
     }
 }

@@ -25,9 +25,10 @@ import {
     ChatRequestParserImpl,
     ChatService,
     ChatServiceImpl,
-    ChatVariablesService,
+    ChatVariableContribution,
+    ChatVariableService,
     DefaultChatAgent,
-    DummyChatVariablesService
+    DefaultChatVariableService
 } from '../common';
 
 export default new ContainerModule(bind => {
@@ -40,8 +41,9 @@ export default new ContainerModule(bind => {
     bind(ChatRequestParserImpl).toSelf().inSingletonScope();
     bind(ChatRequestParser).toService(ChatRequestParserImpl);
 
-    bind(DummyChatVariablesService).toSelf().inSingletonScope();
-    bind(ChatVariablesService).toService(DummyChatVariablesService);
+    bind(DefaultChatVariableService).toSelf().inSingletonScope();
+    bindContributionProvider(bind, ChatVariableContribution);
+    bind(ChatVariableService).toService(DefaultChatVariableService);
 
     bind(ChatServiceImpl).toSelf().inSingletonScope();
     bind(ChatService).toService(ChatServiceImpl);

@@ -25,10 +25,12 @@ import {
     ChatRequestParserImpl,
     ChatService,
     ChatServiceImpl,
-    ChatVariablesService,
+    ChatVariableContribution,
+    ChatVariableService,
     DefaultChatAgent,
-    DummyChatVariablesService
+    DefaultChatVariableService
 } from '../common';
+import { TodayVariableProvider } from '../common/today-variable-contribution';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, Agent);
@@ -40,8 +42,10 @@ export default new ContainerModule(bind => {
     bind(ChatRequestParserImpl).toSelf().inSingletonScope();
     bind(ChatRequestParser).toService(ChatRequestParserImpl);
 
-    bind(DummyChatVariablesService).toSelf().inSingletonScope();
-    bind(ChatVariablesService).toService(DummyChatVariablesService);
+    bind(DefaultChatVariableService).toSelf().inSingletonScope();
+    bindContributionProvider(bind, ChatVariableContribution);
+    bind(ChatVariableService).toService(DefaultChatVariableService);
+    bind(ChatVariableContribution).to(TodayVariableProvider).inSingletonScope();
 
     bind(ChatServiceImpl).toSelf().inSingletonScope();
     bind(ChatService).toService(ChatServiceImpl);

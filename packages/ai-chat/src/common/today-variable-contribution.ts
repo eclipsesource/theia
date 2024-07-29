@@ -1,0 +1,61 @@
+// *****************************************************************************
+// Copyright (C) 2024 EclipseSource GmbH.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0.
+//
+// This Source Code may also be made available under the following Secondary
+// Licenses when the conditions for such availability set forth in the Eclipse
+// Public License v. 2.0 are satisfied: GNU General Public License, version 2
+// with the GNU Classpath Exception which is available at
+// https://www.gnu.org/software/classpath/license.html.
+//
+// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
+// *****************************************************************************
+import { injectable } from '@theia/core/shared/inversify';
+import {
+    ChatVariable, ChatVariableContribution,
+    ChatVariableResolutionContext, ChatVariableResolutionRequest, ChatVariableService, ResolvedChatVariable
+} from './chat-variable-service';
+
+export const TODAY_VARIABLE: ChatVariable = {
+    id: 'today-provider',
+    description: 'Does something for today',
+    name: 'today'
+};
+
+export namespace TodayVariableArgs {
+    export const IN_UNIX_SECONDS = 'inUnixSeconds';
+    export const IN_ISO_8601 = 'inIso8601';
+}
+
+export interface ResolvedTodayVariable extends ResolvedChatVariable {
+    date: Date;
+}
+
+@injectable()
+export class TodayVariableProvider implements ChatVariableContribution {
+    registerVariables(service: ChatVariableService): void {
+        service.registerVariable(TODAY_VARIABLE, this.resolveVariable.bind(this));
+    }
+
+    async resolveVariable(request: ChatVariableResolutionRequest, context: ChatVariableResolutionContext): Promise<ResolvedChatVariable | undefined> {
+        if (request.variable.name === TODAY_VARIABLE.name) {
+            return this.resolveTodayVariable(request);
+        }
+        return undefined;
+    }
+
+    private resolveTodayVariable(request: ChatVariableResolutionRequest): ResolvedTodayVariable {
+        const date = new Date();
+        if (request.arg === TodayVariableArgs.IN_ISO_8601) {
+            return { variable: request.variable, value: date.toISOString(), date };
+        }
+        if (request.arg === TodayVariableArgs.IN_UNIX_SECONDS) {
+            return { variable: request.variable, value: Math.round(date.getTime() / 1000).toString(), date };
+        }
+        return { variable: request.variable, value: date.toDateString(), date };
+    }
+}
+
