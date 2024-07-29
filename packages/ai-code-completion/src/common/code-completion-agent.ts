@@ -15,8 +15,8 @@
 // *****************************************************************************
 
 import * as monaco from '@theia/monaco-editor-core';
-import { Agent, LanguageModelSelector, PromptTemplate } from '@theia/ai-core/lib/common';
-import { injectable } from '@theia/core/shared/inversify';
+import { Agent, getTextOfResponse, LanguageModelRegistry, LanguageModelSelector, PromptService, PromptTemplate } from '@theia/ai-core/lib/common';
+import { inject, injectable } from '@theia/core/shared/inversify';
 
 export const CodeCompletionAgent = Symbol('CodeCompletionAgent');
 export interface CodeCompletionAgent extends Agent {
@@ -32,27 +32,70 @@ export interface CodeCompletionAgent extends Agent {
 
 @injectable()
 export class CodeCompletionAgentImpl implements CodeCompletionAgent {
+    variables: string[];
+
+    @inject(LanguageModelRegistry)
+    protected languageModelRegistry: LanguageModelRegistry;
+
+    @inject(PromptService)
+    protected promptService: PromptService;
+
     async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
         context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
-        return {
-            suggestions: [
-                {
-                    label: 'code-completion-agent',
-                    insertText: 'this is my completion',
-                    kind: monaco.languages.CompletionItemKind.Text,
-                    range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
-                }
-            ]
+
+        const languageModels = await this.languageModelRegistry.selectLanguageModels({ actor: 'code-completion-agent', purpose: 'code-completion' });
+        if (languageModels.length === 0) {
+            console.error('No language model found for code-completion-agent');
+            return undefined;
+        }
+        const languageModel = languageModels[0];
+        console.log('Code completion agent is using language model:', languageModel.id);
+
+        // Get text until the given position
+        const textUntilPosition = model.getValueInRange({
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column
+        });
+
+        // Get text after the given position
+        const textAfterPosition = model.getValueInRange({
+            startLineNumber: position.lineNumber,
+            startColumn: position.column,
+            endLineNumber: model.getLineCount(),
+            endColumn: model.getLineMaxColumn(model.getLineCount())
+        });
+
+        // Re-enable after prompting circle is resolved
+        // const prompt = this.promptService.getPrompt('code-completion-prompt', { snippet: `${textUntilPosition}"MARKER"${textAfterPosition}` });
+        // if (!prompt) {
+        //     console.error('No prompt found for code-completion-agent');
+        //     return undefined;
+        // }
+        const prompt = this.promptTemplates[0].template.replace('{{snippet}}', `${textUntilPosition}"MARKER"${textAfterPosition}`);
+        console.log('Code completion agent is using prompt:', prompt);
+        const response = await languageModel.request(({ messages: [{ type: 'text', actor: 'user', query: prompt }] }));
+        const completionText = await getTextOfResponse(response);
+
+        const suggestions: monaco.languages.CompletionItem[] = [];
+        const completionItem: monaco.languages.CompletionItem = {
+            label: `${completionText.substring(0, 10)}...(ai)`,
+            kind: monaco.languages.CompletionItemKind.Text,
+            insertText: completionText,
+            range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
         };
-    }
+        suggestions.push(completionItem);
+        return { suggestions };
+
+    };
     id: string = 'code-completion-agent';
     name: string = 'Code Completion Agent';
     description: string = 'This agent provides code completions for a given code snippet.';
-    variables: string[] = ['text', 'position'];
     promptTemplates: PromptTemplate[] = [
         {
             id: 'code-completion-prompt',
-            template: 'Finish this code {{snippet}}'
+            template: 'Finish the following code snippet. Only return the exact code with which to replace the "MARKER" in the snippet. {{snippet}}',
         }
     ];
     languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [{

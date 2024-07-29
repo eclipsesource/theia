@@ -19,10 +19,12 @@ import { CodeCompletionAgent, CodeCompletionAgentImpl } from '../common/code-com
 import { AICodeCompletionProvider } from './ai-code-completion-provider';
 import { AIFrontendApplicationContribution } from './ai-code-frontend-application-contribution';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { Agent } from '@theia/ai-core';
 
 export default new ContainerModule(bind => {
     bind(CodeCompletionAgentImpl).toSelf().inSingletonScope();
     bind(CodeCompletionAgent).toService(CodeCompletionAgentImpl);
+    bind(Agent).toService(CodeCompletionAgentImpl);
     bind(AICodeCompletionProvider).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).to(AIFrontendApplicationContribution).inSingletonScope();
 });
