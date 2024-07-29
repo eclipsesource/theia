@@ -14,22 +14,21 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ChatResponsePartRenderer } from '../types';
-import { inject, injectable } from '@theia/core/shared/inversify';
 import {
     ChatResponseContent,
-    isCodeChatResponseContent,
     CodeChatResponseContent,
+    isCodeChatResponseContent,
 } from '@theia/ai-chat/lib/common';
-import { ReactNode } from '@theia/core/shared/react';
-import * as React from '@theia/core/shared/react';
+import { UntitledResourceResolver, URI } from '@theia/core';
 import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
-import hljs from 'highlight.js';
-import 'highlight.js/styles/github.css';
-import * as DOMPurify from '@theia/core/shared/dompurify';
-import { EditorManager, EditorWidget } from '@theia/editor/lib/browser';
-import { URI } from '@theia/core';
+import { inject, injectable } from '@theia/core/shared/inversify';
+import * as React from '@theia/core/shared/react';
+import { ReactNode } from '@theia/core/shared/react';
 import { Position } from '@theia/core/shared/vscode-languageserver-protocol';
+import { EditorManager, EditorWidget } from '@theia/editor/lib/browser';
+import { ChatResponsePartRenderer } from '../types';
+import { MonacoEditorProvider } from '@theia/monaco/lib/browser/monaco-editor-provider';
+import { MonacoLanguages } from '@theia/monaco/lib/browser/monaco-languages';
 
 @injectable()
 export class CodePartRenderer
@@ -37,9 +36,14 @@ export class CodePartRenderer
 
     @inject(ClipboardService)
     protected readonly clipboardService: ClipboardService;
-
     @inject(EditorManager)
     protected readonly editorManager: EditorManager;
+    @inject(UntitledResourceResolver)
+    protected readonly untitledResourceResolver: UntitledResourceResolver;
+    @inject(MonacoEditorProvider)
+    protected readonly editorProvider: MonacoEditorProvider;
+    @inject(MonacoLanguages)
+    protected readonly languageService: MonacoLanguages;
 
     canHandle(response: ChatResponseContent): number {
         if (isCodeChatResponseContent(response)) {
@@ -47,9 +51,9 @@ export class CodePartRenderer
         }
         return -1;
     }
+
     render(response: CodeChatResponseContent): ReactNode {
-        // FIXME do not hard code the language
-        const highlightedCode = hljs.highlight(response.code, { language: 'typescript' }).value;
+        const language = response.language ? this.languageService.getExtension(response.language) : undefined;
 
         return (
             <div className="theia-CodePartRenderer-root">
@@ -62,9 +66,11 @@ export class CodePartRenderer
                 </div>
                 <div className="theia-CodePartRenderer-separator"></div>
                 <div className="theia-CodePartRenderer-bottom">
-                    <pre>
-                        <code dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightedCode) }}></code>
-                    </pre>
+                    <CodeWrapper
+                        content={response.code}
+                        language={language}
+                        editorProvider={this.editorProvider}
+                        untitledResourceResolver={this.untitledResourceResolver}></CodeWrapper>
                 </div>
             </div>
         );
@@ -121,3 +127,33 @@ export class CodePartRenderer
         }
     }
 }
+
+/**
+ * Renders the given code within a Monaco Editor
+ */
+export const CodeWrapper = (props: {
+    content: string,
+    language?: string,
+    untitledResourceResolver: UntitledResourceResolver,
+    editorProvider: MonacoEditorProvider,
+}) => {
+    // eslint-disable-next-line no-null/no-null
+    const ref = React.useRef<HTMLDivElement | null>(null);
+
+    const createInputElement = async () => {
+        const resource = await props.untitledResourceResolver.createUntitledResource(undefined, props.language);
+        const editor = await props.editorProvider.createInline(resource.uri, ref.current!, {
+            readOnly: true,
+            autoSizing: true,
+            maxHeight: undefined
+        });
+        editor.document.textEditorModel.setValue(props.content);
+    };
+
+    React.useEffect(() => {
+        createInputElement();
+    }, []);
+
+    return <div ref={ref}></div>;
+};
+
