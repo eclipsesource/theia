@@ -27,3 +27,28 @@ export interface CodeCompletionAgent extends Agent {
     promptTemplates: PromptTemplate[];
     languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[];
 }
+
+export class CodeCompletionAgentImpl implements CodeCompletionAgent {
+    async provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): Promise<CompletionItem[]> {
+        return [
+            {
+                label: 'code-completion-agent',
+                insertText: 'this is my completion'
+            }
+        ];
+    }
+    id: string = 'code-completion-agent';
+    name: string = 'Code Completion Agent';
+    description: string = 'This agent provides code completions for a given code snippet.';
+    variables: string[] = ['text', 'position'];
+    promptTemplates: PromptTemplate[] = [
+        {
+            id: 'code-completion-prompt',
+            template: 'Finish this code {{snippet}}'
+        }
+    ];
+    languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [{
+        purpose: 'code-completion',
+        actor: 'code-completion-agent'
+    }];
+}
