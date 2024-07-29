@@ -19,7 +19,8 @@
  *--------------------------------------------------------------------------------------------*/
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatModel.ts
 
-import { Command, Emitter, Event, generateUuid } from '@theia/core';
+import { Command, Emitter, Event, generateUuid, URI } from '@theia/core';
+import { Position } from '@theia/core/shared/vscode-languageserver-protocol';
 import { MarkdownString, MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
 
 /**********************
@@ -115,7 +116,17 @@ export interface CodeChatResponseContent
     kind: 'code';
     code: string;
     language: string;
-    location?: string;
+    location?: Location;
+}
+
+export interface Location {
+    uri: URI;
+    position: Position;
+}
+export function isLocation(obj: unknown): obj is Location {
+    return !!obj && typeof obj === 'object' &&
+        'uri' in obj && obj.uri instanceof URI &&
+        'position' in obj && Position.is(obj.position);
 }
 
 export interface CommandChatResponseContent
@@ -157,7 +168,8 @@ export const isCodeChatResponseContent = (
     'code' in obj &&
     typeof (obj as { code: unknown }).code === 'string'
     && 'language' in obj
-    && typeof (obj as { language: unknown }).language === 'string';
+    && typeof (obj as { language: unknown }).language === 'string'
+    && 'location' in obj && isLocation(obj.location);
 
 export type ChatResponseContent =
     | BaseChatResponseContent
