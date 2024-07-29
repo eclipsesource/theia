@@ -26,12 +26,12 @@ export class FrontendPromptServiceImpl extends PromptServiceImpl {
         super.init();
         // in the preferences. We need the template editor to publish changes
         // on save, and/or to have a file watcher.
-        this.preferences.onPreferenceChanged(e => {
-            if (e.preferenceName === 'prompts') {
-                Object.entries(e.newValue).forEach(entry => {
-                    this._prompts[entry[0]] = { id: entry[0], template: entry[1] };
-                });
-            }
-        });
+        // this.preferences.onPreferenceChanged(e => {
+        //     if (e.preferenceName === 'prompts') {
+        //         Object.entries(e.newValue).forEach(entry => {
+        //             this._prompts[entry[0]] = { id: entry[0], template: entry[1] };
+        //         });
+        //     }
+        // });
     }
 }

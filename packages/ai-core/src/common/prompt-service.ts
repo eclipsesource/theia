@@ -25,6 +25,7 @@ export const PromptCollectionService = Symbol('PromptCollectionService');
 export interface PromptCollectionService {
     getAllPrompts(): PromptTemplate[];
 }
+@injectable()
 export class PromptCollectionServiceImpl implements PromptCollectionService {
 
     @inject(ContributionProvider) @named(Agent)
@@ -120,7 +121,7 @@ export class PromptServiceImpl implements PromptService {
         if (args === undefined) {
             return prompt.template;
         }
-        const formattedPrompt = Object.keys(args).reduce((acc, key) => acc.replace(`/\${${key}}/g`, JSON.stringify(args[key])), prompt.template);
+        const formattedPrompt = Object.keys(args).reduce((acc, key) => acc.replace(`\${${key}}`, args[key] as string), prompt.template);
         return formattedPrompt;
     }
     getAllPrompts(): PromptMap {
