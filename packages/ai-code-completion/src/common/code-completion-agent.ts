@@ -14,12 +14,12 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
+import { CompletionItem, TextDocument, CancellationToken, CompletionContext, Position } from 'vscode';
 import { Agent, LanguageModelSelector, PromptTemplate } from '@theia/ai-core/lib/common';
-import { Position } from 'vscode';
 
 export const CodeCompletionAgent = Symbol('CodeCompletionAgent');
 export interface CodeCompletionAgent extends Agent {
-    getCompletions(text: string, position: Position): any[];
+    provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): Promise<CompletionItem[]>;
     id: string;
     name: string;
     description: string;

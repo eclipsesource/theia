@@ -26,9 +26,7 @@ export class AICodeCompletionProvider implements CompletionItemProvider {
     constructor() { }
 
     provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): ProviderResult<CompletionItem[]> {
-        const text = document.getText();
-        const completions = this.agent.getCompletions(text, position);
-        return completions.map(completion => new CompletionItem(completion));
+        return this.agent.provideCompletionItems(document, position, token, context);
     }
 
     resolveCompletionItem(item: CompletionItem, token: CancellationToken): ProviderResult<CompletionItem> {
