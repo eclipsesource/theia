@@ -14,13 +14,14 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { CompletionItem, TextDocument, CancellationToken, CompletionContext, Position } from 'vscode';
+import * as monaco from '@theia/monaco-editor-core';
 import { Agent, LanguageModelSelector, PromptTemplate } from '@theia/ai-core/lib/common';
 import { injectable } from '@theia/core/shared/inversify';
 
 export const CodeCompletionAgent = Symbol('CodeCompletionAgent');
 export interface CodeCompletionAgent extends Agent {
-    provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): Promise<CompletionItem[]>;
+    provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
+        context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined>;
     id: string;
     name: string;
     description: string;
@@ -31,13 +32,18 @@ export interface CodeCompletionAgent extends Agent {
 
 @injectable()
 export class CodeCompletionAgentImpl implements CodeCompletionAgent {
-    async provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): Promise<CompletionItem[]> {
-        return [
-            {
-                label: 'code-completion-agent',
-                insertText: 'this is my completion'
-            }
-        ];
+    async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
+        context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
+        return {
+            suggestions: [
+                {
+                    label: 'code-completion-agent',
+                    insertText: 'this is my completion',
+                    kind: monaco.languages.CompletionItemKind.Text,
+                    range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
+                }
+            ]
+        };
     }
     id: string = 'code-completion-agent';
     name: string = 'Code Completion Agent';

@@ -14,22 +14,22 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { CompletionItemProvider, CompletionItem, TextDocument, Position, CancellationToken, ProviderResult, CompletionContext } from 'vscode';
-import { CodeCompletionAgent } from '../common/code-completion-agent';
-import { inject } from '@theia/core/shared/inversify';
+import * as monaco from '@theia/monaco-editor-core';
 
-export class AICodeCompletionProvider implements CompletionItemProvider {
+import { CodeCompletionAgent } from '../common/code-completion-agent';
+import { injectable, inject } from '@theia/core/shared/inversify';
+
+@injectable()
+export class AICodeCompletionProvider implements monaco.languages.CompletionItemProvider {
 
     @inject(CodeCompletionAgent)
     private agent: CodeCompletionAgent;
 
-    constructor() { }
-
-    provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): ProviderResult<CompletionItem[]> {
-        return this.agent.provideCompletionItems(document, position, token, context);
+    constructor() {
     }
 
-    resolveCompletionItem(item: CompletionItem, token: CancellationToken): ProviderResult<CompletionItem> {
-        return item;
+    async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
+        context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
+        return this.agent.provideCompletionItems(model, position, context, token);
     }
 }

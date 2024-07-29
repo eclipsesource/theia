@@ -13,10 +13,13 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
+
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { CodeCompletionAgent, CodeCompletionAgentImpl } from '../common/code-completion-agent';
+import { AICodeCompletionProvider } from './ai-code-completion-provider';
 
 export default new ContainerModule(bind => {
     bind(CodeCompletionAgentImpl).toSelf().inSingletonScope();
     bind(CodeCompletionAgent).toService(CodeCompletionAgentImpl);
+    bind(AICodeCompletionProvider).toSelf().inSingletonScope();
 });
