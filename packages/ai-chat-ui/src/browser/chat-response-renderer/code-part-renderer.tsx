@@ -27,8 +27,9 @@ import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
 import * as DOMPurify from '@theia/core/shared/dompurify';
-import { EditorManager } from '@theia/editor/lib/browser';
+import { EditorManager, EditorWidget } from '@theia/editor/lib/browser';
 import { URI } from '@theia/core';
+import { Position } from '@theia/core/shared/vscode-languageserver-protocol';
 
 @injectable()
 export class CodePartRenderer
@@ -50,12 +51,10 @@ export class CodePartRenderer
         // FIXME do not hard code the language
         const highlightedCode = hljs.highlight(response.code, { language: 'typescript' }).value;
 
-        const title = this.getTitle(response.location?.uri);
-
         return (
             <div className="theia-CodePartRenderer-root">
                 <div className="theia-CodePartRenderer-top">
-                    <div className="theia-CodePartRenderer-left">{title}</div>
+                    <div className="theia-CodePartRenderer-left">{this.renderTitle(response)}</div>
                     <div className="theia-CodePartRenderer-right">
                         <button onClick={this.writeCodeToClipboard.bind(this, response.code)}>Copy</button>
                         <button onClick={this.insertCode.bind(this, response.code)}>Insert at Cursor</button>
@@ -69,6 +68,15 @@ export class CodePartRenderer
                 </div>
             </div>
         );
+    }
+
+    protected renderTitle(response: CodeChatResponseContent): ReactNode {
+        const uri = response.location?.uri;
+        const position = response.location?.position;
+        if (uri && position) {
+            return <a onClick={this.openFileAtPosition.bind(this, uri, position)}>{this.getTitle(response.location?.uri)}</a>;
+        }
+        return this.getTitle(response.location?.uri);
     }
 
     private getTitle(uri: URI | undefined): string {
@@ -94,6 +102,22 @@ export class CodePartRenderer
                 },
                 newText: code
             }]);
+        }
+    }
+
+    /**
+     * Opens a file and moves the cursor to the specified position.
+     *
+     * @param uri - The URI of the file to open.
+     * @param position - The position to move the cursor to, specified as {line, character}.
+     */
+    async openFileAtPosition(uri: URI, position: Position): Promise<void> {
+        const editorWidget = await this.editorManager.open(uri) as EditorWidget;
+        if (editorWidget) {
+            const editor = editorWidget.editor;
+            editor.revealPosition(position);
+            editor.focus();
+            editor.cursor = position;
         }
     }
 }

@@ -15,9 +15,9 @@
 // *****************************************************************************
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgent } from './chat-agents';
-import { ILogger } from '@theia/core';
+import { ILogger, URI } from '@theia/core';
 import { LanguageModelSelector, PromptTemplate } from '@theia/ai-core';
-import { ChatRequestModelImpl, CodeChatResponseContentImpl } from './chat-model';
+import { ChatRequestModelImpl, CodeChatResponseContentImpl, Location } from './chat-model';
 
 const CODE_SNIPPET: string = `
 /**
@@ -53,7 +53,16 @@ export class MockCodeChatAgent implements ChatAgent {
     languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [];
 
     async invoke(request: ChatRequestModelImpl): Promise<void> {
-        request.response.response.addContent(new CodeChatResponseContentImpl(CODE_SNIPPET, CODE_SNIPPET_LANGUAGE));
+        const dummyLocation: Location = {
+            // FIXME Add real uri for testing
+            uri: new URI('/home/user/workspace/test/myfile.ts'),
+            position: {
+                line: 2,
+                character: 5
+            }
+        };
+
+        request.response.response.addContent(new CodeChatResponseContentImpl(CODE_SNIPPET, CODE_SNIPPET_LANGUAGE, dummyLocation));
         request.response.complete();
     }
 
