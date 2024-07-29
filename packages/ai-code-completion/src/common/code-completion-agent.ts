@@ -16,6 +16,7 @@
 
 import { CompletionItem, TextDocument, CancellationToken, CompletionContext, Position } from 'vscode';
 import { Agent, LanguageModelSelector, PromptTemplate } from '@theia/ai-core/lib/common';
+import { injectable } from '@theia/core/shared/inversify';
 
 export const CodeCompletionAgent = Symbol('CodeCompletionAgent');
 export interface CodeCompletionAgent extends Agent {
@@ -28,6 +29,7 @@ export interface CodeCompletionAgent extends Agent {
     languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[];
 }
 
+@injectable()
 export class CodeCompletionAgentImpl implements CodeCompletionAgent {
     async provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): Promise<CompletionItem[]> {
         return [
