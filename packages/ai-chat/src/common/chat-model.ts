@@ -110,6 +110,14 @@ export interface MarkdownChatResponseContent
     content: MarkdownString;
 }
 
+export interface CodeChatResponseContent
+    extends BaseChatResponseContent {
+    kind: 'code';
+    code: string;
+    language: string;
+    location?: string;
+}
+
 export interface CommandChatResponseContent
     extends BaseChatResponseContent {
     kind: 'command';
@@ -141,11 +149,22 @@ export const isCommandChatResponseContent = (
     'command' in obj &&
     Command.is((obj as { command: unknown }).command);
 
+export const isCodeChatResponseContent = (
+    obj: unknown
+): obj is CodeChatResponseContent =>
+    isBaseChatResponseContent(obj) &&
+    obj.kind === 'code' &&
+    'code' in obj &&
+    typeof (obj as { code: unknown }).code === 'string'
+    && 'language' in obj
+    && typeof (obj as { language: unknown }).language === 'string';
+
 export type ChatResponseContent =
     | BaseChatResponseContent
     | TextChatResponseContent
     | MarkdownChatResponseContent
-    | CommandChatResponseContent;
+    | CommandChatResponseContent
+    | CodeChatResponseContent;
 
 export interface ChatResponse {
     readonly content: ChatResponseContent[];
