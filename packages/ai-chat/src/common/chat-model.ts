@@ -115,7 +115,7 @@ export interface CodeChatResponseContent
     extends BaseChatResponseContent {
     kind: 'code';
     code: string;
-    language: string;
+    language?: string;
     location?: Location;
 }
 

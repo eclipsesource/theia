@@ -15,16 +15,26 @@
 // *****************************************************************************
 
 import { ChatResponsePartRenderer } from '../types';
-import { injectable } from '@theia/core/shared/inversify';
-import { ChatResponseContent, isCodeChatResponseContent, CodeChatResponseContent } from '@theia/ai-chat/lib/common';
+import { inject, injectable } from '@theia/core/shared/inversify';
+import {
+    ChatResponseContent,
+    isCodeChatResponseContent,
+    CodeChatResponseContent,
+} from '@theia/ai-chat/lib/common';
 import { ReactNode } from '@theia/core/shared/react';
 import * as React from '@theia/core/shared/react';
+import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
 import * as DOMPurify from '@theia/core/shared/dompurify';
 
 @injectable()
-export class CodePartRenderer implements ChatResponsePartRenderer<CodeChatResponseContent> {
+export class CodePartRenderer
+    implements ChatResponsePartRenderer<CodeChatResponseContent> {
+
+    @inject(ClipboardService)
+    protected readonly clipboardService: ClipboardService;
+
     canHandle(response: ChatResponseContent): number {
         if (isCodeChatResponseContent(response)) {
             return 10;
@@ -32,13 +42,27 @@ export class CodePartRenderer implements ChatResponsePartRenderer<CodeChatRespon
         return -1;
     }
     render(response: CodeChatResponseContent): ReactNode {
-        const highlightedCode = hljs.highlight(response.code, { language: response.language }).value;
+        // FIXME do not hard code the language
+        const highlightedCode = hljs.highlight(response.code, { language: 'typescript' }).value;
 
+        const title = response.location?.uri?.toString() ?? 'Generated Code';
         return (
-            <pre>
-                <code dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightedCode) }}>
-                </code>
-            </pre>
+            <div>
+                <div className="top">
+                    <div className="left">{title}</div>
+                    <div className="right">
+                        <button onClick={this.writeCodeToClipboard.bind(this, response.code)}>Copy</button>
+                        <button>Insert at Cursor</button>
+                    </div>
+                </div>
+                <pre>
+                    <code dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightedCode) }}></code>
+                </pre>
+            </div>
         );
+    }
+
+    private writeCodeToClipboard(code: string): void {
+        this.clipboardService.writeText(code);
     }
 }
