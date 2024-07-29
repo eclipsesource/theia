@@ -18,8 +18,9 @@ import { ContainerModule } from '@theia/core/shared/inversify';
 import { CodeCompletionAgent, CodeCompletionAgentImpl } from '../common/code-completion-agent';
 import { AICodeCompletionProvider } from './ai-code-completion-provider';
 import { AIFrontendApplicationContribution } from './ai-code-frontend-application-contribution';
-import { FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { FrontendApplicationContribution, PreferenceContribution } from '@theia/core/lib/browser';
 import { Agent } from '@theia/ai-core';
+import { AICodeCompletionPreferencesSchema } from './ai-code-completion-preference';
 
 export default new ContainerModule(bind => {
     bind(CodeCompletionAgentImpl).toSelf().inSingletonScope();
@@ -27,4 +28,5 @@ export default new ContainerModule(bind => {
     bind(Agent).toService(CodeCompletionAgentImpl);
     bind(AICodeCompletionProvider).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).to(AIFrontendApplicationContribution).inSingletonScope();
+    bind(PreferenceContribution).toConstantValue({ schema: AICodeCompletionPreferencesSchema });
 });
