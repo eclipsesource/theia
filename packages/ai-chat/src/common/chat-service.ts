@@ -29,6 +29,7 @@ import {
 } from './chat-model';
 import { ChatAgentService } from './chat-agent-service';
 import { ILogger } from '@theia/core';
+import { ChatRequestParser } from './chat-request-parser';
 
 export interface ChatSendRequestData {
     /**
@@ -60,7 +61,10 @@ export interface ChatService {
 @injectable()
 export class ChatServiceImpl implements ChatService {
     @inject(ChatAgentService)
-    protected _agentService: ChatAgentService;
+    protected chatAgentService: ChatAgentService;
+
+    @inject(ChatRequestParser)
+    protected chatRequestParser: ChatRequestParser;
 
     @inject(ILogger)
     protected logger: ILogger;
@@ -104,7 +108,8 @@ export class ChatServiceImpl implements ChatService {
                 resolveResponseCompleted = resolve;
             }),
         };
-        const requestModel = session.addRequest(request);
+        const parsedRequest = this.chatRequestParser.parseChatRequest(request.text);
+        const requestModel = session.addRequest(request, parsedRequest);
         // TODO perform requestPreprocessing like variable resolving and agent determination
         // should this also be done by an agent?
         resolveRequestCompleted!(requestModel);
@@ -116,11 +121,11 @@ export class ChatServiceImpl implements ChatService {
             }
         });
 
-        const chatAgents = this._agentService.getAgents();
+
+        const chatAgents = this.chatAgentService.getAgents();
         if (chatAgents.length > 0) {
-            // TODO collect the correct agent and ask it to handle the request and response
-            // could also be done as part of the agent dispatching
-            chatAgents[0].invoke(requestModel);
+            // TODO collect the correct agent
+            this.chatAgentService.invokeAgent(chatAgents[0].id, requestModel);
         } else {
             this.logger.error('No ChatAgents available to handle request!');
         }

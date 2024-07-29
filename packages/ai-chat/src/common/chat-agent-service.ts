@@ -22,12 +22,14 @@
 import { ContributionProvider, ILogger } from '@theia/core';
 import { inject, injectable, named } from '@theia/core/shared/inversify';
 import { ChatAgent } from './chat-agents';
+import { ChatRequestModelImpl } from './chat-model';
 
 export const ChatAgentService = Symbol('ChatAgentService');
 export interface ChatAgentService {
     getAgents(): ChatAgent[];
     getAgent(id: string): ChatAgent | undefined;
     getAgentsByName(name: string): ChatAgent[];
+    invokeAgent(agentId: string, request: ChatRequestModelImpl): Promise<void>;
 }
 @injectable()
 export class ChatAgentServiceImpl implements ChatAgentService {
@@ -56,5 +58,12 @@ export class ChatAgentServiceImpl implements ChatAgentService {
         // const entry = this.agents.getContributions().find(agent => agent.id === id);
         // return !entry?.when || this.contextKeyService.contextMatchesRules(ContextKeyExpr.deserialize(entry.when));
         return true;
+    }
+    invokeAgent(agentId: string, request: ChatRequestModelImpl): Promise<void> {
+        const agent = this.getAgent(agentId);
+        if (!agent) {
+            throw new Error(`Agent ${agentId} not found`);
+        }
+        return agent.invoke(request);
     }
 }

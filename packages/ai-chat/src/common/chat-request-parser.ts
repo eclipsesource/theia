@@ -19,7 +19,7 @@
  *--------------------------------------------------------------------------------------------*/
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatRequestParser.ts
 
-import { inject } from '@theia/core/shared/inversify';
+import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgentService } from './chat-agent-service';
 import { ChatAgentLocation } from './chat-agents';
 import {
@@ -38,15 +38,17 @@ const agentReg = /^@([\w_\-\.]+)(?=(\s|$|\b))/i; // An @-agent
 const variableReg = /^#([\w_\-]+)(:\d+)?(?=(\s|$|\b))/i; // A #-variable with an optional numeric : arg (@response:2)
 // const slashReg = /\/([\w_\-]+)(?=(\s|$|\b))/i; // A / command
 
+export const ChatRequestParser = Symbol('ChatRequestParser');
 export interface ChatRequestParser {
-    parseChatRequest(message: string): ParsedChatRequestPart[];
+    parseChatRequest(message: string): ParsedChatRequest;
 }
 
+@injectable()
 export class ChatRequestParserImpl {
     constructor(
         @inject(ChatAgentService) private readonly agentService: ChatAgentService,
         @inject(ChatVariablesService) private readonly variableService: ChatVariablesService,
-    ) {}
+    ) { }
 
     parseChatRequest(
         message: string,
