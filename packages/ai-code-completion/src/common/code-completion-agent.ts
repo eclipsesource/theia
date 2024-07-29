@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import * as monaco from '@theia/monaco-editor-core';
-import { Agent, getTextOfResponse, LanguageModelRegistry, LanguageModelSelector, PromptService, PromptTemplate } from '@theia/ai-core/lib/common';
+import { Agent, getTextOfResponse, LanguageModelRegistry, LanguageModelSelector, PromptTemplate } from '@theia/ai-core/lib/common';
 import { inject, injectable } from '@theia/core/shared/inversify';
 
 export const CodeCompletionAgent = Symbol('CodeCompletionAgent');
@@ -37,8 +37,8 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
     @inject(LanguageModelRegistry)
     protected languageModelRegistry: LanguageModelRegistry;
 
-    @inject(PromptService)
-    protected promptService: PromptService;
+    // @inject(PromptService)
+    // protected promptService: PromptService;
 
     async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
         context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
@@ -73,7 +73,7 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         //     console.error('No prompt found for code-completion-agent');
         //     return undefined;
         // }
-        const prompt = this.promptTemplates[0].template.replace('{{snippet}}', `${textUntilPosition}"MARKER"${textAfterPosition}`);
+        const prompt = this.promptTemplates[0].template.replace('{{snippet}}', `${textUntilPosition}{{MARKER}}${textAfterPosition}`);
         console.log('Code completion agent is using prompt:', prompt);
         const response = await languageModel.request(({ messages: [{ type: 'text', actor: 'user', query: prompt }] }));
         const completionText = await getTextOfResponse(response);

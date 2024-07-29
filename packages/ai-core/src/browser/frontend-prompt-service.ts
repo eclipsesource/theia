@@ -23,7 +23,6 @@ export class FrontendPromptServiceImpl extends PromptServiceImpl {
 
     @postConstruct()
     override init(): void {
-        super.init();
         // in the preferences. We need the template editor to publish changes
         // on save, and/or to have a file watcher.
         // this.preferences.onPreferenceChanged(e => {

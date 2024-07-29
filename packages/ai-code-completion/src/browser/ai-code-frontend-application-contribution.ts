@@ -16,7 +16,7 @@
 
 import * as monaco from '@theia/monaco-editor-core';
 
-import { FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { FrontendApplicationContribution, PreferenceService } from '@theia/core/lib/browser';
 import { AICodeCompletionProvider } from './ai-code-completion-provider';
 import { inject, injectable } from '@theia/core/shared/inversify';
 
@@ -25,12 +25,29 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
     @inject(AICodeCompletionProvider)
     private codeCompletionProvider: AICodeCompletionProvider;
 
+    @inject(PreferenceService)
+    private readonly preferenceService: PreferenceService;
+
+    private disposable: monaco.IDisposable | undefined;
+
     onStart(): void {
-        // Add your code here to be executed when the application starts
-        monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
+        const enableCodeCompletion = this.preferenceService.get<boolean>('ai-code-completion.enable', false);
+        if (enableCodeCompletion) {
+            this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
+        }
+        this.preferenceService.onPreferenceChanged(event => {
+            if (event.preferenceName === 'ai-code-completion.enable') {
+                if (this.disposable) {
+                    this.disposable.dispose();
+                    this.disposable = undefined;
+                }
+                if (event.newValue) {
+                    this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
+                }
+            }
+        });
     }
 
     onStop(): void {
-        // Add your code here to be executed when the application stops
     }
 }
