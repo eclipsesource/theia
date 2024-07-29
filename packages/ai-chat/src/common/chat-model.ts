@@ -166,10 +166,7 @@ export const isCodeChatResponseContent = (
     isBaseChatResponseContent(obj) &&
     obj.kind === 'code' &&
     'code' in obj &&
-    typeof (obj as { code: unknown }).code === 'string'
-    && 'language' in obj
-    && typeof (obj as { language: unknown }).language === 'string'
-    && 'location' in obj && isLocation((obj as { location: unknown }).location);
+    typeof (obj as { code: unknown }).code === 'string';
 
 export type ChatResponseContent =
     | BaseChatResponseContent

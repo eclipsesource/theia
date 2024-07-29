@@ -19,6 +19,9 @@ import { injectable } from '@theia/core/shared/inversify';
 import { ChatResponseContent, isCodeChatResponseContent, CodeChatResponseContent } from '@theia/ai-chat/lib/common';
 import { ReactNode } from '@theia/core/shared/react';
 import * as React from '@theia/core/shared/react';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github.css';
+import * as DOMPurify from '@theia/core/shared/dompurify';
 
 @injectable()
 export class CodePartRenderer implements ChatResponsePartRenderer<CodeChatResponseContent> {
@@ -29,6 +32,13 @@ export class CodePartRenderer implements ChatResponsePartRenderer<CodeChatRespon
         return -1;
     }
     render(response: CodeChatResponseContent): ReactNode {
-        return <div>{JSON.stringify(response)}</div>;
+        const highlightedCode = hljs.highlight(response.code, { language: response.language }).value;
+
+        return (
+            <pre>
+                <code dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightedCode) }}>
+                </code>
+            </pre>
+        );
     }
 }
