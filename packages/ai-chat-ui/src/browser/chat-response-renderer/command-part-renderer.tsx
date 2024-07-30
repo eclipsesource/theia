@@ -40,7 +40,8 @@ export class CommandPartRenderer implements ChatResponsePartRenderer<CommandChat
                 .join(' ');
         const arg: AIChatCommandArguments = {
             command: response.command,
-            handler: response.commandHandler
+            handler: response.commandHandler,
+            arguments: response.arguments
         };
         return (
             <div>

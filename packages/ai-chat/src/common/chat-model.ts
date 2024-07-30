@@ -137,7 +137,7 @@ export interface CommandChatResponseContent extends BaseChatResponseContent {
     kind: 'command';
     command: Command;
     commandHandler?: (...commandArgs: unknown[]) => Promise<void>;
-    arguments: Record<string, unknown>;
+    arguments?: unknown[];
 }
 
 export const isTextChatResponseContent = (
