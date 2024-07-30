@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { Agent, AIVariableContribution } from '@theia/ai-core/lib/common';
-import { bindContributionProvider } from '@theia/core';
+import { bindContributionProvider, CommandContribution } from '@theia/core';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import {
     ChatAgent,
@@ -25,8 +25,10 @@ import {
     ChatRequestParserImpl,
     ChatService,
     ChatServiceImpl,
-    DefaultChatAgent
+    DefaultChatAgent,
+    DummyChatAgent
 } from '../common';
+import { DummyCommandContribution } from './dummy-command-contribution';
 import { TodayVariableContribution } from '../common/today-variable-contribution';
 
 export default new ContainerModule(bind => {
@@ -47,4 +49,10 @@ export default new ContainerModule(bind => {
     bind(DefaultChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(DefaultChatAgent);
     bind(ChatAgent).toService(DefaultChatAgent);
+
+    bind(DummyChatAgent).toSelf().inSingletonScope();
+    bind(Agent).toService(DummyChatAgent);
+    bind(ChatAgent).toService(DummyChatAgent);
+
+    bind(CommandContribution).to(DummyCommandContribution);
 });

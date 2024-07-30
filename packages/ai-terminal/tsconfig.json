@@ -10,19 +10,16 @@
   ],
   "references": [
     {
-      "path": "../ai-core"
+      "path": "../ai-chat"
     },
     {
-      "path": "../ai-history"
+      "path": "../ai-core"
     },
     {
       "path": "../core"
     },
     {
-      "path": "../filesystem"
-    },
-    {
-      "path": "../workspace"
+      "path": "../terminal"
     }
   ]
 }
