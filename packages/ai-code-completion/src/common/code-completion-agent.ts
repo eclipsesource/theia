@@ -43,7 +43,10 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
     async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
         context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
 
-        const languageModels = await this.languageModelRegistry.selectLanguageModels({ actor: 'code-completion-agent', purpose: 'code-completion' });
+        const languageModels = await this.languageModelRegistry.selectLanguageModels({
+            actor: 'code-completion-agent',
+            purpose: 'code-completion', identifier: 'openai/gpt-4o'
+        });
         if (languageModels.length === 0) {
             console.error('No language model found for code-completion-agent');
             return undefined;
@@ -67,15 +70,15 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
             endColumn: model.getLineMaxColumn(model.getLineCount())
         });
 
-        // Re-enable after prompting circle is resolved
-        // const prompt = this.promptService.getPrompt('code-completion-prompt', { snippet: `${textUntilPosition}{{MARKER}}${textAfterPosition}` });
-        // if (!prompt) {
-        //     console.error('No prompt found for code-completion-agent');
-        //     return undefined;
         const snippet = `${textUntilPosition}{{MARKER}}${textAfterPosition}`;
         const file = model.uri.toString(false);
         const language = model.getLanguageId();
-        const prompt = this.promptTemplates[0].template.replace('${snippet}', snippet).replace('${file}', file).replace('${language}', language);
+
+        const prompt = this.promptService.getPrompt('code-completion-prompt', { snippet, file, language });
+        if (!prompt) {
+            console.error('No prompt found for code-completion-agent');
+            return undefined;
+        }
         console.log('Code completion agent is using prompt:', prompt);
 
         const response = await languageModel.request(({ messages: [{ type: 'text', actor: 'user', query: prompt }] }));
@@ -102,11 +105,15 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
     promptTemplates: PromptTemplate[] = [
         {
             id: 'code-completion-prompt',
-            template: `You are a code completion agent. The current file you have to complete is named \${file}.
+            template: `
+            You are a code completion agent. The current file you have to complete is named \${file}.
             The language of the file is \${language}. Return your result as plain text without markdown formatting.
-            Finish the following code snippet. Only return the exact code with which to replace the {{MARKER}} in the snippet.
-            
-            \${snippet}'`,
+            Finish the following code snippet.
+
+            \${snippet}
+
+            Only return the exact replacement for {{MARKER}} to complete the snippet.
+            `,
         }
     ];
     languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [{
