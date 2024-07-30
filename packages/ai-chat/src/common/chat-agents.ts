@@ -33,6 +33,7 @@ import { generateUuid, ILogger, isArray } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatRequestModelImpl, ChatResponseContent, CodeChatResponseContentImpl, MarkdownChatResponseContentImpl } from './chat-model';
 import { getMessages } from './chat-util';
+import { TODAY_VARIABLE } from '@theia/ai-core/lib/today-variable-contribution'
 
 export enum ChatAgentLocation {
     Panel = 'panel',
@@ -77,7 +78,7 @@ export class DefaultChatAgent implements ChatAgent {
     id: string = 'DefaultChatAgent';
     name: string = 'Default Chat Agent';
     description: string = 'The default chat agent provided by Theia.';
-    variables: string[] = [];
+    variables: string[] = [TODAY_VARIABLE.id];
     promptTemplates: PromptTemplate[] = [];
     // FIXME: placeholder values
     languageModelRequirements: Omit<LanguageModelSelector, 'agent'>[] = [{
@@ -206,7 +207,7 @@ export class DummyChatAgent implements ChatAgent {
     id: string = 'DummyChatAgent';
     name: string = 'Dummy Chat Agent';
     description: string = 'The dummy chat agent provided by ES.';
-    variables: string[] = [];
+    variables: string[] = [TODAY_VARIABLE.id];
     promptTemplates: PromptTemplate[] = [];
     languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [];
     locations: ChatAgentLocation[] = [];

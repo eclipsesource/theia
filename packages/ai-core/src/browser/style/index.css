@@ -17,3 +17,35 @@
   /** add a 3px gap between rows */
   row-gap: 3px;
 }
+
+/* Variable Settings */
+#ai-variable-configuration-container-widget ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#ai-variable-configuration-container-widget .variable-item {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Agent Settings */
+#ai-agent-configuration-container-widget ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ai-agent-configuration-main {
+  display: flex;
+  flex-direction: row;
+}
+
+.configuration-agents-list {
+  width: 128px;
+}
+
+.configuration-agent-panel {
+  flex: 1;
+}

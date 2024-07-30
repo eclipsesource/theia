@@ -22,6 +22,8 @@ import * as React from '@theia/core/shared/react';
 import { AISettingsService } from './ai-settings-service';
 import '../../src/browser/style/index.css';
 
+// TODO: DELETE THIS FILE 
+
 @injectable()
 export class AISettingsWidget extends ReactWidget {
 
