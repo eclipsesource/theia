@@ -13,13 +13,12 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
+import { AIVariable, AIVariableContext, AIVariableResolver, AIVariableResolutionRequest, AIVariableService, ResolvedAIVariable } from '@theia/ai-core';
+import { MaybePromise } from '@theia/core';
 import { injectable } from '@theia/core/shared/inversify';
-import {
-    ChatVariable, ChatVariableContribution,
-    ChatVariableResolutionContext, ChatVariableResolutionRequest, ChatVariableService, ResolvedChatVariable
-} from './chat-variable-service';
+import { ChatVariableContext } from './chat-variables';
 
-export const TODAY_VARIABLE: ChatVariable = {
+export const TODAY_VARIABLE: AIVariable = {
     id: 'today-provider',
     description: 'Does something for today',
     name: 'today'
@@ -30,24 +29,28 @@ export namespace TodayVariableArgs {
     export const IN_ISO_8601 = 'inIso8601';
 }
 
-export interface ResolvedTodayVariable extends ResolvedChatVariable {
+export interface ResolvedTodayVariable extends ResolvedAIVariable {
     date: Date;
 }
 
 @injectable()
-export class TodayVariableProvider implements ChatVariableContribution {
-    registerVariables(service: ChatVariableService): void {
-        service.registerVariable(TODAY_VARIABLE, this.resolveVariable.bind(this));
+export class TodayVariableContribution implements AIVariableResolver {
+    registerVariables(service: AIVariableService): void {
+        service.registerResolver(TODAY_VARIABLE, this);
     }
 
-    async resolveVariable(request: ChatVariableResolutionRequest, context: ChatVariableResolutionContext): Promise<ResolvedChatVariable | undefined> {
+    canResolve(request: AIVariableResolutionRequest, context: AIVariableContext): MaybePromise<number> {
+        return ChatVariableContext.is(context) ? 1 : 0;
+    }
+
+    async resolve(request: AIVariableResolutionRequest, context: ChatVariableContext): Promise<ResolvedAIVariable | undefined> {
         if (request.variable.name === TODAY_VARIABLE.name) {
             return this.resolveTodayVariable(request);
         }
         return undefined;
     }
 
-    private resolveTodayVariable(request: ChatVariableResolutionRequest): ResolvedTodayVariable {
+    private resolveTodayVariable(request: AIVariableResolutionRequest): ResolvedTodayVariable {
         const date = new Date();
         if (request.arg === TodayVariableArgs.IN_ISO_8601) {
             return { variable: request.variable, value: date.toISOString(), date };

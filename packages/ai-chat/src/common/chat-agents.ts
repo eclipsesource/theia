@@ -97,6 +97,7 @@ export class DefaultChatAgent implements ChatAgent {
             request.response.complete();
             return;
         }
+
         if (isLanguageModelStreamResponse(languageModelResponse)) {
             for await (const token of languageModelResponse.stream) {
                 const newContents = this.parse(token, request.response.response.content);

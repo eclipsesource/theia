@@ -30,7 +30,9 @@ import {
     PromptService,
     PromptCustomizationService,
     PromptCollectionService,
-    PromptCollectionServiceImpl
+    PromptCollectionServiceImpl,
+    AIVariableContribution,
+    AIVariableService
 } from '../common';
 import {
     FrontendLanguageModelRegistryImpl,
@@ -42,10 +44,11 @@ import { bindPromptPreferences } from './prompt-preferences';
 import { PromptTemplateContribution as PromptTemplateContribution } from './prompttemplate-contribution';
 import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate';
 import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
-import { bindViewContribution, WidgetFactory } from '@theia/core/lib/browser';
+import { bindViewContribution, FrontendApplicationContribution, WidgetFactory } from '@theia/core/lib/browser';
 import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-customization-service';
 import { AISettingsWidget } from './ai-settings-widget';
 import { AISettingsViewContribution } from './ai-settings-view-contribution';
+import { FrontendVariableService } from './frontend-variable-service';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, LanguageModelProvider);
@@ -95,4 +98,8 @@ export default new ContainerModule(bind => {
 
     bindViewContribution(bind, AISettingsViewContribution);
 
+    bindContributionProvider(bind, AIVariableContribution);
+    bind(FrontendVariableService).toSelf().inSingletonScope();
+    bind(AIVariableService).toService(FrontendVariableService);
+    bind(FrontendApplicationContribution).toService(FrontendVariableService);
 });

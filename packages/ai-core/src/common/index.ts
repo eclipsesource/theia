@@ -18,3 +18,4 @@ export * from './language-model';
 export * from './language-model-delegate';
 export * from './prompt-service';
 export * from './types';
+export * from './variable-service';

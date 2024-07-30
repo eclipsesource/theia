@@ -31,8 +31,8 @@ import { ChatAgentService } from './chat-agent-service';
 import { ILogger } from '@theia/core';
 import { ChatRequestParser } from './chat-request-parser';
 import { ChatAgentLocation } from './chat-agents';
-import { ChatVariableService } from './chat-variable-service';
 import { ChatRequestVariablePart } from './chat-parsed-request';
+import { AIVariableService } from '@theia/ai-core';
 
 export interface ChatSendRequestData {
     /**
@@ -69,8 +69,8 @@ export class ChatServiceImpl implements ChatService {
     @inject(ChatRequestParser)
     protected chatRequestParser: ChatRequestParser;
 
-    @inject(ChatVariableService)
-    protected variableService: ChatVariableService;
+    @inject(AIVariableService)
+    protected variableService: AIVariableService;
 
     @inject(ILogger)
     protected logger: ILogger;
@@ -115,7 +115,7 @@ export class ChatServiceImpl implements ChatService {
             }),
         };
         const parsedRequest = this.chatRequestParser.parseChatRequest(request, session.location);
-        const requestModel = session.addRequest(request, parsedRequest);
+        const requestModel = session.addRequest(parsedRequest);
         for (const part of parsedRequest.parts) {
             if (part instanceof ChatRequestVariablePart) {
                 // resolve variable

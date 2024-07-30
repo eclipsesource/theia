@@ -33,6 +33,7 @@ import {
     ParsedChatRequest,
     ParsedChatRequestPart,
 } from './chat-parsed-request';
+import { AIVariable, AIVariableService } from '@theia/ai-core';
 
 const agentReg = /^@([\w_\-\.]+)(?=(\s|$|\b))/i; // An @-agent
 const variableReg = /^#([\w_\-]+)(?::([\w_\-_\/\\.:]+))?(?=(\s|$|\b))/i; // A #-variable with an optional : arg (#file:workspace/path/name.ext)
@@ -46,11 +47,13 @@ export interface ChatRequestParser {
 @injectable()
 export class ChatRequestParserImpl {
     constructor(
-        @inject(ChatAgentService) private readonly agentService: ChatAgentService
+        @inject(ChatAgentService) private readonly agentService: ChatAgentService,
+        @inject(AIVariableService) private readonly variableService: AIVariableService
     ) { }
 
     parseChatRequest(request: ChatRequest, location: ChatAgentLocation): ParsedChatRequest {
         const parts: ParsedChatRequestPart[] = [];
+        const variables = new Map<string, AIVariable>();
         const message = request.text;
         for (let i = 0; i < message.length; i++) {
             const previousChar = message.charAt(i - 1);
@@ -58,11 +61,18 @@ export class ChatRequestParserImpl {
             let newPart: ParsedChatRequestPart | undefined;
             if (previousChar.match(/\s/) || i === 0) {
                 if (char === chatVariableLeader) {
-                    newPart = this.tryToParseVariable(
+                    const variablePart = this.tryToParseVariable(
                         message.slice(i),
                         i,
                         parts
                     );
+                    newPart = variablePart;
+                    if (variablePart) {
+                        const variable = this.variableService.getVariable(variablePart.variableName);
+                        if (variable) {
+                            variables.set(variable.name, variable);
+                        }
+                    }
                 } else if (char === chatAgentLeader) {
                     newPart = this.tryToParseAgent(
                         message.slice(i),
@@ -102,7 +112,7 @@ export class ChatRequestParserImpl {
             );
         }
 
-        return { request, parts };
+        return { request, parts, variables };
     }
 
     private tryToParseAgent(
@@ -159,7 +169,7 @@ export class ChatRequestParserImpl {
         message: string,
         offset: number,
         _parts: ReadonlyArray<ParsedChatRequestPart>
-    ): ChatRequestAgentPart | ChatRequestVariablePart | undefined {
+    ): ChatRequestVariablePart | undefined {
         const nextVariableMatch = message.match(variableReg);
         if (!nextVariableMatch) {
             return;

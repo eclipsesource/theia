@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { Agent } from '@theia/ai-core/lib/common';
+import { Agent, AIVariableContribution } from '@theia/ai-core/lib/common';
 import { bindContributionProvider } from '@theia/core';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import {
@@ -25,12 +25,9 @@ import {
     ChatRequestParserImpl,
     ChatService,
     ChatServiceImpl,
-    ChatVariableContribution,
-    ChatVariableService,
-    DefaultChatAgent,
-    DefaultChatVariableService
+    DefaultChatAgent
 } from '../common';
-import { TodayVariableProvider } from '../common/today-variable-contribution';
+import { TodayVariableContribution } from '../common/today-variable-contribution';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, Agent);
@@ -42,10 +39,7 @@ export default new ContainerModule(bind => {
     bind(ChatRequestParserImpl).toSelf().inSingletonScope();
     bind(ChatRequestParser).toService(ChatRequestParserImpl);
 
-    bind(DefaultChatVariableService).toSelf().inSingletonScope();
-    bindContributionProvider(bind, ChatVariableContribution);
-    bind(ChatVariableService).toService(DefaultChatVariableService);
-    bind(ChatVariableContribution).to(TodayVariableProvider).inSingletonScope();
+    bind(AIVariableContribution).to(TodayVariableContribution).inSingletonScope();
 
     bind(ChatServiceImpl).toSelf().inSingletonScope();
     bind(ChatService).toService(ChatServiceImpl);
