@@ -14,13 +14,9 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ContainerModule } from '@theia/core/shared/inversify';
-import { RAG_SERVICE_PATH, RagService } from '../common';
-import { RemoteConnectionProvider, ServiceConnectionProvider } from '@theia/core/lib/browser/messaging/service-connection-provider';
-
-export default new ContainerModule(bind => {
-    bind(RagService).toDynamicValue(ctx => {
-        const provider = ctx.container.get<ServiceConnectionProvider>(RemoteConnectionProvider);
-        return provider.createProxy<RagService>(RAG_SERVICE_PATH);
-    }).inSingletonScope();
-});
+export const RAG_SERVICE_PATH = '/services/ai/rag';
+export const RagService = Symbol('RagService');
+export interface RagService {
+    loadFile(filePath: string): Promise<void>;
+    queryPageContent(query: string, numberOfDocuments?: number): Promise<string[]>;
+}

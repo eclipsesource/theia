@@ -3,11 +3,13 @@
   "version": "1.49.0",
   "description": "Theia - AI Core",
   "dependencies": {
+    "@langchain/openai": "^0.2.5",
     "@theia/ai-core": "1.49.0",
     "@theia/core": "1.49.0",
     "@theia/filesystem": "1.49.0",
     "@theia/output": "1.49.0",
     "@theia/workspace": "1.49.0",
+    "langchain": "0.2.1",
     "minimatch": "^5.1.0",
     "tslib": "^2.6.2"
   },
@@ -46,7 +48,8 @@
     "watch": "theiaext watch"
   },
   "devDependencies": {
-    "@theia/ext-scripts": "1.49.0"
+    "@theia/ext-scripts": "1.49.0",
+    "typescript": ">= 5"
   },
   "nyc": {
     "extends": "../../configs/nyc.json"
