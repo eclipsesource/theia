@@ -15,6 +15,7 @@
 // *****************************************************************************
 
 import { Agent, isLanguageModelStreamResponse, isLanguageModelTextResponse, LanguageModelRegistry, LanguageModelResponse, PromptService } from '@theia/ai-core/lib/common';
+import { ILogger } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 
 @injectable()
@@ -101,6 +102,9 @@ recent-terminal-contents:
     @inject(PromptService)
     protected promptService: PromptService;
 
+    @inject(ILogger)
+    protected logger: ILogger;
+
     async getCommands(input: {
         userRequest: string,
         cwd: string,
@@ -110,14 +114,17 @@ recent-terminal-contents:
 
         const lms = await this.languageModelRegistry.selectLanguageModels(this.languageModelRequirements[0]);
         if (lms.length === 0) {
-            console.error('No language model available for the AI Terminal Agent.');
+            this.logger.error('No language model available for the AI Terminal Agent.');
             return [];
         }
-
         const lm = lms[0];
 
-        const systemPrompt = this.promptService.getPrompt('ai-terminal:system-prompt', input)!;
-        const userPrompt = this.promptService.getPrompt('ai-terminal:user-prompt', input)!;
+        const systemPrompt = this.promptService.getPrompt('ai-terminal:system-prompt', input);
+        const userPrompt = this.promptService.getPrompt('ai-terminal:user-prompt', input);
+        if (!systemPrompt || !userPrompt) {
+            this.logger.error('The prompt service didn\'t return prompts for the AI Terminal Agent.');
+            return [];
+        }
 
         const result = await lm.request({
             messages: [
@@ -135,9 +142,7 @@ recent-terminal-contents:
         });
 
         const contentResult = await this.waitAndGet(result);
-        const commands = this.parseJsonBlock(contentResult);
-
-        return commands;
+        return this.parseJsonBlock(contentResult);
     }
 
     protected async waitAndGet(response: LanguageModelResponse): Promise<string> {
