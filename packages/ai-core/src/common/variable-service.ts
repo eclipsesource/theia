@@ -66,7 +66,7 @@ export interface AIVariableService {
 
 export const AIVariableContribution = Symbol('AIVariableContribution');
 export interface AIVariableContribution {
-    registerVariables(service: AIVariableService): Disposable;
+    registerVariables(service: AIVariableService): void;
 }
 
 @injectable()

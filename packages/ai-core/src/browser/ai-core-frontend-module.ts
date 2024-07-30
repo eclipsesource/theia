@@ -49,6 +49,7 @@ import { AISettingsViewContribution } from './ai-settings-view-contribution';
 import { FrontendVariableService } from './frontend-variable-service';
 import { AICoreFrontendApplicationContribution } from './ai-core-frontend-application-contribution';
 import { AISettingsService } from './ai-settings-service';
+import { TodayVariableContribution } from '../today-variable-contribution';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, LanguageModelProvider);
@@ -100,5 +101,7 @@ export default new ContainerModule(bind => {
     bind(FrontendVariableService).toSelf().inSingletonScope();
     bind(AIVariableService).toService(FrontendVariableService);
     bind(FrontendApplicationContribution).toService(FrontendVariableService);
+    bind(AIVariableContribution).to(TodayVariableContribution).inSingletonScope();
+
     bind(FrontendApplicationContribution).to(AICoreFrontendApplicationContribution).inSingletonScope();
 });

@@ -19,17 +19,8 @@
  *--------------------------------------------------------------------------------------------*/
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatVariables.ts
 
-import { ResolvedAIVariable, AIVariableContext } from '@theia/ai-core';
+import { AIVariableContext } from '@theia/ai-core';
 import { ChatModel, ChatRequest } from './chat-model';
-
-export interface VsCodeChatRequestVariableValueData {
-    level: string;
-    value: string;
-}
-
-export interface ExtensionChatRequestVariableValue extends ResolvedAIVariable {
-    data: VsCodeChatRequestVariableValueData[];
-}
 
 export interface ChatVariableContext extends AIVariableContext {
     request: ChatRequest;

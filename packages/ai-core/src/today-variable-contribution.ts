@@ -13,10 +13,9 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { AIVariable, AIVariableContext, AIVariableResolver, AIVariableResolutionRequest, AIVariableService, ResolvedAIVariable } from '@theia/ai-core';
 import { MaybePromise } from '@theia/core';
 import { injectable } from '@theia/core/shared/inversify';
-import { ChatVariableContext } from './chat-variables';
+import { AIVariable, AIVariableContext, AIVariableContribution, AIVariableResolutionRequest, AIVariableResolver, AIVariableService, ResolvedAIVariable } from './common';
 
 export const TODAY_VARIABLE: AIVariable = {
     id: 'today-provider',
@@ -34,16 +33,16 @@ export interface ResolvedTodayVariable extends ResolvedAIVariable {
 }
 
 @injectable()
-export class TodayVariableContribution implements AIVariableResolver {
+export class TodayVariableContribution implements AIVariableContribution, AIVariableResolver {
     registerVariables(service: AIVariableService): void {
         service.registerResolver(TODAY_VARIABLE, this);
     }
 
     canResolve(request: AIVariableResolutionRequest, context: AIVariableContext): MaybePromise<number> {
-        return ChatVariableContext.is(context) ? 1 : 0;
+        return 1;
     }
 
-    async resolve(request: AIVariableResolutionRequest, context: ChatVariableContext): Promise<ResolvedAIVariable | undefined> {
+    async resolve(request: AIVariableResolutionRequest, context: AIVariableContext): Promise<ResolvedAIVariable | undefined> {
         if (request.variable.name === TODAY_VARIABLE.name) {
             return this.resolveTodayVariable(request);
         }
