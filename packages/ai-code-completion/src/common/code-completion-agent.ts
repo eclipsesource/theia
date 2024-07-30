@@ -22,12 +22,6 @@ export const CodeCompletionAgent = Symbol('CodeCompletionAgent');
 export interface CodeCompletionAgent extends Agent {
     provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
         context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined>;
-    id: string;
-    name: string;
-    description: string;
-    variables: string[];
-    promptTemplates: PromptTemplate[];
-    languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[];
 }
 
 @injectable()
@@ -44,8 +38,9 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
 
         const languageModels = await this.languageModelRegistry.selectLanguageModels({
-            actor: 'code-completion-agent',
-            purpose: 'code-completion', identifier: 'openai/gpt-4o'
+            agent: 'code-completion-agent',
+            purpose: 'code-completion',
+            identifier: 'openai/gpt-4o'
         });
         if (languageModels.length === 0) {
             console.error('No language model found for code-completion-agent');
@@ -116,8 +111,7 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
             `,
         }
     ];
-    languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [{
-        purpose: 'code-completion',
-        actor: 'code-completion-agent'
+    languageModelRequirements: Omit<LanguageModelSelector, 'agent'>[] = [{
+        purpose: 'code-completion'
     }];
 }
