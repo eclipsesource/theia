@@ -345,6 +345,9 @@ export const COMMAND_CHAT_RESPONSE_COMMAND: Command = {
 };
 export class CommandChatResponseContentImpl implements CommandChatResponseContent {
     kind: 'command' = 'command';
+
+    arguments: Record<string, unknown> = {};
+
     protected _command: Command;
     protected _commandHandler?: () => Promise<void>;
 
