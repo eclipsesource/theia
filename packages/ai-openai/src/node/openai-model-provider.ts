@@ -17,6 +17,7 @@
 import { LanguageModel, LanguageModelRequest, LanguageModelRequestMessage, LanguageModelResponse, LanguageModelStreamResponsePart } from '@theia/ai-core';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import OpenAI from 'openai';
+import { ChatCompletionStream } from 'openai/lib/ChatCompletionStream';
 import { BaseFunctionsArgs, RunnableToolFunctionWithParse, RunnableTools } from 'openai/lib/RunnableFunction';
 import { ChatCompletionMessageParam } from 'openai/resources';
 
@@ -47,7 +48,7 @@ export class OpenAiModel implements LanguageModel {
     }
 
     async request(request: LanguageModelRequest): Promise<LanguageModelResponse> {
-        const tools: RunnableTools<BaseFunctionsArgs> = (request.tools ?? []).map(tool => ({
+        const tools: RunnableTools<BaseFunctionsArgs> | undefined = request.tools?.map(tool => ({
             type: 'function',
             function: {
                 name: tool.name,
@@ -59,13 +60,23 @@ export class OpenAiModel implements LanguageModel {
 
         } as RunnableToolFunctionWithParse<BaseFunctionsArgs>
         ));
-        const runner = this.openai.beta.chat.completions.runTools({
-            model: this.model,
-            messages: request.messages.map(this.toOpenAIMessage),
-            stream: true,
-            tools: tools,
-            tool_choice: 'auto'
-        });
+        let runner: ChatCompletionStream;
+        if (tools) {
+            runner = this.openai.beta.chat.completions.runTools({
+                model: this.model,
+                messages: request.messages.map(this.toOpenAIMessage),
+                stream: true,
+                tools: tools,
+                tool_choice: 'auto'
+            });
+            runner.toReadableStream();
+        } else {
+            runner = this.openai.beta.chat.completions.stream({
+                model: this.model,
+                messages: request.messages.map(this.toOpenAIMessage),
+                stream: true
+            });
+        }
 
         // const [stream1] = stream.tee();
         // return {

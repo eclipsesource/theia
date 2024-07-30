@@ -109,36 +109,23 @@ export class DefaultChatAgent implements ChatAgent {
         //         type: 'function',
         //         function: {
         //             name: 'getProjectFileList',
-        //             description: 'Get the list of files in the current project',
-        //             parameters: {
-        //                 type: 'object',
-        //                 properties: {
-        //                     unit: {
-        //                         'description': 'The city and state, e.g. San Francisco, CA',
-        //                         'type': 'string',
-        //                         'enum': ['celsius', 'fahrenheit']
-        //                     }
-        //                 },
-        //                 required: ['unit']
-        //             },
-
+        //             description: 'Get the list of files in the current project'
         //         }
         //     },
         //     {
         //         type: 'function',
         //         function: {
         //             name: 'getFileContent',
-        //             description: 'Get the current weather in a given location',
+        //             description: 'Get the content of the file',
         //             parameters: {
         //                 type: 'object',
         //                 properties: {
-        //                     unit: {
-        //                         'description': 'The city and state, e.g. San Francisco, CA',
+        //                     file: {
+        //                         'description': 'The path of the file to retrieve content for',
         //                         'type': 'string',
-        //                         'enum': ['celsius', 'fahrenheit']
         //                     }
         //                 },
-        //                 required: ['unit']
+        //                 required: ['file']
         //             }
         //         }
         //     }
