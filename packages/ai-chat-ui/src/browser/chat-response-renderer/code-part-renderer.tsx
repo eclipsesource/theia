@@ -29,6 +29,7 @@ import { EditorManager, EditorWidget } from '@theia/editor/lib/browser';
 import { ChatResponsePartRenderer } from '../types';
 import { MonacoEditorProvider } from '@theia/monaco/lib/browser/monaco-editor-provider';
 import { MonacoLanguages } from '@theia/monaco/lib/browser/monaco-languages';
+import { MonacoEditor } from '@theia/monaco/lib/browser/monaco-editor';
 
 @injectable()
 export class CodePartRenderer
@@ -139,7 +140,7 @@ export const CodeWrapper = (props: {
 }) => {
     // eslint-disable-next-line no-null/no-null
     const ref = React.useRef<HTMLDivElement | null>(null);
-
+    const editorRef = React.useRef<MonacoEditor | undefined>(undefined);
 
     const createInputElement = async () => {
         const resource = await props.untitledResourceResolver.createUntitledResource(undefined, props.language);
@@ -148,19 +149,22 @@ export const CodeWrapper = (props: {
             autoSizing: true,
             maxHeight: undefined
         });
-        console.log("RENDERER", props.content);
         editor.document.textEditorModel.setValue(props.content);
-        return editor;
+        editorRef.current = editor;
     };
 
     React.useEffect(() => {
-        const editor = createInputElement();
+        createInputElement();
         return () => {
-            editor.then(e => {
-                // eslint-disable-next-line no-null/no-null
-                ref.current = null;
-                e.dispose();
-            });
+            if (editorRef.current) {
+                editorRef.current.dispose();
+            }
+        };
+    }, []);
+
+    React.useEffect(() => {
+        if (editorRef.current) {
+            editorRef.current.document.textEditorModel.setValue(props.content);
         }
     }, [props.content]);
 
