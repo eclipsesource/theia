@@ -16,7 +16,7 @@
 
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgent, ChatAgentLocation } from './chat-agents';
-import { PromptTemplate, LanguageModelSelector, CommunicationRecordingService, LanguageModelRegistry, PromptService, LanguageModelRequestMessage } from '@theia/ai-core';
+import { PromptTemplate, LanguageModelSelector, CommunicationRecordingService, LanguageModelRegistry, PromptService, LanguageModelRequestMessage, isLanguageModelStreamResponse } from '@theia/ai-core';
 import { ChatRequestModelImpl, COMMAND_CHAT_RESPONSE_COMMAND, CommandChatResponseContent, CommandChatResponseContentImpl } from './chat-model';
 import { CommandRegistry, MessageService } from '@theia/core';
 import { getMessages } from './chat-util';
@@ -36,22 +36,18 @@ Your response only consists of one of the templates without any other text or mo
 
 ## Template 1
 
-\`\`\`json
 {
     "type": "theia-command",
     "commandId": "theia-ai-prompt-template:show-prompts-command"
 }
-\`\`\`
 
 ## Template 2
 
-\`\`\`json
 {
     "type": "custom-handler",
     "commandId": "ai-chat.command-chat-response.generic",
     "arguments": ["hello", "world"]
 }
-\`\`\`
     `;
 }
 
@@ -112,6 +108,7 @@ export class MockCommandChatAgent implements ChatAgent {
 
         const prevMessages: LanguageModelRequestMessage[] = getMessages(request.session);
 
+        // TODO do we want to include more messages?
         const messages: LanguageModelRequestMessage[] = prevMessages.length > 0 ? [prevMessages[prevMessages.length - 1]] : [];
         messages.unshift({
             actor: 'ai',
@@ -120,14 +117,31 @@ export class MockCommandChatAgent implements ChatAgent {
         });
 
         const languageModelResponse = await languageModels[0].request({ messages });
-        console.log(languageModelResponse);
 
-        // TODO parse command from chat gpt
-        const parsedCommand: ParsedCommand = {
-            type: 'theia-command',
-            commandId: 'theia-ai-prompt-template:show-prompts-command',
-            arguments: []
-        };
+        let parsedCommand: ParsedCommand | undefined = undefined;;
+        // const parsedCommand: ParsedCommand = {
+        //     type: 'theia-command',
+        //     commandId: 'theia-ai-prompt-template:show-prompts-command',
+        //     arguments: []
+        // };
+        if (isLanguageModelStreamResponse(languageModelResponse)) {
+            const tokens: string[] = [];
+            for await (const token of languageModelResponse.stream) {
+                const tokenContent = token.content ?? '';
+                tokens.push(tokenContent);
+
+            }
+            const jsonString = tokens.join('');
+            parsedCommand = JSON.parse(jsonString) as ParsedCommand;
+
+        } else {
+            console.error('Unknown response type');
+        }
+
+        if (parsedCommand === undefined) {
+            console.error('Could not parse response from Language Model');
+            return;
+        }
 
         let content: CommandChatResponseContent;
         if (parsedCommand.type === 'theia-command') {
