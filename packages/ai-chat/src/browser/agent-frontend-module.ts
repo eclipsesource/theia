@@ -21,8 +21,13 @@ import {
     ChatAgent, ChatAgentService,
     ChatAgentServiceImpl,
     ChatRequestParser,
-    ChatRequestParserImpl, ChatService, ChatServiceImpl, ChatVariablesService, DefaultChatAgent, DummyChatVariablesService
-    DummyChatAgent,
+    ChatRequestParserImpl,
+    ChatService,
+    ChatServiceImpl,
+    ChatVariablesService,
+    DefaultChatAgent,
+    DummyChatVariablesService,
+    DummyChatAgent
 } from '../common';
 import { MockCodeChatAgent } from '../common/mock-code-chat-agent';
 import { DummyCommandContribution } from './dummy-command-contribution';
