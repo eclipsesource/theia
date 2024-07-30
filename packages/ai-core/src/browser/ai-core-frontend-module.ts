@@ -13,7 +13,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { bindContributionProvider } from '@theia/core';
+import { bindContributionProvider, CommandContribution } from '@theia/core';
 import {
     RemoteConnectionProvider,
     ServiceConnectionProvider,
@@ -27,15 +27,25 @@ import {
     LanguageModelRegistryFrontendDelegate,
     languageModelDelegatePath,
     languageModelRegistryDelegatePath,
-    PromptService
+    PromptService,
+    PromptServiceImpl,
+    PromptCustomizationService
 } from '../common';
 import {
     FrontendLanguageModelRegistryImpl,
     LanguageModelDelegateClientImpl,
 } from './frontend-language-model-registry';
 
-import { FrontendPromptServiceImpl } from './frontend-prompt-service';
 import { bindPromptPreferences } from './prompt-preferences';
+import { PromptTemplateContribution as PromptTemplateContribution } from './prompttemplate-contribution';
+import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate';
+import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
+import { bindViewContribution, FrontendApplicationContribution, WidgetFactory } from '@theia/core/lib/browser';
+import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-customization-service';
+import { AISettingsWidget } from './ai-settings-widget';
+import { AISettingsViewContribution } from './ai-settings-view-contribution';
+import { AICoreFrontendApplicationContribution } from './ai-core-frontend-application-contribution';
+import { AISettingsService } from './ai-settings-service';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, LanguageModelProvider);
@@ -62,6 +72,26 @@ export default new ContainerModule(bind => {
         .inSingletonScope();
 
     bindPromptPreferences(bind);
-    bind(FrontendPromptServiceImpl).toSelf().inSingletonScope();
-    bind(PromptService).toService(FrontendPromptServiceImpl);
+
+    bind(FrontendPromptCustomizationServiceImpl).toSelf().inSingletonScope();
+    bind(PromptCustomizationService).toService(FrontendPromptCustomizationServiceImpl);
+    bind(PromptServiceImpl).toSelf().inSingletonScope();
+    bind(PromptService).toService(PromptServiceImpl);
+
+    bind(PromptTemplateContribution).toSelf().inSingletonScope();
+    bind(LanguageGrammarDefinitionContribution).toService(PromptTemplateContribution);
+    bind(CommandContribution).toService(PromptTemplateContribution);
+    bind(TabBarToolbarContribution).toService(PromptTemplateContribution);
+
+    bind(AISettingsWidget).toSelf();
+    bind(WidgetFactory)
+        .toDynamicValue(ctx => ({
+            id: AISettingsWidget.ID,
+            createWidget: () => ctx.container.get(AISettingsWidget)
+        }))
+        .inSingletonScope();
+
+    bindViewContribution(bind, AISettingsViewContribution);
+ 	bind(AISettingsService).toSelf().inRequestScope();
+    bind(FrontendApplicationContribution).to(AICoreFrontendApplicationContribution).inSingletonScope();
 });

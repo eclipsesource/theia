@@ -20,17 +20,27 @@ import {
     postConstruct,
 } from '@theia/core/shared/inversify';
 import {
+    OutputChannel,
+    OutputChannelManager,
+    OutputChannelSeverity,
+} from '@theia/output/lib/browser/output-channel';
+import {
     DefaultLanguageModelRegistryImpl,
+    isLanguageModelStreamResponse,
     isLanguageModelStreamResponseDelegate,
     isLanguageModelTextResponse,
+    isModelMatching,
     LanguageModel,
     LanguageModelDelegateClient,
     LanguageModelFrontendDelegate,
     LanguageModelMetaData,
     LanguageModelRegistryFrontendDelegate,
     LanguageModelRequest,
-    LanguageModelStreamResponsePart
+    LanguageModelResponse,
+    LanguageModelSelector,
+    LanguageModelStreamResponsePart,
 } from '../common';
+import { AISettingsService } from './ai-settings-service';
 
 export interface TokenReceiver {
     send(id: string, token: LanguageModelStreamResponsePart | undefined): void;
@@ -72,22 +82,75 @@ export class FrontendLanguageModelRegistryImpl
     @inject(ILogger)
     protected override logger: ILogger;
 
+    @inject(OutputChannelManager)
+    protected outputChannelManager: OutputChannelManager;
+
+    @inject(AISettingsService)
+    protected settingsService: AISettingsService;
+
     @postConstruct()
     protected override init(): void {
         this.client.setReceiver(this);
-    }
 
-    override async getLanguageModels(): Promise<LanguageModel[]> {
-        // all providers coming in via the frontend
-        const frontendProviders = await super.getLanguageModels();
-        // also delegate to backend providers
-        const backendDescriptions = await this.registryDelegate.getLanguageModelDescriptions();
-        return [
-            ...frontendProviders,
-            ...backendDescriptions.map(description =>
-                this.createFrontendLanguageModel(description)
-            ),
-        ];
+        const contributions =
+            this.languageModelContributions.getContributions();
+        const promises = contributions.map(provider => provider());
+        const backendDescriptions =
+            this.registryDelegate.getLanguageModelDescriptions();
+        Promise.allSettled([backendDescriptions, ...promises]).then(
+            results => {
+                const backendDescriptionsResult = results[0];
+                if (backendDescriptionsResult.status === 'fulfilled') {
+                    this.languageModels.push(
+                        ...backendDescriptionsResult.value.map(
+                            description =>
+                                new Proxy(
+                                    this.createFrontendLanguageModel(
+                                        description
+                                    ),
+                                    languageModelOutputHandler(
+                                        this.outputChannelManager.getChannel(
+                                            description.id
+                                        )
+                                    )
+                                )
+                        )
+                    );
+                } else {
+                    this.logger.error(
+                        'Failed to add language models contributed from the backend',
+                        backendDescriptionsResult.reason
+                    );
+                }
+                for (let i = 1; i < results.length; i++) {
+                    // assert that index > 0 contains only language models
+                    const languageModelResult = results[i] as
+                        | PromiseRejectedResult
+                        | PromiseFulfilledResult<LanguageModel[]>;
+                    if (languageModelResult.status === 'fulfilled') {
+                        this.languageModels.push(
+                            ...languageModelResult.value.map(
+                                languageModel =>
+                                    new Proxy(
+                                        languageModel,
+                                        languageModelOutputHandler(
+                                            this.outputChannelManager.getChannel(
+                                                languageModel.id
+                                            )
+                                        )
+                                    )
+                            )
+                        );
+                    } else {
+                        this.logger.error(
+                            'Failed to add some language models:',
+                            languageModelResult.reason
+                        );
+                    }
+                }
+                this.markInitialized();
+            }
+        );
     }
 
     createFrontendLanguageModel(
@@ -127,7 +190,9 @@ export class FrontendLanguageModelRegistryImpl
 
     private streams = new Map<string, StreamState>();
 
-    async *getIterable(state: StreamState): AsyncIterable<LanguageModelStreamResponsePart> {
+    async *getIterable(
+        state: StreamState
+    ): AsyncIterable<LanguageModelStreamResponsePart> {
         let current = -1;
         while (true) {
             if (current < state.tokens.length - 1) {
@@ -164,4 +229,72 @@ export class FrontendLanguageModelRegistryImpl
             streamState.resolve(token);
         }
     }
+
+    override async selectLanguageModels(request: LanguageModelSelector): Promise<LanguageModel[]> {
+        await this.initialized;
+        const userSettings = this.settingsService.getAgentSettings(request.agent)?.languageModelRequirements.find(req => req.purpose === request.purpose);
+        if (userSettings?.identifier) {
+            const model = await this.getLanguageModel(userSettings.identifier);
+            if (model) {
+                return [model];
+            }
+        }
+
+        return this.languageModels.filter(model => isModelMatching(request, model));
+    }
 }
+
+const languageModelOutputHandler = (
+    outputChannel: OutputChannel
+): ProxyHandler<LanguageModel> => ({
+    get<K extends keyof LanguageModel>(
+        target: LanguageModel,
+        prop: K
+    ): LanguageModel[K] | LanguageModel['request'] {
+        const original = target[prop];
+        if (prop === 'request' && typeof original === 'function') {
+            return async function (
+                ...args: Parameters<LanguageModel['request']>
+            ): Promise<LanguageModelResponse> {
+                outputChannel.appendLine(
+                    `Sending request: ${JSON.stringify(args)}`
+                );
+                try {
+                    const result = await original.apply(target, args);
+                    if (isLanguageModelStreamResponse(result)) {
+                        outputChannel.appendLine('Received a response stream');
+                        const stream = result.stream;
+                        const loggedStream = {
+                            async *[Symbol.asyncIterator](): AsyncIterator<LanguageModelStreamResponsePart> {
+                                for await (const part of stream) {
+                                    outputChannel.append(part.content || '');
+                                    yield part;
+                                }
+                                outputChannel.append('\n');
+                                outputChannel.appendLine('End of stream');
+                            },
+                        };
+                        return {
+                            ...result,
+                            stream: loggedStream,
+                        };
+                    } else {
+                        outputChannel.appendLine('Received a response');
+                        outputChannel.appendLine(JSON.stringify(result));
+                        return result;
+                    }
+                } catch (err) {
+                    outputChannel.appendLine('An error occurred');
+                    if (err instanceof Error) {
+                        outputChannel.appendLine(
+                            err.message,
+                            OutputChannelSeverity.Error
+                        );
+                    }
+                    throw err;
+                }
+            };
+        }
+        return original;
+    },
+});

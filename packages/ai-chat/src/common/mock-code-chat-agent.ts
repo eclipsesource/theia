@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { ChatAgent } from './chat-agents';
+import { ChatAgent, ChatAgentLocation } from './chat-agents';
 import { ILogger, URI } from '@theia/core';
 import { LanguageModelSelector, PromptTemplate } from '@theia/ai-core';
 import { ChatRequestModelImpl, CodeChatResponseContentImpl, Location } from './chat-model';
@@ -51,6 +51,7 @@ export class MockCodeChatAgent implements ChatAgent {
     variables: string[] = [];
     promptTemplates: PromptTemplate[] = [];
     languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [];
+    locations: ChatAgentLocation[] = [];
 
     async invoke(request: ChatRequestModelImpl): Promise<void> {
         const dummyLocation: Location = {

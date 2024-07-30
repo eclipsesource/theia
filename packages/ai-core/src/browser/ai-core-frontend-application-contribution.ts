@@ -14,21 +14,27 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { inject, postConstruct } from '@theia/core/shared/inversify';
-import { PromptServiceImpl } from '../common/prompt-service';
-import { PromptPreferences } from './prompt-preferences';
+import { FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { inject, injectable, named } from '@theia/core/shared/inversify';
+import { ContributionProvider } from '@theia/core';
+import { Agent, PromptService } from '../common';
 
-export class FrontendPromptServiceImpl extends PromptServiceImpl {
-    @inject(PromptPreferences) protected readonly preferences: PromptPreferences;
+@injectable()
+export class AICoreFrontendApplicationContribution implements FrontendApplicationContribution {
+    @inject(ContributionProvider) @named(Agent)
+    protected readonly agents: ContributionProvider<Agent>;
 
-    @postConstruct()
-    override init(): void {
-        this.preferences.onPreferenceChanged(e => {
-            if (e.preferenceName === 'prompts') {
-                Object.entries(e.newValue).forEach(entry => {
-                    this._prompts[entry[0]] = { id: entry[0], template: entry[1] };
-                });
-            }
+    @inject(PromptService)
+    private readonly promptService: PromptService;
+
+    onStart(): void {
+        this.agents.getContributions().forEach(a => {
+            a.promptTemplates.forEach(t => {
+                this.promptService.storePrompt(t.id, t.template);
+            });
         });
+    }
+
+    onStop(): void {
     }
 }

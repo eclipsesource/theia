@@ -13,7 +13,16 @@
       "path": "../core"
     },
     {
+      "path": "../editor"
+    },
+    {
       "path": "../filesystem"
+    },
+    {
+      "path": "../monaco"
+    },
+    {
+      "path": "../output"
     },
     {
       "path": "../workspace"

@@ -33,8 +33,26 @@ import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatRequestModelImpl, ChatResponseContent, CodeChatResponseContentImpl, MarkdownChatResponseContentImpl } from './chat-model';
 import { getMessages } from './chat-util';
 
+export namespace ChatAgentLocation {
+    export function fromRaw(value: string): ChatAgentLocation {
+        switch (value) {
+            case 'panel': return ChatAgentLocation.Panel;
+            case 'terminal': return ChatAgentLocation.Terminal;
+            case 'notebook': return ChatAgentLocation.Notebook;
+            case 'editor': return ChatAgentLocation.Editor;
+        }
+        return ChatAgentLocation.Panel;
+    }
+}
+export enum ChatAgentLocation {
+    Panel = 'panel',
+    Terminal = 'terminal',
+    Notebook = 'notebook',
+    Editor = 'editor'
+}
+
 export interface ChatAgentData extends Agent {
-    defaultImplicitVariables?: string[];
+    locations: ChatAgentLocation[];
 }
 
 export const ChatAgent = Symbol('ChatAgent');
@@ -49,16 +67,36 @@ export class DefaultChatAgent implements ChatAgent {
     @inject(ILogger)
     protected logger: ILogger;
 
-    defaultImplicitVariables?: string[] | undefined;
     id: string = 'DefaultChatAgent';
     name: string = 'Default Chat Agent';
     description: string = 'The default chat agent provided by Theia.';
     variables: string[] = [];
-    promptTemplates: PromptTemplate[] = [];
-    languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [];
+    promptTemplates: PromptTemplate[] = [{
+        id: 'test-template',
+        template: 'Hello, ${name}! This is just a mock template. Nothing useful here.',
+    }, {
+        id: 'mock-template',
+        template: 'Hello, ${name}! This is just another mock template. Nothing useful here either.',
+    }];
+    // FIXME: placeholder values
+    languageModelRequirements: Omit<LanguageModelSelector, 'agent'>[] = [{
+        purpose: 'chat',
+        identifier: 'openai/gpt-4o',
+    },
+    {
+        purpose: 'autocomplete',
+        name: 'default-autocomplete-model',
+        version: '0.0.1',
+        family: 'default-family',
+        tokens: 256,
+        identifier: 'default-identifier',
+        vendor: 'default-vendor'
+    }];
+    locations: ChatAgentLocation[] = [];
 
     async invoke(request: ChatRequestModelImpl): Promise<void> {
-        const languageModels = await this.languageModelRegistry.getLanguageModels();
+        const selector = this.languageModelRequirements.find(req => req.purpose === 'chat')!;
+        const languageModels = await this.languageModelRegistry.selectLanguageModels({ agent: this.id, ...selector });
         if (languageModels.length === 0) {
             throw new Error('Couldn\'t find a language model. Please check your setup!');
         }

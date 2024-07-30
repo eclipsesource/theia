@@ -14,9 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ContributionProvider } from '@theia/core';
-import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
-import { Agent } from './agent';
+import { inject, injectable, optional } from '@theia/core/shared/inversify';
 import { PromptTemplate } from './types';
 
 export interface PromptMap { [id: string]: PromptTemplate }
@@ -46,24 +44,37 @@ export interface PromptService {
      */
     getAllPrompts(): PromptMap;
 }
+
+export const PromptCustomizationService = Symbol('PromptCustomizationService');
+export interface PromptCustomizationService {
+    /**
+     * Whether there is a customization for a {@link PromptTemplate} object
+     * @param id the id of the {@link PromptTemplate} to check
+     */
+    isPromptTemplateCustomized(id: string): boolean;
+
+    /**
+     * Returns the customization of {@link PromptTemplate} object or undefined if there is none
+     * @param id the id of the {@link PromptTemplate} to check
+     */
+    getCustomizedPromptTemplate(id: string): string | undefined
+}
+
 @injectable()
 export class PromptServiceImpl implements PromptService {
 
-    @inject(ContributionProvider) @named(Agent)
-    protected readonly agents: ContributionProvider<Agent>;
+    @inject(PromptCustomizationService) @optional()
+    protected readonly customizationService: PromptCustomizationService | undefined;
 
     protected _prompts: PromptMap = {};
 
-    @postConstruct()
-    public init(): void {
-        this.agents.getContributions().forEach(a => {
-            a.promptTemplates.forEach(template => {
-                this._prompts[template.id] = template;
-            });
-        });
-    }
-
     getRawPrompt(id: string): PromptTemplate | undefined {
+        if (this.customizationService !== undefined && this.customizationService.isPromptTemplateCustomized(id)) {
+            const template = this.customizationService.getCustomizedPromptTemplate(id);
+            if (template !== undefined) {
+                return { id, template };
+            }
+        }
         return this._prompts[id];
     }
     getPrompt(id: string, args?: { [key: string]: unknown }): string | undefined {
@@ -74,13 +85,31 @@ export class PromptServiceImpl implements PromptService {
         if (args === undefined) {
             return prompt.template;
         }
-        const formattedPrompt = Object.keys(args).reduce((acc, key) => acc.replace(`/\${${key}}/g`, JSON.stringify(args[key])), prompt.template);
+        const formattedPrompt = Object.keys(args).reduce((acc, key) => acc.replace(`\${${key}}`, args[key] as string), prompt.template);
         return formattedPrompt;
     }
     getAllPrompts(): PromptMap {
-        return { ...this._prompts };
+        if (this.customizationService !== undefined) {
+            const myCustomization = this.customizationService;
+            const result: PromptMap = {};
+            Object.keys(this._prompts).forEach(id => {
+                if (myCustomization.isPromptTemplateCustomized(id)) {
+                    const template = myCustomization.getCustomizedPromptTemplate(id);
+                    if (template !== undefined) {
+                        result[id] = { id, template };
+                    } else {
+                        result[id] = { ...this._prompts[id] };
+                    }
+                } else {
+                    result[id] = { ...this._prompts[id] };
+                }
+            });
+            return result;
+        } else {
+            return { ...this._prompts };
+        }
     }
     storePrompt(id: string, prompt: string): void {
-        this._prompts[id] = {id, template: prompt};
+        this._prompts[id] = { id, template: prompt };
     }
 }
