@@ -331,11 +331,11 @@ export class CodeChatResponseContentImpl implements CodeChatResponseContent {
     }
 
     merge(nextChatResponseContent: CodeChatResponseContent): boolean {
-        if (this._language === nextChatResponseContent.language) {
-            this._code += `\n${nextChatResponseContent.code}`;
-            return true;
-        }
-        return false;
+        console.log("Merge CURRENT", this._code);
+        this._code += `${nextChatResponseContent.code}`;
+        console.log("MERGE NEXT", nextChatResponseContent.code);
+        console.log("MERGE NEW", this._code);
+        return true;
     }
 }
 

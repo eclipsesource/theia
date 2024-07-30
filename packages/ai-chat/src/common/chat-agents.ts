@@ -30,7 +30,7 @@ import {
 } from '@theia/ai-core/lib/common';
 import { ILogger, isArray } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { ChatRequestModelImpl, ChatResponseContent, MarkdownChatResponseContentImpl } from './chat-model';
+import { ChatRequestModelImpl, ChatResponseContent, CodeChatResponseContentImpl, MarkdownChatResponseContentImpl } from './chat-model';
 import { getMessages } from './chat-util';
 
 export interface ChatAgentData extends Agent {
@@ -93,13 +93,18 @@ export class DefaultChatAgent implements ChatAgent {
         request.response.complete();
     }
 
+    isCodingBlock = false;
     private parse(token: LanguageModelStreamResponsePart, previousContent: ChatResponseContent[]): ChatResponseContent | ChatResponseContent[] {
-        // TODO does it make sense to add it here? This code breaks the parsing
-        // if (token.tool_calls) {
-        //     const previousCommands = previousContent.filter(isCommandChatResponseContent);
-        //     const newTools = token.tool_calls.filter(tc => tc.function && tc.function.name && previousCommands.find(c => c.command.id === tc.function?.name) === undefined);
-        //     return newTools.map(t => new CommandChatResponseContentImpl({ id: t.function!.name! }, t.function!.arguments ? JSON.parse(t.function!.arguments) : undefined));
-        // }
+        if (token.content?.includes('```')) {
+            if (this.isCodingBlock) {
+                this.isCodingBlock = false;
+            } else {
+                this.isCodingBlock = true;
+            }
+        } else if (this.isCodingBlock) {
+            console.log("code token", token, previousContent);
+            return new CodeChatResponseContentImpl(token.content ?? '', 'typescript');
+        }
         return new MarkdownChatResponseContentImpl(token.content ?? '');
     }
 }

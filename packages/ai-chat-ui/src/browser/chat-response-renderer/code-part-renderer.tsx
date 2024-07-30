@@ -140,6 +140,7 @@ export const CodeWrapper = (props: {
     // eslint-disable-next-line no-null/no-null
     const ref = React.useRef<HTMLDivElement | null>(null);
 
+
     const createInputElement = async () => {
         const resource = await props.untitledResourceResolver.createUntitledResource(undefined, props.language);
         const editor = await props.editorProvider.createInline(resource.uri, ref.current!, {
@@ -147,12 +148,21 @@ export const CodeWrapper = (props: {
             autoSizing: true,
             maxHeight: undefined
         });
+        console.log("RENDERER", props.content);
         editor.document.textEditorModel.setValue(props.content);
+        return editor;
     };
 
     React.useEffect(() => {
-        createInputElement();
-    }, []);
+        const editor = createInputElement();
+        return () => {
+            editor.then(e => {
+                // eslint-disable-next-line no-null/no-null
+                ref.current = null;
+                e.dispose();
+            });
+        }
+    }, [props.content]);
 
     return <div ref={ref}></div>;
 };
