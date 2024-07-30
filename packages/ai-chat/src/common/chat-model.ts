@@ -327,14 +327,11 @@ export class CodeChatResponseContentImpl implements CodeChatResponseContent {
     }
 
     asString(): string {
-        return `\`\`\`${this._language}\n${this._code}\n\`\`\``;
+        return `\`\`\`${this._language ?? ''}\n${this._code}\n\`\`\``;
     }
 
     merge(nextChatResponseContent: CodeChatResponseContent): boolean {
-        console.log("Merge CURRENT", this._code);
         this._code += `${nextChatResponseContent.code}`;
-        console.log("MERGE NEXT", nextChatResponseContent.code);
-        console.log("MERGE NEW", this._code);
         return true;
     }
 }

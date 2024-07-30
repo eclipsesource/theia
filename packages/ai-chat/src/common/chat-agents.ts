@@ -78,6 +78,46 @@ export class DefaultChatAgent implements ChatAgent {
                 } else {
                     request.response.response.addContent(newContents);
                 }
+
+                const lastContent = request.response.response.content.pop();
+                if (lastContent === undefined) {
+                    return;
+                }
+                const text = lastContent.asString?.();
+                if (text === undefined) {
+                    return;
+                }
+                let curSearchIndex = 0;
+                const result: ChatResponseContent[] = [];
+                while (curSearchIndex < text.length) {
+                    const codeStartIndex = text.indexOf('```', curSearchIndex);
+                    if (codeStartIndex === -1) {
+                        break;
+                    }
+                    const newLineIndex = text.indexOf('\n', codeStartIndex + 3);
+                    let language = '';
+                    if (codeStartIndex + 3 === newLineIndex) {
+                        // no language
+                    } else {
+                        language = text.substring(codeStartIndex + 3, newLineIndex);
+                    }
+                    const codeEndIndex = text.indexOf('```', codeStartIndex + 3);
+                    if (codeEndIndex === -1) {
+                        break;
+                    }
+                    result.push(new MarkdownChatResponseContentImpl(text.substring(curSearchIndex, codeStartIndex)));
+                    const codeText = text.substring(codeStartIndex + 3, codeEndIndex);
+                    // FIXME remove ! after language is optional
+                    result.push(new CodeChatResponseContentImpl(codeText, language!));
+                    curSearchIndex = codeEndIndex + 3;
+                }
+                if (result.length > 0) {
+                    result.forEach(r => {
+                        request.response.response.addContent(r);
+                    });
+                } else {
+                    request.response.response.addContent(lastContent);
+                }
             }
             request.response.complete();
             return;
@@ -93,18 +133,7 @@ export class DefaultChatAgent implements ChatAgent {
         request.response.complete();
     }
 
-    isCodingBlock = false;
     private parse(token: LanguageModelStreamResponsePart, previousContent: ChatResponseContent[]): ChatResponseContent | ChatResponseContent[] {
-        if (token.content?.includes('```')) {
-            if (this.isCodingBlock) {
-                this.isCodingBlock = false;
-            } else {
-                this.isCodingBlock = true;
-            }
-        } else if (this.isCodingBlock) {
-            console.log("code token", token, previousContent);
-            return new CodeChatResponseContentImpl(token.content ?? '', 'typescript');
-        }
         return new MarkdownChatResponseContentImpl(token.content ?? '');
     }
 }
