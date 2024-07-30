@@ -136,7 +136,7 @@ export function isLocation(obj: unknown): obj is Location {
 export interface CommandChatResponseContent extends BaseChatResponseContent {
     kind: 'command';
     command: Command;
-    commandHandler?: () => Promise<void>;
+    commandHandler?: (...commandArgs: unknown[]) => Promise<void>;
     arguments: Record<string, unknown>;
 }
 
@@ -346,13 +346,14 @@ export const COMMAND_CHAT_RESPONSE_COMMAND: Command = {
 export class CommandChatResponseContentImpl implements CommandChatResponseContent {
     kind: 'command' = 'command';
 
-    arguments: Record<string, unknown> = {};
+    arguments: Record<string, unknown>;
 
     protected _command: Command;
-    protected _commandHandler?: () => Promise<void>;
+    protected _commandHandler?: (...commandArgs: unknown[]) => Promise<void>;
 
-    constructor(command: Command = COMMAND_CHAT_RESPONSE_COMMAND, commandHandler?: () => Promise<void>) {
+    constructor(command: Command = COMMAND_CHAT_RESPONSE_COMMAND, args: Record<string, unknown> = {}, commandHandler?: (...commandArgs: unknown[]) => Promise<void>) {
         this._command = command;
+        this.arguments = args;
         this._commandHandler = commandHandler;
     }
 
@@ -360,7 +361,7 @@ export class CommandChatResponseContentImpl implements CommandChatResponseConten
         return this._command;
     }
 
-    get commandHandler(): (() => Promise<void>) | undefined {
+    get commandHandler(): ((...commandArgs: unknown[]) => Promise<void>) | undefined {
         return this._commandHandler;
     }
 

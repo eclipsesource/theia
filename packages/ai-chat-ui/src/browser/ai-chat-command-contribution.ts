@@ -20,7 +20,7 @@ import { injectable } from '@theia/core/shared/inversify';
 
 export interface AIChatCommandArguments {
     command: Command;
-    handler?: () => Promise<void>;
+    handler?: (...commandArgs: unknown[]) => Promise<void>;
 }
 
 @injectable()
