@@ -29,6 +29,7 @@ import {
     DummyChatAgent
 } from '../common';
 import { DummyCommandContribution } from './dummy-command-contribution';
+import { MockCodeChatAgent } from '../common/mock-code-chat-agent';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, Agent);
@@ -47,6 +48,8 @@ export default new ContainerModule(bind => {
     bind(Agent).toService(DefaultChatAgent);
     bind(ChatAgent).toService(DefaultChatAgent);
 
+    bind(MockCodeChatAgent).toSelf().inSingletonScope();
+    bind(ChatAgent).toService(MockCodeChatAgent);
     bind(DummyChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(DummyChatAgent);
     bind(ChatAgent).toService(DummyChatAgent);
