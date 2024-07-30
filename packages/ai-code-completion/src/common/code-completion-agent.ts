@@ -80,7 +80,10 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
 
         const suggestions: monaco.languages.CompletionItem[] = [];
         const completionItem: monaco.languages.CompletionItem = {
-            label: `${completionText.substring(0, 10)}...(ai)`,
+            preselect: true,
+            label: `${completionText.substring(0, 20)}`,
+            detail: 'AI Generated',
+            documentation: `Generated via ${languageModel.id}`,
             kind: monaco.languages.CompletionItemKind.Text,
             insertText: completionText,
             range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)

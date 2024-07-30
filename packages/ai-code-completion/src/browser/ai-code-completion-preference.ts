@@ -23,6 +23,11 @@ export const AICodeCompletionPreferencesSchema: PreferenceSchema = {
             type: 'boolean',
             description: 'Enable AI code completion',
             default: false
+        },
+        'ai-code-completion.precompute': {
+            type: 'boolean',
+            description: 'Precompute completion before it is triggered',
+            default: false
         }
     }
 };
