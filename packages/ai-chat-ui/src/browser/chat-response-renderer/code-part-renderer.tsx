@@ -61,8 +61,8 @@ export class CodePartRenderer
                 <div className="theia-CodePartRenderer-top">
                     <div className="theia-CodePartRenderer-left">{this.renderTitle(response)}</div>
                     <div className="theia-CodePartRenderer-right">
-                        <button onClick={this.writeCodeToClipboard.bind(this, response.code)}>Copy</button>
-                        <button onClick={this.insertCode.bind(this, response.code)}>Insert at Cursor</button>
+                        <CopyToClipboardButton code={response.code} clipboardService={this.clipboardService} />
+                        <InsertCodeAtCursorButton code={response.code} editorManager={this.editorManager} />
                     </div>
                 </div>
                 <div className="theia-CodePartRenderer-separator"></div>
@@ -90,28 +90,6 @@ export class CodePartRenderer
         return uri?.path?.toString().split('/').pop() ?? 'Generated Code';
     }
 
-    private writeCodeToClipboard(code: string): void {
-        this.clipboardService.writeText(code);
-    }
-
-    protected insertCode(code: string): void {
-        const editor = this.editorManager.currentEditor;
-        if (editor) {
-            const currentEditor = editor.editor;
-            const selection = currentEditor.selection;
-
-            // Insert the text at the current cursor position
-            // If there is a selection, replace the selection with the text
-            currentEditor.executeEdits([{
-                range: {
-                    start: selection.start,
-                    end: selection.end
-                },
-                newText: code
-            }]);
-        }
-    }
-
     /**
      * Opens a file and moves the cursor to the specified position.
      *
@@ -128,6 +106,36 @@ export class CodePartRenderer
         }
     }
 }
+
+const CopyToClipboardButton = (props: { code: string, clipboardService: ClipboardService }) => {
+    const { code, clipboardService } = props;
+    const copyCodeToClipboard = React.useCallback(() => {
+        clipboardService.writeText(code);
+    }, [code, clipboardService]);
+    return <button onClick={copyCodeToClipboard}>Copy</button>;
+};
+
+const InsertCodeAtCursorButton = (props: { code: string, editorManager: EditorManager }) => {
+    const { code, editorManager } = props;
+    const insertCode = React.useCallback(() => {
+        const editor = editorManager.currentEditor;
+        if (editor) {
+            const currentEditor = editor.editor;
+            const selection = currentEditor.selection;
+
+            // Insert the text at the current cursor position
+            // If there is a selection, replace the selection with the text
+            currentEditor.executeEdits([{
+                range: {
+                    start: selection.start,
+                    end: selection.end
+                },
+                newText: code
+            }]);
+        }
+    }, [code, editorManager]);
+    return <button onClick={insertCode}>Insert at Cursor</button>;
+};
 
 /**
  * Renders the given code within a Monaco Editor
