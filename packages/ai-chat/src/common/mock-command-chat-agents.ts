@@ -16,16 +16,43 @@
 
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgent, ChatAgentLocation } from './chat-agents';
-import { PromptTemplate, LanguageModelSelector } from '@theia/ai-core';
+import { PromptTemplate, LanguageModelSelector, CommunicationRecordingService, LanguageModelRegistry, PromptService, LanguageModelRequestMessage } from '@theia/ai-core';
 import { ChatRequestModelImpl, COMMAND_CHAT_RESPONSE_COMMAND, CommandChatResponseContent, CommandChatResponseContentImpl } from './chat-model';
 import { CommandRegistry, MessageService } from '@theia/core';
+import { getMessages } from './chat-util';
 
 export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate {
     id = 'mock-command-chat-agent-system-prompt-template';
-    template = `I
-    am
-    system
-    prompt`;
+    template = `
+# System Prompt
+
+You are a service that returns one of the following command templates.
+
+You will return one of the templates by choosing it randomly.
+
+The output format is JSON.
+
+Your response only consists of one of the templates without any other text or modifications.
+
+## Template 1
+
+\`\`\`json
+{
+    "type": "theia-command",
+    "commandId": "theia-ai-prompt-template:show-prompts-command"
+}
+\`\`\`
+
+## Template 2
+
+\`\`\`json
+{
+    "type": "custom-handler",
+    "commandId": "ai-chat.command-chat-response.generic",
+    "arguments": ["hello", "world"]
+}
+\`\`\`
+    `;
 }
 
 interface ParsedCommand {
@@ -37,11 +64,20 @@ interface ParsedCommand {
 @injectable()
 export class MockCommandChatAgent implements ChatAgent {
 
+    @inject(PromptService)
+    protected promptService: PromptService;
+
     @inject(CommandRegistry)
     protected readonly commandRegistry: CommandRegistry;
 
     @inject(MessageService)
     private readonly messageService: MessageService;
+
+    @inject(CommunicationRecordingService)
+    protected recordingService: CommunicationRecordingService;
+
+    @inject(LanguageModelRegistry)
+    protected languageModelRegistry: LanguageModelRegistry;
 
     id: string = 'MockCommandChatAgent';
     name: string = 'Mock Command Chat Agent';
@@ -55,6 +91,37 @@ export class MockCommandChatAgent implements ChatAgent {
     locations: ChatAgentLocation[] = [];
 
     async invoke(request: ChatRequestModelImpl): Promise<void> {
+
+        this.recordingService.recordRequest({
+            agentId: this.id,
+            sessionId: request.session.id,
+            timestamp: Date.now(),
+            requestId: request.id,
+            request: request.request.text
+        });
+        const selector = this.languageModelRequirements.find(req => req.purpose === 'chat')!;
+        const languageModels = await this.languageModelRegistry.selectLanguageModels({ agent: this.id, ...selector });
+        if (languageModels.length === 0) {
+            throw new Error('Couldn\'t find a language model. Please check your setup!');
+        }
+
+        const systemPrompt = await (this.promptService.getPrompt('mock-command-chat-agent-system-prompt-template'));
+        if (systemPrompt === undefined) {
+            throw new Error('Couldn\'t get system prompt ');
+        }
+
+        const prevMessages: LanguageModelRequestMessage[] = getMessages(request.session);
+
+        const messages: LanguageModelRequestMessage[] = prevMessages.length > 0 ? [prevMessages[prevMessages.length - 1]] : [];
+        messages.unshift({
+            actor: 'ai',
+            type: 'text',
+            query: systemPrompt
+        });
+
+        const languageModelResponse = await languageModels[0].request({ messages });
+        console.log(languageModelResponse);
+
         // TODO parse command from chat gpt
         const parsedCommand: ParsedCommand = {
             type: 'theia-command',
