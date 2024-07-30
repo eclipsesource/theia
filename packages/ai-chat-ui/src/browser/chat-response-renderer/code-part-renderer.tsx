@@ -147,7 +147,8 @@ export const CodeWrapper = (props: {
         const editor = await props.editorProvider.createInline(resource.uri, ref.current!, {
             readOnly: true,
             autoSizing: true,
-            maxHeight: undefined
+            maxHeight: undefined,
+            codeLens: false
         });
         editor.document.textEditorModel.setValue(props.content);
         editorRef.current = editor;
