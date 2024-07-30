@@ -112,6 +112,7 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         }
     ];
     languageModelRequirements: Omit<LanguageModelSelector, 'agent'>[] = [{
-        purpose: 'code-completion'
+        purpose: 'code-completion',
+        identifier: 'openai/gpt-4o'
     }];
 }
