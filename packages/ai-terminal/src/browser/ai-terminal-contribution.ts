@@ -70,6 +70,7 @@ class AiTerminalChatWidget {
     protected chatInputContainer: HTMLDivElement;
 
     protected haveResult = false;
+    commands: string[];
 
     constructor(
         protected terminalWidget: TerminalWidgetImpl,
@@ -77,6 +78,11 @@ class AiTerminalChatWidget {
     ) {
         this.chatContainer = document.createElement('div');
         this.chatContainer.className = 'ai-terminal-chat-container';
+
+        const chatCloseButton = document.createElement('span');
+        chatCloseButton.className = 'closeButton codicon codicon-close';
+        chatCloseButton.onclick = () => this.dispose();
+        this.chatContainer.appendChild(chatCloseButton);
 
         const chatResultContainer = document.createElement('div');
         chatResultContainer.className = 'ai-terminal-chat-result';
@@ -102,6 +108,10 @@ class AiTerminalChatWidget {
                 }
             } else if (event.key === 'Escape') {
                 this.dispose();
+            } else if (event.key === 'ArrowUp' && this.haveResult) {
+                this.updateChatResult(this.getNextCommandIndex(1));
+            } else if (event.key === 'ArrowDown' && this.haveResult) {
+                this.updateChatResult(this.getNextCommandIndex(-1));
             }
         };
         this.chatInputContainer.appendChild(this.chatInput);
@@ -133,14 +143,15 @@ class AiTerminalChatWidget {
             const processInfo = await this.terminalWidget.processInfo;
             const shell = processInfo.executable;
             const recentTerminalContents = this.getRecentTerminalCommands();
-            const commands = await this.terminalAgent.getCommands(
+
+            this.commands = await this.terminalAgent.getCommands(
                 { userRequest, cwd, shell, recentTerminalContents }
             );
 
-            if (commands.length > 0) {
+            if (this.commands.length > 0) {
                 this.chatResultParagraph.className = 'command';
-                this.chatResultParagraph.innerText = commands[0];
-                this.chatInput.placeholder = 'Hit enter to confirm or try again...';
+                this.chatResultParagraph.innerText = this.commands[0];
+                this.chatInput.placeholder = 'Hit enter to confirm or use ⇅ to show alternatives...';
                 this.haveResult = true;
             } else {
                 this.chatResultParagraph.className = '';
@@ -150,12 +161,23 @@ class AiTerminalChatWidget {
         }
     }
 
-    private getRecentTerminalCommands(): string[] {
+    protected getRecentTerminalCommands(): string[] {
         const maxLines = 100;
         return this.terminalWidget.buffer.getLines(0,
             this.terminalWidget.buffer.length > maxLines ? maxLines : this.terminalWidget.buffer.length
         );
     }
+
+    protected getNextCommandIndex(step: number): number {
+        const currentIndex = this.commands.indexOf(this.chatResultParagraph.innerText);
+        const nextIndex = (currentIndex + step + this.commands.length) % this.commands.length;
+        return nextIndex;
+    }
+
+    protected updateChatResult(index: number): void {
+        this.chatResultParagraph.innerText = this.commands[index];
+    }
+
 
     protected dispose(): void {
         this.chatInput.value = '';

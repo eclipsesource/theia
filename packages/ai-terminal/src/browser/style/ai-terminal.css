@@ -16,6 +16,17 @@
   border: 1px solid var(--theia-menu-border);
 }
 
+.ai-terminal-chat-container .closeButton {
+  position: absolute;
+  top: 1em;
+  right: 1em;
+  cursor: pointer;
+}
+
+.ai-terminal-chat-container .closeButton:hover {
+  color: var(--theia-menu-foreground);
+}
+
 .ai-terminal-chat-result {
   width: 100%;
   margin-bottom: 10px;
