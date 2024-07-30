@@ -32,9 +32,16 @@ export const isLanguageModelRequestMessage = (obj: unknown): obj is LanguageMode
         'query' in obj &&
         typeof (obj as { query: unknown }).query === 'string'
     );
-
+export interface ToolRequest<T extends object> {
+    name: string;
+    parameters?: { [key: string]: unknown };
+    description?: string;
+    callback: (args: T) => Promise<unknown>;
+    parse?: (input: string) => T;
+}
 export interface LanguageModelRequest {
-    messages: LanguageModelRequestMessage[]
+    messages: LanguageModelRequestMessage[],
+    tools?: ToolRequest<object>[];
 }
 
 export interface LanguageModelTextResponse {
@@ -185,4 +192,3 @@ export function isModelMatching(request: LanguageModelSelector, model: LanguageM
         (!request.version || model.version === request.version) &&
         (!request.family || model.family === request.family);
 }
-

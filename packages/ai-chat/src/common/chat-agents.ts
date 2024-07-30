@@ -103,6 +103,47 @@ export class DefaultChatAgent implements ChatAgent {
         if (languageModels.length === 0) {
             throw new Error('Couldn\'t find a language model. Please check your setup!');
         }
+
+        // [
+        //     {
+        //         type: 'function',
+        //         function: {
+        //             name: 'getProjectFileList',
+        //             description: 'Get the list of files in the current project',
+        //             parameters: {
+        //                 type: 'object',
+        //                 properties: {
+        //                     unit: {
+        //                         'description': 'The city and state, e.g. San Francisco, CA',
+        //                         'type': 'string',
+        //                         'enum': ['celsius', 'fahrenheit']
+        //                     }
+        //                 },
+        //                 required: ['unit']
+        //             },
+
+        //         }
+        //     },
+        //     {
+        //         type: 'function',
+        //         function: {
+        //             name: 'getFileContent',
+        //             description: 'Get the current weather in a given location',
+        //             parameters: {
+        //                 type: 'object',
+        //                 properties: {
+        //                     unit: {
+        //                         'description': 'The city and state, e.g. San Francisco, CA',
+        //                         'type': 'string',
+        //                         'enum': ['celsius', 'fahrenheit']
+        //                     }
+        //                 },
+        //                 required: ['unit']
+        //             }
+        //         }
+        //     }
+        // ]
+
         const languageModelResponse = await languageModels[0].request({ messages: getMessages(request.session) });
         if (isLanguageModelTextResponse(languageModelResponse)) {
             request.response.response.addContent(

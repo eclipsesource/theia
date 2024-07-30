@@ -17,6 +17,7 @@
 import { LanguageModel, LanguageModelRequest, LanguageModelRequestMessage, LanguageModelResponse, LanguageModelStreamResponsePart } from '@theia/ai-core';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import OpenAI from 'openai';
+import { BaseFunctionsArgs, RunnableToolFunctionWithParse, RunnableTools } from 'openai/lib/RunnableFunction';
 import { ChatCompletionMessageParam } from 'openai/resources';
 
 export const OpenAiModelIdentifier = Symbol('OpenAiModelIdentifier');
@@ -46,24 +47,59 @@ export class OpenAiModel implements LanguageModel {
     }
 
     async request(request: LanguageModelRequest): Promise<LanguageModelResponse> {
-        const stream = await this.openai.chat.completions.create({
+        const tools: RunnableTools<BaseFunctionsArgs> = (request.tools ?? []).map(tool => ({
+            type: 'function',
+            function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
+                function: tool.callback,
+                parse: tool.parse
+            }
+
+        } as RunnableToolFunctionWithParse<BaseFunctionsArgs>
+        ));
+        const runner = this.openai.beta.chat.completions.runTools({
             model: this.model,
             messages: request.messages.map(this.toOpenAIMessage),
             stream: true,
+            tools: tools,
+            tool_choice: 'auto'
         });
 
-        const [stream1] = stream.tee();
-        return {
-            stream: {
-                [Symbol.asyncIterator](): AsyncIterator<LanguageModelStreamResponsePart> {
-                    return {
-                        next(): Promise<IteratorResult<LanguageModelStreamResponsePart>> {
-                            return stream1[Symbol.asyncIterator]().next().then(chunk => chunk.done ? chunk : { value: chunk.value.choices[0]?.delta, done: false });
-                        }
-                    };
+        // const [stream1] = stream.tee();
+        // return {
+        //     stream: {
+        //         [Symbol.asyncIterator](): AsyncIterator<LanguageModelStreamResponsePart> {
+        //             return {
+        //                 next(): Promise<IteratorResult<LanguageModelStreamResponsePart>> {
+        //                     return stream1[Symbol.asyncIterator]().next().then(chunk => chunk.done ? chunk : { value: chunk.value.choices[0]?.delta, done: false });
+        //                 }
+        //             };
+        //         }
+        //     }
+        // };
+        let runnerEnd = false;
+
+        runner.once('end', () => {
+            runnerEnd = true;
+        });
+        // eslint-disable-next-line @typescript-eslint/tslint/config
+        const asyncIterator = (async function* () {
+            let resolve: (part: LanguageModelStreamResponsePart) => void;
+            runner.on('chunk', chunk => {
+                if (chunk.choices[0]?.delta.content) {
+                    resolve({ content: chunk.choices[0]?.delta.content });
                 }
+            });
+            while (!runnerEnd) {
+                const promise = new Promise<LanguageModelStreamResponsePart>((res, rej) => {
+                    resolve = res;
+                });
+                yield promise;
             }
-        };
+        })();
+        return { stream: asyncIterator };
     }
 
     private toOpenAIMessage(message: LanguageModelRequestMessage): ChatCompletionMessageParam {
