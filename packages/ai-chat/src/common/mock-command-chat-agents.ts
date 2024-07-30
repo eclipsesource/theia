@@ -105,14 +105,13 @@ export class MockCommandChatAgent implements ChatAgent {
             throw new Error('Couldn\'t find a language model. Please check your setup!');
         }
 
+        // eslint-disable-next-line @typescript-eslint/await-thenable
         const systemPrompt = await this.promptService.getPrompt('mock-command-chat-agent-system-prompt-template');
         if (systemPrompt === undefined) {
             throw new Error('Couldn\'t get system prompt ');
         }
 
         const prevMessages: LanguageModelRequestMessage[] = getMessages(request.session);
-
-        // TODO do we want to include more messages?
         const messages: LanguageModelRequestMessage[] = prevMessages.length > 0 ? [prevMessages[prevMessages.length - 1]] : [];
         messages.unshift({
             actor: 'ai',
@@ -123,11 +122,7 @@ export class MockCommandChatAgent implements ChatAgent {
         const languageModelResponse = await languageModels[0].request({ messages });
 
         let parsedCommand: ParsedCommand | undefined = undefined;
-        // const parsedCommand: ParsedCommand = {
-        //     type: 'theia-command',
-        //     commandId: 'theia-ai-prompt-template:show-prompts-command',
-        //     arguments: []
-        // };
+
         if (isLanguageModelStreamResponse(languageModelResponse)) {
             const tokens: string[] = [];
             for await (const token of languageModelResponse.stream) {
@@ -181,7 +176,8 @@ export class MockCommandChatAgent implements ChatAgent {
     }
 
     protected async commandCallback(...commandArgs: unknown[]): Promise<void> {
-        this.messageService.info(`Executing callback with args ${commandArgs.join(', ')}`, 'Got it');
+        this.messageService.info(`Executing callback with args ${commandArgs.join(', ')}. The first arg is the command id registered for the dynamically registered command. 
+        The other args are the actual args for the handler.`, 'Got it');
     }
 
 }
