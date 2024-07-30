@@ -13,10 +13,18 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-export * from './agent';
-export * from './communication-recording-types';
-export * from './language-model';
-export * from './language-model-delegate';
-export * from './prompt-service';
-export * from './types';
 
+import { CommunicationRecordingService } from '@theia/ai-core';
+import { FrontendApplication, FrontendApplicationContribution } from '@theia/core/lib/browser';
+import { inject, injectable } from '@theia/core/shared/inversify';
+
+@injectable()
+export class AIHistoryFrontendContribution implements FrontendApplicationContribution {
+
+    @inject(CommunicationRecordingService)
+    protected recordingService: CommunicationRecordingService;
+
+    async onStart(app: FrontendApplication): Promise<void> {
+        this.recordingService.loadHistory();
+    }
+}

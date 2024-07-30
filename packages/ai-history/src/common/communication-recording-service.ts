@@ -14,15 +14,27 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { CommunicationHistory, CommunicationHistoryEntry, CommunicationRecordingService } from '@theia/ai-core';
-import { injectable } from '@theia/core/shared/inversify';
+import { inject, injectable } from '@theia/core/shared/inversify';
+import { AiHistoryPersistenceService } from './history-persistence';
 
 @injectable()
 export class DefaultCommunicationRecordingService implements CommunicationRecordingService {
 
+    @inject(AiHistoryPersistenceService)
+    protected persistenceService: AiHistoryPersistenceService;
+
     protected history: Map<string, CommunicationHistory> = new Map();
+
+    getRecordedAgents(): string[] {
+        return Object.keys(this.history);
+    }
 
     getHistory(agentId: string): CommunicationHistory {
         return this.history.get(agentId) || [];
+    }
+
+    setHistory(agentId: string, history: CommunicationHistory): void {
+        this.history.set(agentId, history);
     }
 
     recordRequest(requestEntry: CommunicationHistoryEntry): void {
@@ -32,6 +44,7 @@ export class DefaultCommunicationRecordingService implements CommunicationRecord
         } else {
             this.history.set(requestEntry.agentId, [requestEntry]);
         }
+        this.persistenceService.saveHistory(requestEntry.agentId, this.history.get(requestEntry.agentId)!);
     }
 
     recordResponse(responseEntry: CommunicationHistoryEntry): void {
@@ -46,6 +59,14 @@ export class DefaultCommunicationRecordingService implements CommunicationRecord
                 matchingEntry.response = responseEntry.response;
                 matchingEntry.responseTime = responseEntry.timestamp - matchingEntry.timestamp;
             }
+            this.persistenceService.saveHistory(responseEntry.agentId, this.history.get(responseEntry.agentId)!);
         }
+    }
+
+    async loadHistory(): Promise<void> {
+        (await this.persistenceService.getRecordedAgents()).forEach(async agentId => {
+            const history = await this.persistenceService.loadHistory(agentId);
+            this.history.set(agentId, history);
+        });
     }
 }

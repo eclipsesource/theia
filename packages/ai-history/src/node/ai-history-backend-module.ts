@@ -14,21 +14,25 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { CommunicationRecordingService } from '@theia/ai-core';
-import { FrontendApplicationContribution, WebSocketConnectionProvider } from '@theia/core/lib/browser';
+import { ConnectionHandler, RpcConnectionHandler } from '@theia/core';
 import { ContainerModule } from '@theia/core/shared/inversify';
-import { DefaultCommunicationRecordingService } from '../common/communication-recording-service';
+import { DefaultCommunicationRecordingService } from '../common';
 import { AiHistoryPersistenceService, aiHistoryPersistenceServicePath } from '../common/history-persistence';
-import { AIHistoryFrontendContribution } from './ai-history-frontend-contribution';
+import { FileCommunicationPersistenceService } from './communication-persistence-service';
 
 export default new ContainerModule(bind => {
-    bind(FrontendApplicationContribution).to(AIHistoryFrontendContribution).inSingletonScope();
-
     bind(DefaultCommunicationRecordingService).toSelf().inSingletonScope();
     bind(CommunicationRecordingService).toService(DefaultCommunicationRecordingService);
 
-    bind(AiHistoryPersistenceService).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
-        return connection.createProxy<AiHistoryPersistenceService>(aiHistoryPersistenceServicePath);
-    }).inSingletonScope();
+    bind(FileCommunicationPersistenceService).toSelf().inSingletonScope();
+    bind(AiHistoryPersistenceService).to(FileCommunicationPersistenceService);
+    bind(ConnectionHandler)
+        .toDynamicValue(
+            ctx =>
+                new RpcConnectionHandler(aiHistoryPersistenceServicePath, () =>
+                    ctx.container.get(AiHistoryPersistenceService)
+                )
+        )
+        .inSingletonScope();
 
 });

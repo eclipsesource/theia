@@ -14,21 +14,13 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-export type CommunicationHistory = CommunicationHistoryEntry[];
+import { CommunicationHistory } from '@theia/ai-core';
 
-export interface CommunicationHistoryEntry {
-    agentId: string;
-    sessionId: string;
-    timestamp: number;
-    requestId: string;
-    request?: string;
-    response?: string;
-    responseTime?: number;
-}
+export const aiHistoryPersistenceServicePath = '/services/aiHistoryPersistenceService';
 
-export const CommunicationRecordingService = Symbol('CommunicationRecordingService');
-export interface CommunicationRecordingService {
-    recordRequest(requestEntry: CommunicationHistoryEntry): void;
-    recordResponse(responseEntry: CommunicationHistoryEntry): void;
-    getHistory(agentId: string): CommunicationHistory;
+export const AiHistoryPersistenceService = Symbol('AiHistoryPersistenceService');
+export interface AiHistoryPersistenceService {
+    saveHistory(agentId: string, history: CommunicationHistory): Promise<void>;
+    loadHistory(agentId: string): Promise<CommunicationHistory>;
+    getRecordedAgents(): Promise<string[]>;
 }
