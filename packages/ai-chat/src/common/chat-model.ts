@@ -133,11 +133,11 @@ export function isLocation(obj: unknown): obj is Location {
         'position' in obj && Position.is((obj as { position: unknown }).position);
 }
 
-export interface CommandChatResponseContent
-    extends BaseChatResponseContent {
+export interface CommandChatResponseContent extends BaseChatResponseContent {
     kind: 'command';
     command: Command;
     commandHandler?: () => Promise<void>;
+    arguments: Record<string, unknown>;
 }
 
 export const isTextChatResponseContent = (
