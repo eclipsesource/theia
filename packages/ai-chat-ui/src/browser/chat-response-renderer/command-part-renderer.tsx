@@ -44,9 +44,7 @@ export class CommandPartRenderer implements ChatResponsePartRenderer<CommandChat
             arguments: response.arguments
         };
         return (
-            <div>
-                <button onClick={this.onCommand.bind(this, arg)}>{label}</button>
-            </div>
+            <button className='theia-button main' onClick={this.onCommand.bind(this, arg)}>{label}</button>
         );
     }
     private onCommand(arg: AIChatCommandArguments): void {
