@@ -156,7 +156,9 @@ export const CodeWrapper = (props: {
             readOnly: true,
             autoSizing: true,
             maxHeight: undefined,
-            codeLens: false
+            codeLens: false,
+            inlayHints: { enabled: 'off' },
+            hover: { enabled: false }
         });
         editor.document.textEditorModel.setValue(props.content);
         editorRef.current = editor;
