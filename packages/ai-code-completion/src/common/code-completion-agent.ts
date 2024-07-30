@@ -68,12 +68,16 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         });
 
         // Re-enable after prompting circle is resolved
-        const prompt = this.promptService.getPrompt('code-completion-prompt', { snippet: `${textUntilPosition}{{MARKER}}${textAfterPosition}` });
-        if (!prompt) {
-            console.error('No prompt found for code-completion-agent');
-            return undefined;
-        }
+        // const prompt = this.promptService.getPrompt('code-completion-prompt', { snippet: `${textUntilPosition}{{MARKER}}${textAfterPosition}` });
+        // if (!prompt) {
+        //     console.error('No prompt found for code-completion-agent');
+        //     return undefined;
+        const snippet = `${textUntilPosition}{{MARKER}}${textAfterPosition}`;
+        const file = model.uri.toString(false);
+        const language = model.getLanguageId();
+        const prompt = this.promptTemplates[0].template.replace('${snippet}', snippet).replace('${file}', file).replace('${language}', language);
         console.log('Code completion agent is using prompt:', prompt);
+
         const response = await languageModel.request(({ messages: [{ type: 'text', actor: 'user', query: prompt }] }));
         const completionText = await getTextOfResponse(response);
         console.log('Code completion suggests', completionText);
@@ -98,7 +102,11 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
     promptTemplates: PromptTemplate[] = [
         {
             id: 'code-completion-prompt',
-            template: 'Finish the following code snippet. Only return the exact code with which to replace the {{MARKER}} in the snippet. ${snippet}',
+            template: `You are a code completion agent. The current file you have to complete is named \${file}.
+            The language of the file is \${language}. Return your result as plain text without markdown formatting.
+            Finish the following code snippet. Only return the exact code with which to replace the {{MARKER}} in the snippet.
+            
+            \${snippet}'`,
         }
     ];
     languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [{
