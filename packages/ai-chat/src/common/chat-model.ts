@@ -346,12 +346,12 @@ export const COMMAND_CHAT_RESPONSE_COMMAND: Command = {
 export class CommandChatResponseContentImpl implements CommandChatResponseContent {
     kind: 'command' = 'command';
 
-    arguments: unknown[];
+    arguments: unknown[] | undefined;
 
     protected _command: Command;
     protected _commandHandler?: (...commandArgs: unknown[]) => Promise<void>;
 
-    constructor(command: Command = COMMAND_CHAT_RESPONSE_COMMAND, args: unknown[] = [], commandHandler?: (...commandArgs: unknown[]) => Promise<void>) {
+    constructor(command: Command = COMMAND_CHAT_RESPONSE_COMMAND, args?: unknown[], commandHandler?: (...commandArgs: unknown[]) => Promise<void>) {
         this._command = command;
         this.arguments = args;
         this._commandHandler = commandHandler;
