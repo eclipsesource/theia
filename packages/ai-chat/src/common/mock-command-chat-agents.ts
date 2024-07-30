@@ -16,9 +16,11 @@
 
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgent, ChatAgentLocation } from './chat-agents';
-import { PromptTemplate, LanguageModelSelector, CommunicationRecordingService, LanguageModelRegistry, PromptService, LanguageModelRequestMessage, isLanguageModelStreamResponse } from '@theia/ai-core';
-import { ChatRequestModelImpl, COMMAND_CHAT_RESPONSE_COMMAND, CommandChatResponseContent, CommandChatResponseContentImpl } from './chat-model';
-import { CommandRegistry, MessageService } from '@theia/core';
+import {
+    PromptTemplate, LanguageModelSelector, CommunicationRecordingService, LanguageModelRegistry, PromptService, LanguageModelRequestMessage, isLanguageModelStreamResponse
+} from '@theia/ai-core';
+import { ChatRequestModelImpl, CommandChatResponseContent, CommandChatResponseContentImpl } from './chat-model';
+import { Command, CommandRegistry, MessageService, generateUuid } from '@theia/core';
 import { getMessages } from './chat-util';
 
 export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate {
@@ -28,7 +30,9 @@ export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate 
 
 You are a service that returns one of the following command templates.
 
-You will return one of the templates by choosing it randomly.
+If a user asks for a theia command, or the context implies it is about a command in theia, return the template with "type": "theia-command"
+
+Otherwise return the template with "type": "custom-handler"
 
 The output format is JSON.
 
@@ -54,7 +58,7 @@ Your response only consists of one of the templates without any other text or mo
 interface ParsedCommand {
     type: 'theia-command' | 'custom-handler'
     commandId: string;
-    arguments: string[];
+    arguments?: string[];
 }
 
 @injectable()
@@ -101,7 +105,7 @@ export class MockCommandChatAgent implements ChatAgent {
             throw new Error('Couldn\'t find a language model. Please check your setup!');
         }
 
-        const systemPrompt = await (this.promptService.getPrompt('mock-command-chat-agent-system-prompt-template'));
+        const systemPrompt = await this.promptService.getPrompt('mock-command-chat-agent-system-prompt-template');
         if (systemPrompt === undefined) {
             throw new Error('Couldn\'t get system prompt ');
         }
@@ -118,7 +122,7 @@ export class MockCommandChatAgent implements ChatAgent {
 
         const languageModelResponse = await languageModels[0].request({ messages });
 
-        let parsedCommand: ParsedCommand | undefined = undefined;;
+        let parsedCommand: ParsedCommand | undefined = undefined;
         // const parsedCommand: ParsedCommand = {
         //     type: 'theia-command',
         //     commandId: 'theia-ai-prompt-template:show-prompts-command',
@@ -150,11 +154,26 @@ export class MockCommandChatAgent implements ChatAgent {
                 console.error(`No Theia Command with id ${parsedCommand.commandId}`);
                 request.response.cancel();
             }
-            const args = parsedCommand.arguments.length > 0 ? parsedCommand.arguments : undefined;
+            const args = parsedCommand.arguments !== undefined && parsedCommand.arguments.length > 0 ? parsedCommand.arguments : undefined;
             content = new CommandChatResponseContentImpl(theiaCommand, args);
         } else {
-            const args = parsedCommand.arguments.length > 0 ? parsedCommand.arguments : undefined;
-            content = new CommandChatResponseContentImpl(COMMAND_CHAT_RESPONSE_COMMAND, args, this.commandCallback);
+            const id = `ai-command-${generateUuid()}`;
+            const command: Command = {
+                id,
+                label: 'AI Command'
+            };
+
+            const args = parsedCommand.arguments !== undefined && parsedCommand.arguments.length > 0 ? parsedCommand.arguments : undefined;
+            this.commandRegistry.registerCommand(command, {
+                execute: () => {
+                    const fullArgs: unknown[] = [id];
+                    if (args !== undefined) {
+                        fullArgs.push(...args);
+                    }
+                    this.commandCallback(fullArgs);
+                }
+            });
+            content = new CommandChatResponseContentImpl(command, args, this.commandCallback);
         }
 
         request.response.response.addContent(content);
