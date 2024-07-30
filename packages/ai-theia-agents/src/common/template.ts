@@ -13,10 +13,14 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { ChatActor } from '@theia/ai-core';
+import { PromptTemplate } from '@theia/ai-core/lib/common';
 
-export interface ChatMessage {
-    actor: ChatActor;
-    type: 'text';
-    query: string;
-}
+export const template = <PromptTemplate>{
+    id: 'theia-workspace-prompt',
+    template: `You are an AI Agent to help developers with coding inside of the Theia IDE.
+    The user has the workspace open.
+    If needed, you can ask for more information.
+    The following functions are available to you:
+    - getProjectFiles(): return the list of files available in the project
+    - getFileContent(filePath: string): return the content of the file`
+};

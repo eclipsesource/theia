@@ -92,15 +92,17 @@ export class OpenAiModel implements LanguageModel {
         // };
         let runnerEnd = false;
 
+        let resolve: (part: LanguageModelStreamResponsePart) => void;
         runner.once('end', () => {
             runnerEnd = true;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            resolve(runner.finalChatCompletion as any);
         });
         // eslint-disable-next-line @typescript-eslint/tslint/config
         const asyncIterator = (async function* () {
-            let resolve: (part: LanguageModelStreamResponsePart) => void;
             runner.on('chunk', chunk => {
                 if (chunk.choices[0]?.delta.content) {
-                    resolve({ content: chunk.choices[0]?.delta.content });
+                    resolve({ ...chunk.choices[0]?.delta });
                 }
             });
             while (!runnerEnd) {

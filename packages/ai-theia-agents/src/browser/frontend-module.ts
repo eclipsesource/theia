@@ -13,10 +13,13 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { ChatActor } from '@theia/ai-core';
+import { ContainerModule } from '@theia/core/shared/inversify';
+import { ChatAgent } from '@theia/ai-chat/lib/common';
+import { Agent } from '@theia/ai-core/lib/common';
+import { TheiaWorkspaceAgent } from './workspace-agent';
 
-export interface ChatMessage {
-    actor: ChatActor;
-    type: 'text';
-    query: string;
-}
+export default new ContainerModule(bind => {
+    bind(TheiaWorkspaceAgent).toSelf().inSingletonScope();
+    bind(Agent).toService(TheiaWorkspaceAgent);
+    bind(ChatAgent).toService(TheiaWorkspaceAgent);
+});

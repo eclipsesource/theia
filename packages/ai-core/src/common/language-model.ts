@@ -17,7 +17,7 @@
 import { ContributionProvider, ILogger, isFunction, isObject } from '@theia/core';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 
-export type MessageActor = 'user' | 'ai';
+export type MessageActor = 'user' | 'ai' | 'system';
 
 export interface LanguageModelRequestMessage {
     actor: MessageActor;
