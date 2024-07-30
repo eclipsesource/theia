@@ -14,10 +14,10 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ContributionProvider, ILogger, nls } from '@theia/core';
+import { ContributionProvider, ILogger } from '@theia/core';
 import { codicon, Panel, ReactWidget } from '@theia/core/lib/browser';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
-import { Agent, LanguageModel, LanguageModelRegistry, PromptTemplate } from '../common/';
+import { Agent, LanguageModel, LanguageModelRegistry, PromptCustomizationService, PromptTemplate } from '../common/';
 import * as React from '@theia/core/shared/react';
 import { AISettingsService } from './ai-settings-service';
 import '../../src/browser/style/index.css';
@@ -26,7 +26,7 @@ import '../../src/browser/style/index.css';
 export class AISettingsWidget extends ReactWidget {
 
     static readonly ID = 'ai_settings_widget';
-    static readonly LABEL = nls.localizeByDefault('AI Settings');
+    static readonly LABEL = 'AI Settings';
 
     protected readonly settingsWidget: Panel;
 
@@ -39,6 +39,9 @@ export class AISettingsWidget extends ReactWidget {
     @inject(AISettingsService)
     protected readonly aiSettingsService: AISettingsService;
 
+    @inject(PromptCustomizationService)
+    protected readonly promptCustomizationService: PromptCustomizationService;
+
     @inject(ILogger)
     protected logger: ILogger;
 
@@ -47,7 +50,7 @@ export class AISettingsWidget extends ReactWidget {
     // map from agent id to selected purpose
     protected selectedPurposes: Map<string, string> = new Map();
     // map from agent id to selected purpose and model
-    protected selectedModels: Map<string, Map<string, LanguageModel>> = new Map();
+    protected selectedModels: Map<string, Map<string, string>> = new Map();
 
     @postConstruct()
     protected init(): void {
@@ -60,6 +63,18 @@ export class AISettingsWidget extends ReactWidget {
         this.languageModelRegistry.getLanguageModels().then(models => {
             this.languageModels = models ?? [];
             this.update();
+        });
+
+        this.agents.getContributions().forEach(agent => {
+            const settings = this.aiSettingsService.getAgentSettings(agent.id);
+            settings?.languageModelRequirements.forEach(req => {
+                if (this.selectedModels.get(agent.id) === undefined) {
+                    this.selectedModels.set(agent.id, new Map());
+                }
+                if (req.identifier) {
+                    this.selectedModels.get(agent.id)?.set(req.purpose, req.identifier)
+                }
+            })
         });
 
         this.update();
@@ -75,16 +90,11 @@ export class AISettingsWidget extends ReactWidget {
             console.error('No purpose selected');
             return;
         }
-        const selectedModel = this.languageModels?.find(model => model.id === event.target.value);
-        if (!selectedModel) {
-            console.error('Could not find language model with id', event.target.value);
-            return;
-        }
         if (this.selectedModels.get(agentId) === undefined) {
             this.selectedModels.set(agentId, new Map());
         }
-        this.selectedModels.get(agentId)!.set(selectedPurpose, selectedModel);
-        this.aiSettingsService.updateAgentSettings(agentId, { languageModelRequirements: [{ purpose: selectedPurpose, identifier: selectedModel.id }] });
+        this.selectedModels.get(agentId)!.set(selectedPurpose, event.target.value);
+        this.aiSettingsService.updateAgentSettings(agentId, { languageModelRequirements: [{ purpose: selectedPurpose, identifier: event.target.value }] });
         this.update();
     };
 
@@ -94,7 +104,7 @@ export class AISettingsWidget extends ReactWidget {
                 {this.agents.getContributions().map(agent =>
                     <div key={agent.id}>
                         <h2>{agent.name}</h2>
-                        <AgentTemplates agent={agent} key={agent.id} />
+                        <AgentTemplates agent={agent} key={agent.id} promptCustomizationService={this.promptCustomizationService} />
                         <div className='language-model-container'>
                             <label className="theia-header no-select" htmlFor={`purpose-select-${agent.id}`}>Purpose:</label>
                             <select
@@ -125,7 +135,7 @@ export class AISettingsWidget extends ReactWidget {
                                     <select
                                         className="theia-select"
                                         id={`model-select-${agent.id}`}
-                                        value={this.selectedModels?.get(agent.id)?.get(this.selectedPurposes.get(agent.id)!)?.id}
+                                        value={this.selectedModels?.get(agent.id)?.get(this.selectedPurposes.get(agent.id)!)}
                                         onChange={event => this.onSelectedModelChange(agent.id, event)}
                                     >
                                         <option value=""></option>
@@ -145,17 +155,38 @@ export class AISettingsWidget extends ReactWidget {
 
 interface AgentProps {
     agent: Agent;
+    promptCustomizationService: PromptCustomizationService;
 }
 
-const AgentTemplates: React.FC<AgentProps> = ({ agent }) => <div>
-    {agent.promptTemplates.map(template => <TemplateSetting agentId={agent.id} template={template} key={agent.id + '.' + template.id} />)}
+const AgentTemplates: React.FC<AgentProps> = ({ agent, promptCustomizationService }) => <div>
+    <div className='ai-templates'>
+        {agent.promptTemplates.map(template =>
+            <TemplateSetting
+                key={agent.id + '.' + template.id}
+                agentId={agent.id}
+                template={template}
+                promptCustomizationService={promptCustomizationService}
+            />)}
+    </div>
 </div>;
 
 interface TemplateSettingProps {
     agentId: string;
     template: PromptTemplate;
+    promptCustomizationService: PromptCustomizationService;
 }
 
-const TemplateSetting: React.FC<TemplateSettingProps> = ({ agentId, template }) => <div>
-    {agentId}.{template.id}
-</div>;
+const TemplateSetting: React.FC<TemplateSettingProps> = ({ agentId, template, promptCustomizationService }) => {
+    const openTemplate = React.useCallback(async () => {
+        promptCustomizationService.editTemplate(template.id);
+    }, [template, promptCustomizationService]);
+    const resetTemplate = React.useCallback(async () => {
+        promptCustomizationService.resetTemplate(template.id);
+    }, [promptCustomizationService, template]);
+
+    return <>
+        {template.id}
+        <button className='theia-button main' onClick={openTemplate}>Edit</button>
+        <button className='theia-button secondary' onClick={resetTemplate}>Reset</button>
+    </>;
+};
