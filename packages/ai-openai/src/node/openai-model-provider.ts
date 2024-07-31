@@ -79,18 +79,6 @@ export class OpenAiModel implements LanguageModel {
             });
         }
 
-        // const [stream1] = stream.tee();
-        // return {
-        //     stream: {
-        //         [Symbol.asyncIterator](): AsyncIterator<LanguageModelStreamResponsePart> {
-        //             return {
-        //                 next(): Promise<IteratorResult<LanguageModelStreamResponsePart>> {
-        //                     return stream1[Symbol.asyncIterator]().next().then(chunk => chunk.done ? chunk : { value: chunk.value.choices[0]?.delta, done: false });
-        //                 }
-        //             };
-        //         }
-        //     }
-        // };
         let runnerEnd = false;
 
         let resolve: (part: LanguageModelStreamResponsePart) => void;

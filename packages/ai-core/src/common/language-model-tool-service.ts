@@ -13,7 +13,6 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-// import { ToolRequest } from './language-model';
 export const languageModelToolServicePath = '/services/languageModelToolService';
 export const LanguageModelToolServiceFrontend = Symbol('LanguageModelToolServiceFrontend');
 export interface LanguageModelToolServiceFrontend {
