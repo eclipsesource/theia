@@ -68,6 +68,18 @@ This reply is to tell the user to execute the \`theia-ai-prompt-template:show-pr
 
 ## Example 2
 
+This reply is to tell the user to execute the \`theia-ai-prompt-template:show-prompts-command\` command that is available in the theia command registry, when the user want to pass arguments to the command.
+
+\`\`\`json
+{
+    "type": "theia-command",
+    "commandId": "theia-ai-prompt-template:show-prompts-command",
+    "arguments": ["foo"]
+}
+\`\`\`
+
+## Example 3
+
 This reply is for custom commands that are not registered in the Theia command registry. 
 These commands always have the command id \`ai-chat.command-chat-response.generic\`.
 The arguments are an array and may differ, depending on the user's instructions. 
@@ -76,11 +88,11 @@ The arguments are an array and may differ, depending on the user's instructions.
 {
     "type": "custom-handler",
     "commandId": "ai-chat.command-chat-response.generic",
-    "arguments": ["hello", "world"]
+    "arguments": ["foo", "bar"]
 }
 \`\`\`
 
-## Example 3
+## Example 4
 
 This reply of type no-command is for cases where you can't find a proper command. 
 You may use the message to explain the situation to the user.
