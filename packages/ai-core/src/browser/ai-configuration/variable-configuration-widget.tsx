@@ -19,8 +19,8 @@ import { codicon, ReactWidget } from '@theia/core/lib/browser';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
 import { Agent, AIVariable, AIVariableService } from '../../common';
-import { AIConfigurationSelectionService } from './ai-configuration-service';
 import { AIAgentConfigurationWidget } from './agent-configuration-widget';
+import { AIConfigurationSelectionService } from './ai-configuration-service';
 
 @injectable()
 export class AIVariableConfigurationWidget extends ReactWidget {
@@ -50,7 +50,7 @@ export class AIVariableConfigurationWidget extends ReactWidget {
             <ul>
                 {this.variableService.getVariables().map(variable =>
                     <li className='variable-item'>
-                        <div className='settings-section-title settings-section-category-title'>{variable.name}</div>
+                        <div className='settings-section-title settings-section-category-title' style={{ paddingLeft: 0, paddingBottom: 10 }}>{variable.name}</div>
                         <small>{variable.description}</small>
                         {this.renderReferencedVariables(variable)}
                         {this.renderArgs(variable)}
@@ -93,7 +93,7 @@ export class AIVariableConfigurationWidget extends ReactWidget {
                     </>
                 )}
             </div>
-        </div>
+        </div>;
     }
 
     protected showAgentConfiguration(agent: Agent): void {
