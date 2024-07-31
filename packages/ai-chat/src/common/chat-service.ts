@@ -140,8 +140,9 @@ export class ChatServiceImpl implements ChatService {
             }
         });
 
-        // TODO JF AM Remove Filter
-        const chatAgents = this.chatAgentService.getAgents().filter(agent => agent.id === 'MockCommandChatAgent');
+        const chatAgents = this.chatAgentService.getAgents()
+            .filter(agent => agent.id === 'MockCommandChatAgent') // Comment in this line to use the MockCommandChatAgent
+            ;
         if (chatAgents.length > 0) {
             // TODO collect the correct agent
             this.chatAgentService.invokeAgent(chatAgents[0].id, requestModel);

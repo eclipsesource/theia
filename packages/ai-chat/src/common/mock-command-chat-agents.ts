@@ -108,6 +108,7 @@ command-id4: Label4
 The Labels may be empty, but there is always a command-id.
 
 I want you to suggest a command that probably fits with the users message based on the label and the command ids you know. 
+If you have multiple commands that fit, return the one that fits best. We only want a single command in the reply.
 If the user says that the last command was not right, try to return the next best fit, based on the conversation history with the user.
 
 If there are no more command ids that seem to fit, return a response of "type": "no-command" explaining the situation
@@ -124,7 +125,71 @@ If the user asks for a command that is not a theia command, return a response wi
 
 ## Other cases
 
-In all other cases return a reply of "type": "no-command"`;
+In all other cases return a reply of "type": "no-command"
+
+# Examples for invalid responses
+
+## Invalid Response Example 1
+
+This example is invalid because it return text + two commands. 
+It is instructed that only one command has to be replied. ANd it has to be parseable json.
+The example:
+
+Yes, there are a few more theme-related commands. Here is another one:
+
+\`\`\`json
+{
+    "type": "theia-command",
+    "commandId": "workbench.action.selectIconTheme"
+}
+\`\`\`
+
+And another one:
+
+\`\`\`json
+{
+    "type": "theia-command",
+    "commandId": "workbench.action.toggleHighContrast"
+}
+\`\`\`
+
+## Invalid Response Example 2
+
+The following example is invalid because it only return the command id and is not parseable json:
+The example:
+
+workbench.action.selectIconTheme
+
+## Invalid Response Example 3
+
+The following example is invalid because it returns a message with the command id. We need JSON objects based on above rules.
+The example:
+
+I found this command that might help you: workbench.action.toggleHighContrast
+
+## Invalid Response Example 4
+
+The following example is invalid because it has an explanation string before the json. 
+We only want the JSON!
+The example:
+
+You can toggle high contrast mode with this command:
+
+\`\`\`json
+{
+    "type": "theia-command",
+    "commandId": "editor.action.toggleHighContrast"
+}
+\`\`\`
+
+## Invalid Response Example 5
+
+The following example is wrong, because it explains that no command was found. 
+We want to the a response of type "no-command" and have the message there.
+The example:
+
+There is no specific command available to "open the windows" in the provided Theia command list.
+`;
 }
 
 interface ParsedCommand {
