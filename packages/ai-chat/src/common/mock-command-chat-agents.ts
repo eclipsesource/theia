@@ -28,11 +28,27 @@ export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate 
     template = `
 # System Prompt
 
-You are a service that returns one of the following command templates.
+You are a service that returns replies just like the templates below. The reply needs to be parsable JSON, so it should start with { and end with }
 
-If a user asks for a theia command, or the context implies it is about a command in theia, return the template with "type": "theia-command"
+If a user asks for a theia command, or the context implies it is about a command in theia, return a response based on the template with "type": "theia-command"
+You need to exchange the "commandId". 
+The available command ids in Theia are in the list below. The list of format like this:
 
-Otherwise return the template with "type": "custom-handler"
+command-id1: Label1
+command-id2: Label2
+command-id3: 
+command-id4: Label4
+
+The Labels may be empty, but there is always a command-id
+
+I want you suggest a command that probably fits with the users message based on the label and the command ids you know. 
+
+Begin List:
+\${command-ids}
+End List:
+
+If the user asks for a command that is not a theia command, return the template with "type": "custom-handler"
+
 
 The output format is JSON.
 
@@ -105,8 +121,15 @@ export class MockCommandChatAgent implements ChatAgent {
             throw new Error('Couldn\'t find a language model. Please check your setup!');
         }
 
+        const knownCommands: string[] = [];
+        for (const command of this.commandRegistry.getAllCommands()) {
+            knownCommands.push(`${command.id}: ${command.label}`);
+        }
+
         // eslint-disable-next-line @typescript-eslint/await-thenable
-        const systemPrompt = await this.promptService.getPrompt('mock-command-chat-agent-system-prompt-template');
+        const systemPrompt = await this.promptService.getPrompt('mock-command-chat-agent-system-prompt-template', {
+            'command-ids': knownCommands.join('\n')
+        });
         if (systemPrompt === undefined) {
             throw new Error('Couldn\'t get system prompt ');
         }
