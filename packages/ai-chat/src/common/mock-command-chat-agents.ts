@@ -19,7 +19,7 @@ import { ChatAgent, ChatAgentLocation } from './chat-agents';
 import {
     PromptTemplate, LanguageModelSelector, CommunicationRecordingService, LanguageModelRegistry, PromptService, LanguageModelRequestMessage, isLanguageModelStreamResponse
 } from '@theia/ai-core';
-import { ChatRequestModelImpl, CommandChatResponseContent, CommandChatResponseContentImpl } from './chat-model';
+import { ChatRequestModelImpl, ChatResponseContent, CommandChatResponseContentImpl, MarkdownChatResponseContentImpl } from './chat-model';
 import { Command, CommandRegistry, MessageService, generateUuid } from '@theia/core';
 import { getMessages } from './chat-util';
 
@@ -27,7 +27,7 @@ export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate 
     id = 'mock-command-chat-agent-system-prompt-template';
     template = `# System Prompt
 
-You are a service that returns replies just like the templates below. The reply needs to be parseable JSON, so it should start with { and end with }
+You are a service that returns replies just like the templates below.
 
 If a user asks for a theia command, or the context implies it is about a command in theia, return a response based on the template with "type": "theia-command"
 You need to exchange the "commandId". 
@@ -43,13 +43,19 @@ The Labels may be empty, but there is always a command-id
 I want you to suggest a command that probably fits with the users message based on the label and the command ids you know. 
 If the user says that the last command was not right, try to return the next best fit, based on the conversation history with the user.
 
+If there are nor more command ids that seem tro fit, return the response based on Template 3.
+You may exchange the message with a message for the user explaining the situation.
+
 Begin List:
 \${command-ids}
 End List:
 
 If the user asks for a command that is not a theia command, return the template with "type": "custom-handler"
 
-The output format is JSON.
+IMPORTANT:
+
+The output format is JSON! 
+The reply needs to be parseable JSON object! So it has to start with { and end with }.
 
 Your response only consists of one of the templates without any other text or modifications.
 
@@ -67,13 +73,21 @@ Your response only consists of one of the templates without any other text or mo
     "commandId": "ai-chat.command-chat-response.generic",
     "arguments": ["hello", "world"]
 }
+
+## Template 3
+
+{
+    "type": "no-command",
+    "message": "a message explaining what is wrong"
+}
     `;
 }
 
 interface ParsedCommand {
-    type: 'theia-command' | 'custom-handler'
+    type: 'theia-command' | 'custom-handler' | 'no-command'
     commandId: string;
     arguments?: string[];
+    message?: string;
 }
 
 @injectable()
@@ -164,7 +178,7 @@ export class MockCommandChatAgent implements ChatAgent {
             return;
         }
 
-        let content: CommandChatResponseContent;
+        let content: ChatResponseContent;
         if (parsedCommand.type === 'theia-command') {
             const theiaCommand = this.commandRegistry.getCommand(parsedCommand.commandId);
             if (theiaCommand === undefined) {
@@ -173,7 +187,7 @@ export class MockCommandChatAgent implements ChatAgent {
             }
             const args = parsedCommand.arguments !== undefined && parsedCommand.arguments.length > 0 ? parsedCommand.arguments : undefined;
             content = new CommandChatResponseContentImpl(theiaCommand, args);
-        } else {
+        } else if (parsedCommand.type === 'custom-handler') {
             const id = `ai-command-${generateUuid()}`;
             const command: Command = {
                 id,
@@ -191,6 +205,8 @@ export class MockCommandChatAgent implements ChatAgent {
                 }
             });
             content = new CommandChatResponseContentImpl(command, args, this.commandCallback);
+        } else {
+            content = new MarkdownChatResponseContentImpl(parsedCommand.message ?? 'Sorry, I can\'t find such a command');
         }
 
         request.response.response.addContent(content);
