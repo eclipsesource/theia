@@ -36,8 +36,6 @@ export interface ToolRequest<T extends object> {
     name: string;
     parameters?: { [key: string]: unknown };
     description?: string;
-    callback: (args: T) => Promise<unknown>;
-    parse?: (input: string) => T;
 }
 export interface LanguageModelRequest {
     messages: LanguageModelRequestMessage[],
