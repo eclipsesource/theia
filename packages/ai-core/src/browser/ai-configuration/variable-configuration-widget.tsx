@@ -51,6 +51,7 @@ export class AIVariableConfigurationWidget extends ReactWidget {
                 {this.variableService.getVariables().map(variable =>
                     <li className='variable-item'>
                         <div className='settings-section-title settings-section-category-title' style={{ paddingLeft: 0, paddingBottom: 10 }}>{variable.name}</div>
+                        <small>{variable.id}</small>
                         <small>{variable.description}</small>
                         {this.renderReferencedVariables(variable)}
                         {this.renderArgs(variable)}
@@ -68,9 +69,9 @@ export class AIVariableConfigurationWidget extends ReactWidget {
 
         return <div>
             <h3>Agents</h3>
-            <ul className='variable-used-agents'>
+            <ul className='variable-references'>
                 {agents.map(agent => <li className='theia-TreeNode theia-CompositeTreeNode theia-ExpandableTreeNode theia-mod-selected'>
-                    <div onClick={() => { this.showAgentConfiguration(agent) }} className='variable-used-agent'>
+                    <div onClick={() => { this.showAgentConfiguration(agent) }} className='variable-reference'>
                         <span>{agent.name}</span>
                         <i className={codicon('chevron-right')}></i>
                     </div></li>)}

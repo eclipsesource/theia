@@ -31,17 +31,6 @@
   margin-bottom: 1rem;
 }
 
-#ai-variable-configuration-container-widget .variable-used-agents {
-  margin-left: 0.5rem;
-  padding: 0.5rem;
-  border-left: solid 1px var(--theia-tree-indentGuidesStroke);
-}
-
-#ai-variable-configuration-container-widget .variable-used-agent {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-}
 #ai-variable-configuration-container-widget .variable-args {
   display: grid;
   grid-template-columns: 1fr 2fr;
@@ -65,4 +54,18 @@
 
 .configuration-agent-panel {
   flex: 1;
+}
+
+#ai-variable-configuration-container-widget .variable-references,
+#ai-agent-configuration-container-widget .variable-references {
+  margin-left: 0.5rem;
+  padding: 0.5rem;
+  border-left: solid 1px var(--theia-tree-indentGuidesStroke);
+}
+
+#ai-variable-configuration-container-widget .variable-reference,
+#ai-agent-configuration-container-widget .variable-reference {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }

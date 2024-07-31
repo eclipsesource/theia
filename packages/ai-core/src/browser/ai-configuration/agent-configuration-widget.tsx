@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { ContributionProvider } from '@theia/core';
-import { ReactWidget } from '@theia/core/lib/browser';
+import { codicon, ReactWidget } from '@theia/core/lib/browser';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
 import { Agent, LanguageModel, LanguageModelRegistry, PromptCustomizationService } from '../../common';
@@ -23,6 +23,7 @@ import { AISettingsService } from '../ai-settings-service';
 import { LanguageModelRenderer } from './language-model-renderer';
 import { TemplateRenderer } from './template-settings-renderer';
 import { AIConfigurationSelectionService } from './ai-configuration-service';
+import { AIVariableConfigurationWidget } from './variable-configuration-widget';
 
 @injectable()
 export class AIAgentConfigurationWidget extends ReactWidget {
@@ -86,6 +87,16 @@ export class AIAgentConfigurationWidget extends ReactWidget {
         return <div key={agent.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <div className='settings-section-title settings-section-category-title' style={{ paddingLeft: 0, paddingBottom: 10 }}>{agent.name}</div>
             <div style={{ paddingBottom: 10 }}>{agent.description}</div>
+            <div style={{ paddingBottom: 10 }}>
+                <span style={{ marginRight: '0.5rem' }}>Variables:</span>
+                <ul className='variable-references'>
+                    {agent.variables.map(variableId => <li className='theia-TreeNode theia-CompositeTreeNode theia-ExpandableTreeNode theia-mod-selected'>
+                        <div onClick={() => { this.showVariableConfigurationTab() }} className='variable-reference'>
+                            <span>{variableId}</span>
+                            <i className={codicon('chevron-right')}></i>
+                        </div></li>)}
+                </ul>
+            </div>
             <div className='ai-templates'>
                 {agent.promptTemplates.map(template =>
                     <TemplateRenderer
@@ -101,6 +112,11 @@ export class AIAgentConfigurationWidget extends ReactWidget {
                     aiSettingsService={this.aiSettingsService} />
             </div>
         </div>;
+    }
+
+
+    protected showVariableConfigurationTab(): void {
+        this.aiConfigurationSelectionService.selectConfigurationTab(AIVariableConfigurationWidget.ID);
     }
 
     protected setActiveAgent(agent: Agent): void {
