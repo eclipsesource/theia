@@ -42,10 +42,10 @@ import { bindViewContribution, FrontendApplicationContribution, WidgetFactory } 
 import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate';
 import { TodayVariableContribution } from '../today-variable-contribution';
-import { AIAgentConfigurationWidget } from './agent-configuration/agent-configuration-widget';
-import { AIVariableConfigurationWidget } from './agent-configuration/variable-configuration-widget';
-import { AIAgentConfigurationViewContribution } from './ai-agent-configuration-view-contribution';
-import { AIConfigurationContainerWidget } from './ai-agent-configuration-widget';
+import { AIAgentConfigurationWidget } from './ai-configuration/agent-configuration-widget';
+import { AIAgentConfigurationViewContribution } from './ai-configuration/ai-configuration-view-contribution';
+import { AIConfigurationContainerWidget } from './ai-configuration/ai-configuration-widget';
+import { AIVariableConfigurationWidget } from './ai-configuration/variable-configuration-widget';
 import { AICoreFrontendApplicationContribution } from './ai-core-frontend-application-contribution';
 import { AISettingsService } from './ai-settings-service';
 import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-customization-service';

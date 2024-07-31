@@ -13,8 +13,10 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { AbstractViewContribution } from '@theia/core/lib/browser';
-import { AIConfigurationContainerWidget } from './ai-agent-configuration-widget';
+import { AbstractViewContribution, FrontendApplication } from '@theia/core/lib/browser';
+import { AIConfigurationContainerWidget } from './ai-configuration-widget';
+
+export const AI_CONFIGURATION_TOGGLE_COMMAND_ID = 'aiConfiguration:toggle';
 
 export class AIAgentConfigurationViewContribution extends AbstractViewContribution<AIConfigurationContainerWidget> {
 
@@ -24,7 +26,14 @@ export class AIAgentConfigurationViewContribution extends AbstractViewContributi
             widgetName: AIConfigurationContainerWidget.LABEL,
             defaultWidgetOptions: {
                 area: 'main',
-            }
+                rank: 100
+            },
+            toggleCommandId: AI_CONFIGURATION_TOGGLE_COMMAND_ID
         });
     }
+
+    async initializeLayout(_app: FrontendApplication): Promise<void> {
+        await this.openView();
+    }
 }
+
