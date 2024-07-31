@@ -141,7 +141,7 @@ export class ChatServiceImpl implements ChatService {
         });
 
         const chatAgents = this.chatAgentService.getAgents()
-            // .filter(agent => agent.id === 'MockCommandChatAgent') // Comment in this line to use the MockCommandChatAgent
+            // .filter(agent => agent.id === 'CommandChatAgent') // Comment in this line to use the CommandChatAgent
             ;
         if (chatAgents.length > 0) {
             // TODO collect the correct agent

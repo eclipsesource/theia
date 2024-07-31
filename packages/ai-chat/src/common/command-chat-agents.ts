@@ -40,8 +40,8 @@ import {
 } from '@theia/core';
 import { getMessages } from './chat-util';
 
-export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate {
-    id = 'mock-command-chat-agent-system-prompt-template';
+export class CommandChatAgentSystemPromptTemplate implements PromptTemplate {
+    id = 'command-chat-agent-system-prompt-template';
     template = `# System Prompt
 
 You are a service that helps users find commands to execute in an IDE.
@@ -242,7 +242,7 @@ interface ParsedCommand {
 }
 
 @injectable()
-export class MockCommandChatAgent implements ChatAgent {
+export class CommandChatAgent implements ChatAgent {
 
     @inject(PromptService)
     protected promptService: PromptService;
@@ -259,11 +259,11 @@ export class MockCommandChatAgent implements ChatAgent {
     @inject(LanguageModelRegistry)
     protected languageModelRegistry: LanguageModelRegistry;
 
-    id: string = 'MockCommandChatAgent';
-    name: string = 'Mock Command Chat Agent';
+    id: string = 'CommandChatAgent';
+    name: string = 'Command Chat Agent';
     description: string = 'The default chat agent provided by Theia responsible for providing commands.';
     variables: string[] = [];
-    promptTemplates: PromptTemplate[] = [new MockCommandChatAgentSystemPromptTemplate()];
+    promptTemplates: PromptTemplate[] = [new CommandChatAgentSystemPromptTemplate()];
     languageModelRequirements: Omit<LanguageModelSelector, 'agent'>[] = [{
         purpose: 'command',
         identifier: 'openai/gpt-4o',
@@ -290,7 +290,7 @@ export class MockCommandChatAgent implements ChatAgent {
         }
 
         // eslint-disable-next-line @typescript-eslint/await-thenable
-        const systemPrompt = await this.promptService.getPrompt('mock-command-chat-agent-system-prompt-template', {
+        const systemPrompt = await this.promptService.getPrompt('command-chat-agent-system-prompt-template', {
             'command-ids': knownCommands.join('\n')
         });
         if (systemPrompt === undefined) {
