@@ -18,7 +18,8 @@ import { ContributionProvider } from '@theia/core';
 import { ReactWidget } from '@theia/core/lib/browser';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
-import { Agent } from '../../common';
+import { Agent, LanguageModel, LanguageModelRegistry, PromptCustomizationService } from '../../common';
+import { AgentRenderer } from '../settings/agent-renderer';
 
 @injectable()
 export class AIAgentConfigurationContainerWidget extends ReactWidget {
@@ -29,6 +30,14 @@ export class AIAgentConfigurationContainerWidget extends ReactWidget {
     @inject(ContributionProvider) @named(Agent)
     protected readonly agents: ContributionProvider<Agent>;
 
+    @inject(LanguageModelRegistry)
+    protected readonly languageModelRegistry: LanguageModelRegistry;
+
+    @inject(PromptCustomizationService)
+    protected readonly promptCustomizationService: PromptCustomizationService;
+
+    protected languageModels: LanguageModel[] | undefined;
+
     protected selectedAgent?: Agent;
 
     @postConstruct()
@@ -36,6 +45,12 @@ export class AIAgentConfigurationContainerWidget extends ReactWidget {
         this.id = AIAgentConfigurationContainerWidget.ID;
         this.title.label = AIAgentConfigurationContainerWidget.LABEL;
         this.title.closable = false;
+
+        this.languageModelRegistry.getLanguageModels().then(models => {
+            this.languageModels = models ?? [];
+            this.update();
+        });
+
         this.update();
     }
 
@@ -49,11 +64,16 @@ export class AIAgentConfigurationContainerWidget extends ReactWidget {
                 </ul>
             </div>
             <div className='configuration-agent-panel'>
-                Hello {this.selectedAgent?.name}
+                {this.selectedAgent &&
+                    <AgentRenderer
+                        agent={this.selectedAgent}
+                        key={this.selectedAgent.id}
+                        promptCustomizationService={this.promptCustomizationService}
+                        languageModels={this.languageModels}
+                    />}
             </div>
-        </div>
+        </div>;
     }
-
 
     protected selectAgent(agent: Agent): void {
         this.selectedAgent = agent;
