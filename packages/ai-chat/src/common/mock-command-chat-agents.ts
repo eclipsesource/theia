@@ -27,40 +27,57 @@ export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate 
     id = 'mock-command-chat-agent-system-prompt-template';
     template = `# System Prompt
 
-You are a service that returns replies just like the examples templates below.
+You are a service that helps users finding commands to execute in an IDE.
+You reply stringified JSON Objects that tell the user which command to execute and arguments, if any. 
 
-The output format is JSON! 
-The reply has to be a parseable JSON object! 
-So it has to start with { and end with }.
-If it it not parseable JSON, than the response is invalid.
+# Examples
 
-## Example Templates
+The examples start with a short explanation of the return object. 
+The response can be found within the markdown \`\`\`json and \`\`\` markers.
+Please also include this markers in the reply
 
-### Template 1
+## Example 1
 
+This reply is to tell the user to execute the \`theia-ai-prompt-template:show-prompts-command\` command that is available in the theia command registry.
+
+\`\`\`json
 {
     "type": "theia-command",
     "commandId": "theia-ai-prompt-template:show-prompts-command"
 }
+\`\`\`
 
-### Template 2
+## Example 2
 
+This reply is for custom commands, that are not registered in the theia command registry. 
+These commands always have the command id \`ai-chat.command-chat-response.generic\`.
+The arguments are an array and may differ, but this depends on the instuctions by the user. 
+
+\`\`\`json
 {
     "type": "custom-handler",
     "commandId": "ai-chat.command-chat-response.generic",
     "arguments": ["hello", "world"]
 }
+\`\`\`
 
-### Template 3
+## Example 3
 
+This reply of type no-command is for cases where you can't find a proper command. 
+You may use the message to explain the situation to the user.
+
+\`\`\`json
 {
     "type": "no-command",
     "message": "a message explaining what is wrong"
 }
+\`\`\`
 
-## Instructions
+# Rules
 
-If a user asks for a theia command, or the context implies it is about a command in theia, return a response based on the template with "type": "theia-command"
+## Theia Commands
+
+If a user asks for a theia command, or the context implies it is about a command in theia, return a response with "type": "theia-command"
 You need to exchange the "commandId". 
 The available command ids in Theia are in the list below. The list of format like this:
 
@@ -74,15 +91,21 @@ The Labels may be empty, but there is always a command-id
 I want you to suggest a command that probably fits with the users message based on the label and the command ids you know. 
 If the user says that the last command was not right, try to return the next best fit, based on the conversation history with the user.
 
-If there are no more command ids that seem to fit, return the response based on Template 3.
-You may exchange the message with a message for the user explaining the situation.
+If there are no more command ids that seem to fit, return a response of "type": "no-command" explaining the situation
+
+Here are the known Theia commansd:
 
 Begin List:
 \${command-ids}
 End List:
 
-If the user asks for a command that is not a theia command, return the template with "type": "custom-handler"
-    `;
+## Custom handlers
+
+If the user asks for a command that is not a theia command, return a response with "type": "custom-handler"
+
+## Other cases
+
+In all other cases return a reply of "type": "no-command"`;
 }
 
 interface ParsedCommand {
@@ -167,7 +190,14 @@ export class MockCommandChatAgent implements ChatAgent {
                 tokens.push(tokenContent);
 
             }
-            const jsonString = tokens.join('');
+            const maybeJsonString = tokens.join('');
+
+            const jsonMatch = maybeJsonString.match(/(\{[\s\S]*\})/);
+            const jsonString = jsonMatch ? jsonMatch[1] : `{
+    "type": "no-command",
+    "message": "Could not parse message from Language Model"
+}`;
+
             parsedCommand = JSON.parse(jsonString) as ParsedCommand;
 
         } else {
