@@ -41,6 +41,7 @@ command-id4: Label4
 The Labels may be empty, but there is always a command-id
 
 I want you to suggest a command that probably fits with the users message based on the label and the command ids you know. 
+If the user says that the last command was not right, try to return the next best fit, based on the conversation history with the user.
 
 Begin List:
 \${command-ids}
@@ -133,7 +134,7 @@ export class MockCommandChatAgent implements ChatAgent {
         }
 
         const prevMessages: LanguageModelRequestMessage[] = getMessages(request.session);
-        const messages: LanguageModelRequestMessage[] = prevMessages.length > 0 ? [prevMessages[prevMessages.length - 1]] : [];
+        const messages = [...prevMessages];
         messages.unshift({
             actor: 'ai',
             type: 'text',
