@@ -44,7 +44,7 @@ export class HorizontalLayoutPartRenderer
     render(response: HorizontalLayoutChatResponseContent): ReactNode {
         const contributions = this.chatResponsePartRenderers.getContributions();
         return (
-            <div className="ai-chat-horizontal-layout" style={{ display: 'flex', flexDirection: 'row' }}>
+            <div className="ai-chat-horizontal-layout" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
                 {response.content.map((content) => {
                     const renderer = contributions
                         .map((c) => ({

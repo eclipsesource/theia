@@ -17,10 +17,27 @@
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgent, ChatAgentLocation } from './chat-agents';
 import {
-    PromptTemplate, LanguageModelSelector, CommunicationRecordingService, LanguageModelRegistry, PromptService, LanguageModelRequestMessage, isLanguageModelStreamResponse
+    PromptTemplate,
+    LanguageModelSelector,
+    CommunicationRecordingService,
+    LanguageModelRegistry,
+    PromptService,
+    LanguageModelRequestMessage,
+    isLanguageModelStreamResponse,
 } from '@theia/ai-core';
-import { ChatRequestModelImpl, ChatResponseContent, CommandChatResponseContentImpl, MarkdownChatResponseContentImpl } from './chat-model';
-import { Command, CommandRegistry, MessageService, generateUuid } from '@theia/core';
+import {
+    ChatRequestModelImpl,
+    ChatResponseContent,
+    CommandChatResponseContentImpl,
+    HorizontalLayoutChatResponseContentImpl,
+    MarkdownChatResponseContentImpl,
+} from './chat-model';
+import {
+    Command,
+    CommandRegistry,
+    MessageService,
+    generateUuid,
+} from '@theia/core';
 import { getMessages } from './chat-util';
 
 export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate {
@@ -51,7 +68,7 @@ This reply is to tell the user to execute the \`theia-ai-prompt-template:show-pr
 
 This reply is for custom commands, that are not registered in the theia command registry. 
 These commands always have the command id \`ai-chat.command-chat-response.generic\`.
-The arguments are an array and may differ, but this depends on the instuctions by the user. 
+The arguments are an array and may differ, but this depends on the instructions of the user. 
 
 \`\`\`json
 {
@@ -79,21 +96,21 @@ You may use the message to explain the situation to the user.
 
 If a user asks for a theia command, or the context implies it is about a command in theia, return a response with "type": "theia-command"
 You need to exchange the "commandId". 
-The available command ids in Theia are in the list below. The list of format like this:
+The available command ids in Theia are in the list below. The list of commands is formatted like this:
 
 command-id1: Label1
 command-id2: Label2
 command-id3: 
 command-id4: Label4
 
-The Labels may be empty, but there is always a command-id
+The Labels may be empty, but there is always a command-id.
 
 I want you to suggest a command that probably fits with the users message based on the label and the command ids you know. 
 If the user says that the last command was not right, try to return the next best fit, based on the conversation history with the user.
 
 If there are no more command ids that seem to fit, return a response of "type": "no-command" explaining the situation
 
-Here are the known Theia commansd:
+Here are the known Theia commands:
 
 Begin List:
 \${command-ids}
@@ -216,8 +233,18 @@ export class MockCommandChatAgent implements ChatAgent {
                 console.error(`No Theia Command with id ${parsedCommand.commandId}`);
                 request.response.cancel();
             }
-            const args = parsedCommand.arguments !== undefined && parsedCommand.arguments.length > 0 ? parsedCommand.arguments : undefined;
-            content = new CommandChatResponseContentImpl(theiaCommand, args);
+            const args =
+                parsedCommand.arguments !== undefined &&
+                    parsedCommand.arguments.length > 0
+                    ? parsedCommand.arguments
+                    : undefined;
+
+            content = new HorizontalLayoutChatResponseContentImpl([
+                new MarkdownChatResponseContentImpl(
+                    'I found this command that might help you:'
+                ),
+                new CommandChatResponseContentImpl(theiaCommand, args),
+            ]);
         } else if (parsedCommand.type === 'custom-handler') {
             const id = `ai-command-${generateUuid()}`;
             const command: Command = {
@@ -235,7 +262,13 @@ export class MockCommandChatAgent implements ChatAgent {
                     this.commandCallback(fullArgs);
                 }
             });
-            content = new CommandChatResponseContentImpl(command, args, this.commandCallback);
+            content = new HorizontalLayoutChatResponseContentImpl([
+                new MarkdownChatResponseContentImpl(
+                    'Try executing this:'
+                ),
+                new CommandChatResponseContentImpl(command, args, this.commandCallback),
+            ]);
+            content = new HorizontalLayoutChatResponseContentImpl();
         } else {
             content = new MarkdownChatResponseContentImpl(parsedCommand.message ?? 'Sorry, I can\'t find such a command');
         }
