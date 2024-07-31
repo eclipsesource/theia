@@ -33,12 +33,14 @@ export const isLanguageModelRequestMessage = (obj: unknown): obj is LanguageMode
         typeof (obj as { query: unknown }).query === 'string'
     );
 export interface ToolRequest<T extends object> {
+    id: string;
     name: string;
     parameters?: { [key: string]: unknown };
     description?: string;
 }
 export interface LanguageModelRequest {
     messages: LanguageModelRequestMessage[],
+    agentId?: string;
     tools?: ToolRequest<object>[];
 }
 

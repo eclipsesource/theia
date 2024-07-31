@@ -106,33 +106,6 @@ export class DefaultChatAgent implements ChatAgent {
             messages
         });
 
-        // [
-        //     {
-        //         type: 'function',
-        //         function: {
-        //             name: 'getProjectFileList',
-        //             description: 'Get the list of files in the current project'
-        //         }
-        //     },
-        //     {
-        //         type: 'function',
-        //         function: {
-        //             name: 'getFileContent',
-        //             description: 'Get the content of the file',
-        //             parameters: {
-        //                 type: 'object',
-        //                 properties: {
-        //                     file: {
-        //                         'description': 'The path of the file to retrieve content for',
-        //                         'type': 'string',
-        //                     }
-        //                 },
-        //                 required: ['file']
-        //             }
-        //         }
-        //     }
-        // ]
-
         const languageModelResponse = await this.callLlm(languageModels[0], messages);
         if (isLanguageModelTextResponse(languageModelResponse)) {
             request.response.response.addContent(

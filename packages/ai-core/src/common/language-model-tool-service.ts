@@ -14,28 +14,18 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 // import { ToolRequest } from './language-model';
-
+export const languageModelToolServicePath = '/services/languageModelToolService';
+export const LanguageModelToolServiceFrontend = Symbol('LanguageModelToolServiceFrontend');
 export interface LanguageModelToolServiceFrontend {
     registerToolCallback(agentId: string, callback: (toolId: string, arg_string: string) => unknown): void;
     callTool(agentId: string, toolId: string, arg_string: string): Promise<unknown>;
 }
-export const LanguageModelToolService = Symbol('LanguageModelToolService');
+export const LanguageModelToolServer = Symbol('LanguageModelToolServer');
 export interface LanguageModelToolServer {
     callTool(agentId: string, toolId: string, arg_string: string): Promise<unknown>;
     setClient(client: LanguageModelToolServiceFrontend): void;
 }
-// export class LanguageModelToolServiceImpl implements LanguageModelToolService {
-//     protected readonly tools: Map<string, (arg_string: string) => unknown> = new Map();
-//     protected client: LanguageModelToolServiceClient;
 
-//     setClient(client: LanguageModelToolServiceClient): void {
-//         this.client = client;
-//     }
-
-//     registerTool(tool: ToolRequest<object>, callback: (arg_string: string) => unknown): void {
-//         this.tools.set(tool.name, callback);
-//     }
-// }
 /**
  * F/B: agent -> resgiters at the toolservice
  * RPCClient: llm -> notifies the toolservice that a tool was called

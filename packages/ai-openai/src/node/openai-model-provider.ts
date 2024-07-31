@@ -14,11 +14,11 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { LanguageModel, LanguageModelRequest, LanguageModelRequestMessage, LanguageModelResponse, LanguageModelStreamResponsePart } from '@theia/ai-core';
+import { LanguageModel, LanguageModelRequest, LanguageModelRequestMessage, LanguageModelResponse, LanguageModelStreamResponsePart, LanguageModelToolServer } from '@theia/ai-core';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import OpenAI from 'openai';
 import { ChatCompletionStream } from 'openai/lib/ChatCompletionStream';
-import { BaseFunctionsArgs, RunnableToolFunctionWithParse, RunnableTools } from 'openai/lib/RunnableFunction';
+import { BaseFunctionsArgs, RunnableToolFunctionWithoutParse, RunnableTools } from 'openai/lib/RunnableFunction';
 import { ChatCompletionMessageParam } from 'openai/resources';
 
 export const OpenAiModelIdentifier = Symbol('OpenAiModelIdentifier');
@@ -31,6 +31,9 @@ export class OpenAiModel implements LanguageModel {
 
     @inject(OpenAiModelIdentifier)
     protected readonly model: string;
+
+    @inject(LanguageModelToolServer)
+    protected readonly toolService: LanguageModelToolServer;
 
     private openai: OpenAI;
 
@@ -48,17 +51,16 @@ export class OpenAiModel implements LanguageModel {
     }
 
     async request(request: LanguageModelRequest): Promise<LanguageModelResponse> {
+        const agentId = request.agentId ?? '';
         const tools: RunnableTools<BaseFunctionsArgs> | undefined = request.tools?.map(tool => ({
             type: 'function',
             function: {
                 name: tool.name,
                 description: tool.description,
                 parameters: tool.parameters,
-                function: tool.callback,
-                parse: tool.parse
+                function: (args_string: string) => this.toolService.callTool(agentId, tool.id, args_string)
             }
-
-        } as RunnableToolFunctionWithParse<BaseFunctionsArgs>
+        } as RunnableToolFunctionWithoutParse
         ));
         let runner: ChatCompletionStream;
         if (tools) {
@@ -69,7 +71,6 @@ export class OpenAiModel implements LanguageModel {
                 tools: tools,
                 tool_choice: 'auto'
             });
-            runner.toReadableStream();
         } else {
             runner = this.openai.beta.chat.completions.stream({
                 model: this.model,
@@ -93,6 +94,11 @@ export class OpenAiModel implements LanguageModel {
         let runnerEnd = false;
 
         let resolve: (part: LanguageModelStreamResponsePart) => void;
+        runner.on('error', error => {
+            console.error('Error in OpenAI chat completion stream:', error);
+            runnerEnd = true;
+            resolve({ content: error.message });
+        });
         runner.once('end', () => {
             runnerEnd = true;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

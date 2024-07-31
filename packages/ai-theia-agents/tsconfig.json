@@ -32,6 +32,9 @@
     },
     {
       "path": "../test"
+    },
+    {
+      "path": "../workspace"
     }
   ]
 }
