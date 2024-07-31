@@ -133,7 +133,8 @@ In all other cases return a reply of "type": "no-command"
 
 This example is invalid because it return text + two commands. 
 It is instructed that only one command has to be replied. ANd it has to be parseable json.
-The example:
+
+### The example
 
 Yes, there are a few more theme-related commands. Here is another one:
 
@@ -156,14 +157,24 @@ And another one:
 ## Invalid Response Example 2
 
 The following example is invalid because it only return the command id and is not parseable json:
-The example:
+
+### The example
 
 workbench.action.selectIconTheme
 
 ## Invalid Response Example 3
 
 The following example is invalid because it returns a message with the command id. We need JSON objects based on above rules.
-The example:
+Do not respond like this in any case! We need a command of "type": "theia-command",
+The expected response would be:
+\`\`\`json
+{
+    "type": "theia-command",
+    "commandId": "workbench.action.toggleHighContrast"
+}
+\`\`\`
+
+### The example
 
 I found this command that might help you: workbench.action.toggleHighContrast
 
@@ -171,7 +182,8 @@ I found this command that might help you: workbench.action.toggleHighContrast
 
 The following example is invalid because it has an explanation string before the json. 
 We only want the JSON!
-The example:
+
+### The example
 
 You can toggle high contrast mode with this command:
 
@@ -186,7 +198,8 @@ You can toggle high contrast mode with this command:
 
 The following example is wrong, because it explains that no command was found. 
 We want to the a response of type "no-command" and have the message there.
-The example:
+
+### The example
 
 There is no specific command available to "open the windows" in the provided Theia command list.
 `;
