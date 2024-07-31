@@ -19,12 +19,13 @@ import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatResponseContent, isCommandChatResponseContent, CommandChatResponseContent } from '@theia/ai-chat/lib/common';
 import { ReactNode } from '@theia/core/shared/react';
 import * as React from '@theia/core/shared/react';
-import { CommandService } from '@theia/core';
+import { CommandRegistry, CommandService } from '@theia/core';
 import { AIChatCommandArguments } from '../ai-chat-command-contribution';
 
 @injectable()
 export class CommandPartRenderer implements ChatResponsePartRenderer<CommandChatResponseContent> {
     @inject(CommandService) private commandService: CommandService;
+    @inject(CommandRegistry) private commandRegistry: CommandRegistry;
     canHandle(response: ChatResponseContent): number {
         if (isCommandChatResponseContent(response)) {
             return 10;
@@ -43,8 +44,13 @@ export class CommandPartRenderer implements ChatResponsePartRenderer<CommandChat
             handler: response.commandHandler,
             arguments: response.arguments
         };
+        const isCommandEnabled = this.commandRegistry.isEnabled(arg.command.id);
         return (
-            <button className='theia-button main' onClick={this.onCommand.bind(this, arg)}>{label}</button>
+            isCommandEnabled ? (
+                <button className='theia-button main' onClick={this.onCommand.bind(this, arg)}>{label}</button>
+            ) : (
+                <div>The command has the id "{arg.command.id}" but it is not executable globally from the Chat window.</div>
+            )
         );
     }
     private onCommand(arg: AIChatCommandArguments): void {

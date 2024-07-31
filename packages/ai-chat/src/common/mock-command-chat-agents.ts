@@ -53,6 +53,8 @@ The examples start with a short explanation of the return object.
 The response can be found within the markdown \`\`\`json and \`\`\` markers.
 Please also include this markers in the reply
 
+Never under any circumstances you may reply with just the command-id!
+
 ## Example 1
 
 This reply is to tell the user to execute the \`theia-ai-prompt-template:show-prompts-command\` command that is available in the theia command registry.
@@ -212,7 +214,7 @@ export class MockCommandChatAgent implements ChatAgent {
             const jsonMatch = maybeJsonString.match(/(\{[\s\S]*\})/);
             const jsonString = jsonMatch ? jsonMatch[1] : `{
     "type": "no-command",
-    "message": "Could not parse message from Language Model"
+    "message": "Sorry, I'm having problems at the moment. Please try again."
 }`;
 
             parsedCommand = JSON.parse(jsonString) as ParsedCommand;
