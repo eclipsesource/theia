@@ -56,6 +56,11 @@ export class CodeFixAgentImpl implements CodeFixAgent {
         const language = model.getLanguageId();
         const errorMsg = marker.message;
         const lineNumber = marker.startLineNumber;
+        const editor = monaco.editor.getEditors().find(ed => ed.getModel() === model);
+        if (!editor) {
+            console.error('No editor found for code-fix-agent');
+            return [];
+        }
 
         const prompt = await this.promptService.getPrompt('code-fix-prompt', { fileContent, file: fileName, language, errorMsg: errorMsg, lineNumber: lineNumber });
         if (!prompt) {
@@ -71,16 +76,11 @@ export class CodeFixAgentImpl implements CodeFixAgent {
         return [
             {
                 title: 'AI QuickFix',
-                edit: {
-                    edits: [{
-                        resource: model.uri,
-                        textEdit: {
-                            range: model.getFullModelRange(),
-                            text: fixText
-                        },
-                        versionId: undefined
-                    }]
-                }
+                command: {
+                    id: 'ai-code-fix',
+                    title: 'AI Code Fix',
+                    arguments: [{ model, editor, newText: fixText }]
+                },
             }];
 
     };
