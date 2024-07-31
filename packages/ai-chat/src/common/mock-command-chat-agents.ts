@@ -270,7 +270,6 @@ export class MockCommandChatAgent implements ChatAgent {
                 ),
                 new CommandChatResponseContentImpl(command, args, this.commandCallback),
             ]);
-            content = new HorizontalLayoutChatResponseContentImpl();
         } else {
             content = new MarkdownChatResponseContentImpl(parsedCommand.message ?? 'Sorry, I can\'t find such a command');
         }
