@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { ContributionProvider } from '@theia/core';
-import { ReactWidget } from '@theia/core/lib/browser';
+import { codicon, ReactWidget } from '@theia/core/lib/browser';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
 import { Agent, AIVariable, AIVariableService } from '../../common';
@@ -50,9 +50,10 @@ export class AIVariableConfigurationWidget extends ReactWidget {
             <ul>
                 {this.variableService.getVariables().map(variable =>
                     <li className='variable-item'>
-                        <strong>{variable.name}</strong>
+                        <div className='settings-section-title settings-section-category-title'>{variable.name}</div>
                         <small>{variable.description}</small>
                         {this.renderReferencedVariables(variable)}
+                        {this.renderArgs(variable)}
                     </li>
                 )}
             </ul>
@@ -65,9 +66,34 @@ export class AIVariableConfigurationWidget extends ReactWidget {
             return;
         }
 
-        return <ul className='variable-used-agents'>
-            {agents.map(agent => <li className='theia-TreeNode theia-CompositeTreeNode theia-ExpandableTreeNode theia-mod-selected'><a onClick={() => { this.showAgentConfiguration(agent) }}>{agent.name}</a></li>)}
-        </ul>;
+        return <div>
+            <h3>Agents</h3>
+            <ul className='variable-used-agents'>
+                {agents.map(agent => <li className='theia-TreeNode theia-CompositeTreeNode theia-ExpandableTreeNode theia-mod-selected'>
+                    <div onClick={() => { this.showAgentConfiguration(agent) }} className='variable-used-agent'>
+                        <span>{agent.name}</span>
+                        <i className={codicon('chevron-right')}></i>
+                    </div></li>)}
+            </ul>
+        </div>;
+    }
+
+    protected renderArgs(variable: AIVariable): React.ReactNode | undefined {
+        if (variable.args === undefined || variable.args.length === 0) {
+            return;
+        }
+
+        return <div className='variable-args-container'>
+            <h3>Variable Arguments</h3>
+            <div className='variable-args'>
+                {variable.args.map(arg =>
+                    <>
+                        <span>{arg.name}</span>
+                        <small>{arg.description}</small>
+                    </>
+                )}
+            </div>
+        </div>
     }
 
     protected showAgentConfiguration(agent: Agent): void {
