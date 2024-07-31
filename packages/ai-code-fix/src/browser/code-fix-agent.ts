@@ -15,10 +15,15 @@
 // *****************************************************************************
 
 import * as monaco from '@theia/monaco-editor-core';
-import { Agent, getTextOfResponse, LanguageModelRegistry, LanguageModelSelector, PromptService, PromptTemplate } from '@theia/ai-core/lib/common';
+import {
+    Agent, CommunicationHistoryEntry, CommunicationRecordingService,
+    getTextOfResponse, LanguageModelRegistry, LanguageModelRequest,
+    LanguageModelSelector, PromptService, PromptTemplate
+} from '@theia/ai-core/lib/common';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ITextModel } from '@theia/monaco-editor-core/esm/vs/editor/common/model';
 import { CodeActionContext } from '@theia/monaco-editor-core/esm/vs/editor/standalone/browser/standaloneLanguages';
+import { generateUuid } from '@theia/core';
 
 export const CodeFixAgent = Symbol('CodeFixAgent');
 export interface CodeFixAgent extends Agent {
@@ -35,6 +40,9 @@ export class CodeFixAgentImpl implements CodeFixAgent {
 
     @inject(PromptService)
     protected promptService: PromptService;
+
+    @inject(CommunicationRecordingService)
+    protected recordingService: CommunicationRecordingService;
 
     async provideQuickFix(model: monaco.editor.ITextModel & ITextModel, marker: monaco.editor.IMarkerData,
         context: monaco.languages.CodeActionContext & CodeActionContext, token: monaco.CancellationToken): Promise<monaco.languages.CodeAction[]> {
@@ -77,8 +85,27 @@ export class CodeFixAgentImpl implements CodeFixAgent {
         }
         console.log('Code fix agent is using prompt:', prompt);
 
-        const response = await languageModel.request(({ messages: [{ type: 'text', actor: 'user', query: prompt.trim() }] }));
+        // since we do not actually hold complete conversions, the request/response pair is considered a session
+        const sessionId = generateUuid();
+        const requestId = generateUuid();
+        const request: LanguageModelRequest = { messages: [{ type: 'text', actor: 'user', query: prompt.trim() }] };
+        const requestEntry: CommunicationHistoryEntry = {
+            agentId: this.id,
+            sessionId,
+            timestamp: Date.now(),
+            requestId,
+            request: prompt
+        };
+        this.recordingService.recordRequest(requestEntry);
+        const response = await languageModel.request(request);
         const fixText = await getTextOfResponse(response);
+        this.recordingService.recordResponse({
+            agentId: this.id,
+            sessionId,
+            timestamp: Date.now(),
+            requestId,
+            response: fixText
+        });
         console.log('Code fix agent suggests', fixText);
 
         return [
