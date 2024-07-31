@@ -29,11 +29,11 @@ import {
     LanguageModelStreamResponsePart,
     PromptTemplate
 } from '@theia/ai-core/lib/common';
+import { TODAY_VARIABLE } from '@theia/ai-core/lib/today-variable-contribution';
 import { generateUuid, ILogger, isArray } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatRequestModelImpl, ChatResponseContent, CodeChatResponseContentImpl, MarkdownChatResponseContentImpl } from './chat-model';
 import { getMessages } from './chat-util';
-import { TODAY_VARIABLE } from '@theia/ai-core/lib/today-variable-contribution'
 
 export enum ChatAgentLocation {
     Panel = 'panel',
@@ -84,6 +84,9 @@ export class DefaultChatAgent implements ChatAgent {
     languageModelRequirements: Omit<LanguageModelSelector, 'agent'>[] = [{
         purpose: 'chat',
         identifier: 'openai/gpt-4o',
+    }, {
+        purpose: 'general',
+        identifier: 'openai/gpt-4',
     }];
     locations: ChatAgentLocation[] = [];
 

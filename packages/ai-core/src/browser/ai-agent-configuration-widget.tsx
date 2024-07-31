@@ -18,14 +18,14 @@ import { BaseWidget, BoxLayout, codicon, DockPanel, WidgetManager } from '@theia
 import { TheiaDockPanel } from '@theia/core/lib/browser/shell/theia-dock-panel';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import '../../src/browser/style/index.css';
-import { AIAgentConfigurationContainerWidget } from './agent-configuration/agent-configuration-widget';
-import { AIVariableConfiguratioContainerWidget } from './agent-configuration/variable-configuration-widget';
+import { AIAgentConfigurationWidget } from './agent-configuration/agent-configuration-widget';
+import { AIVariableConfigurationWidget } from './agent-configuration/variable-configuration-widget';
 
 @injectable()
-export class AIAgentConfigurationWidget extends BaseWidget {
+export class AIConfigurationContainerWidget extends BaseWidget {
 
-    static readonly ID = 'ai-agent-configuration';
-    static readonly LABEL = 'AI Agent Configuration';
+    static readonly ID = 'ai-configuration';
+    static readonly LABEL = 'AI Configuration';
     protected dockpanel: DockPanel;
 
     @inject(TheiaDockPanel.Factory)
@@ -35,8 +35,8 @@ export class AIAgentConfigurationWidget extends BaseWidget {
 
     @postConstruct()
     protected init(): void {
-        this.id = AIAgentConfigurationWidget.ID;
-        this.title.label = AIAgentConfigurationWidget.LABEL;
+        this.id = AIConfigurationContainerWidget.ID;
+        this.title.label = AIConfigurationContainerWidget.LABEL;
         this.title.closable = true;
         this.title.iconClass = codicon('hubot');
         this.initUI();
@@ -51,8 +51,8 @@ export class AIAgentConfigurationWidget extends BaseWidget {
         BoxLayout.setStretch(this.dockpanel, 1);
         layout.addWidget(this.dockpanel);
 
-        this.dockpanel.addWidget(await this.widgetManager.getOrCreateWidget(AIAgentConfigurationContainerWidget.ID));
-        this.dockpanel.addWidget(await this.widgetManager.getOrCreateWidget(AIVariableConfiguratioContainerWidget.ID));
+        this.dockpanel.addWidget(await this.widgetManager.getOrCreateWidget(AIAgentConfigurationWidget.ID));
+        this.dockpanel.addWidget(await this.widgetManager.getOrCreateWidget(AIVariableConfigurationWidget.ID));
         this.update();
     }
 }

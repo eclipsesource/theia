@@ -14,14 +14,14 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
+import { ContributionProvider } from '@theia/core';
 import { ReactWidget } from '@theia/core/lib/browser';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
 import { Agent, AIVariable, AIVariableService } from '../../common';
-import { ContributionProvider } from '@theia/core';
 
 @injectable()
-export class AIVariableConfiguratioContainerWidget extends ReactWidget {
+export class AIVariableConfigurationWidget extends ReactWidget {
 
     static readonly ID = 'ai-variable-configuration-container-widget';
     static readonly LABEL = 'Variables';
@@ -34,8 +34,8 @@ export class AIVariableConfiguratioContainerWidget extends ReactWidget {
 
     @postConstruct()
     protected init(): void {
-        this.id = AIVariableConfiguratioContainerWidget.ID;
-        this.title.label = AIVariableConfiguratioContainerWidget.LABEL;
+        this.id = AIVariableConfigurationWidget.ID;
+        this.title.label = AIVariableConfigurationWidget.LABEL;
         this.title.closable = false;
         this.update();
     }
@@ -51,7 +51,7 @@ export class AIVariableConfiguratioContainerWidget extends ReactWidget {
                     </li>
                 )}
             </ul>
-        </div>
+        </div>;
     }
 
     protected renderReferencedVariables(variable: AIVariable): React.ReactNode | undefined {
@@ -62,7 +62,7 @@ export class AIVariableConfiguratioContainerWidget extends ReactWidget {
 
         return <ul>
             {agents.map(a => <li>{a.name}</li>)}
-        </ul>
+        </ul>;
     }
 
     protected getAgentsForVariable(variable: AIVariable): Agent[] {

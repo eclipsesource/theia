@@ -14,14 +14,14 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { AbstractViewContribution } from '@theia/core/lib/browser';
-import { AIAgentConfigurationWidget } from './ai-agent-configuration-widget';
+import { AIConfigurationContainerWidget } from './ai-agent-configuration-widget';
 
-export class AIAgentConfigurationViewContribution extends AbstractViewContribution<AIAgentConfigurationWidget> {
+export class AIAgentConfigurationViewContribution extends AbstractViewContribution<AIConfigurationContainerWidget> {
 
     constructor() {
         super({
-            widgetId: AIAgentConfigurationWidget.ID,
-            widgetName: AIAgentConfigurationWidget.LABEL,
+            widgetId: AIConfigurationContainerWidget.ID,
+            widgetName: AIConfigurationContainerWidget.LABEL,
             defaultWidgetOptions: {
                 area: 'main',
             }

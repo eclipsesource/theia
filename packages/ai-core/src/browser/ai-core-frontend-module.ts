@@ -20,38 +20,38 @@ import {
 } from '@theia/core/lib/browser/messaging/service-connection-provider';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import {
+    AIVariableContribution,
+    AIVariableService,
     LanguageModelDelegateClient,
+    languageModelDelegatePath,
     LanguageModelFrontendDelegate,
     LanguageModelProvider,
     LanguageModelRegistry,
-    LanguageModelRegistryFrontendDelegate,
-    languageModelDelegatePath,
     languageModelRegistryDelegatePath,
-    PromptService,
-    PromptServiceImpl,
+    LanguageModelRegistryFrontendDelegate,
     PromptCustomizationService,
-    AIVariableContribution,
-    AIVariableService
+    PromptService,
+    PromptServiceImpl
 } from '../common';
 import {
     FrontendLanguageModelRegistryImpl,
     LanguageModelDelegateClientImpl,
 } from './frontend-language-model-registry';
 
-import { bindPromptPreferences } from './prompt-preferences';
-import { PromptTemplateContribution as PromptTemplateContribution } from './prompttemplate-contribution';
-import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate';
-import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { bindViewContribution, FrontendApplicationContribution, WidgetFactory } from '@theia/core/lib/browser';
-import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-customization-service';
-import { FrontendVariableService } from './frontend-variable-service';
+import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
+import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate';
+import { TodayVariableContribution } from '../today-variable-contribution';
+import { AIAgentConfigurationWidget } from './agent-configuration/agent-configuration-widget';
+import { AIVariableConfigurationWidget } from './agent-configuration/variable-configuration-widget';
+import { AIAgentConfigurationViewContribution } from './ai-agent-configuration-view-contribution';
+import { AIConfigurationContainerWidget } from './ai-agent-configuration-widget';
 import { AICoreFrontendApplicationContribution } from './ai-core-frontend-application-contribution';
 import { AISettingsService } from './ai-settings-service';
-import { TodayVariableContribution } from '../today-variable-contribution';
-import { AIAgentConfigurationWidget } from './ai-agent-configuration-widget';
-import { AIVariableConfiguratioContainerWidget } from './agent-configuration/variable-configuration-widget';
-import { AIAgentConfigurationContainerWidget } from './agent-configuration/agent-configuration-widget';
-import { AIAgentConfigurationViewContribution } from './ai-agent-configuration-view-contribution';
+import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-customization-service';
+import { FrontendVariableService } from './frontend-variable-service';
+import { bindPromptPreferences } from './prompt-preferences';
+import { PromptTemplateContribution } from './prompttemplate-contribution';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, LanguageModelProvider);
@@ -89,11 +89,11 @@ export default new ContainerModule(bind => {
     bind(CommandContribution).toService(PromptTemplateContribution);
     bind(TabBarToolbarContribution).toService(PromptTemplateContribution);
 
-    bind(AIAgentConfigurationWidget).toSelf();
+    bind(AIConfigurationContainerWidget).toSelf();
     bind(WidgetFactory)
         .toDynamicValue(ctx => ({
-            id: AIAgentConfigurationWidget.ID,
-            createWidget: () => ctx.container.get(AIAgentConfigurationWidget)
+            id: AIConfigurationContainerWidget.ID,
+            createWidget: () => ctx.container.get(AIConfigurationContainerWidget)
         }))
         .inSingletonScope();
 
@@ -107,19 +107,19 @@ export default new ContainerModule(bind => {
 
     bind(FrontendApplicationContribution).to(AICoreFrontendApplicationContribution).inSingletonScope();
 
-    bind(AIVariableConfiguratioContainerWidget).toSelf();
+    bind(AIVariableConfigurationWidget).toSelf();
     bind(WidgetFactory)
         .toDynamicValue(ctx => ({
-            id: AIVariableConfiguratioContainerWidget.ID,
-            createWidget: () => ctx.container.get(AIVariableConfiguratioContainerWidget)
+            id: AIVariableConfigurationWidget.ID,
+            createWidget: () => ctx.container.get(AIVariableConfigurationWidget)
         }))
         .inSingletonScope();
 
-    bind(AIAgentConfigurationContainerWidget).toSelf();
+    bind(AIAgentConfigurationWidget).toSelf();
     bind(WidgetFactory)
         .toDynamicValue(ctx => ({
-            id: AIAgentConfigurationContainerWidget.ID,
-            createWidget: () => ctx.container.get(AIAgentConfigurationContainerWidget)
+            id: AIAgentConfigurationWidget.ID,
+            createWidget: () => ctx.container.get(AIAgentConfigurationWidget)
         }))
         .inSingletonScope();
 });

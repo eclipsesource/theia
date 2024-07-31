@@ -19,10 +19,12 @@ import { ReactWidget } from '@theia/core/lib/browser';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
 import { Agent, LanguageModel, LanguageModelRegistry, PromptCustomizationService } from '../../common';
-import { AgentRenderer } from '../settings/agent-renderer';
+import { AISettingsService } from '../ai-settings-service';
+import { LanguageModelRenderer } from './language-model-renderer';
+import { TemplateRenderer } from './template-settings-renderer';
 
 @injectable()
-export class AIAgentConfigurationContainerWidget extends ReactWidget {
+export class AIAgentConfigurationWidget extends ReactWidget {
 
     static readonly ID = 'ai-agent-configuration-container-widget';
     static readonly LABEL = 'Agents';
@@ -36,14 +38,17 @@ export class AIAgentConfigurationContainerWidget extends ReactWidget {
     @inject(PromptCustomizationService)
     protected readonly promptCustomizationService: PromptCustomizationService;
 
+    @inject(AISettingsService)
+    protected readonly aiSettingsService: AISettingsService;
+
     protected languageModels: LanguageModel[] | undefined;
 
     protected selectedAgent?: Agent;
 
     @postConstruct()
     protected init(): void {
-        this.id = AIAgentConfigurationContainerWidget.ID;
-        this.title.label = AIAgentConfigurationContainerWidget.LABEL;
+        this.id = AIAgentConfigurationWidget.ID;
+        this.title.label = AIAgentConfigurationWidget.LABEL;
         this.title.closable = false;
 
         this.languageModelRegistry.getLanguageModels().then(models => {
@@ -51,6 +56,7 @@ export class AIAgentConfigurationContainerWidget extends ReactWidget {
             this.update();
         });
 
+        this.aiSettingsService.onDidChange(() => this.update());
         this.update();
     }
 
@@ -64,13 +70,32 @@ export class AIAgentConfigurationContainerWidget extends ReactWidget {
                 </ul>
             </div>
             <div className='configuration-agent-panel'>
-                {this.selectedAgent &&
-                    <AgentRenderer
-                        agent={this.selectedAgent}
-                        key={this.selectedAgent.id}
-                        promptCustomizationService={this.promptCustomizationService}
-                        languageModels={this.languageModels}
-                    />}
+                {this.renderAgentDetails()}
+            </div>
+        </div>;
+    }
+
+    private renderAgentDetails(): React.ReactNode {
+        const agent = this.selectedAgent;
+        if (!agent) {
+            return <div>Please select an Agent first!</div>;
+        }
+        return <div key={agent.id}>
+            <h2>{agent.name}</h2>
+            <h3>{agent.description}</h3>
+            <div className='ai-templates'>
+                {agent.promptTemplates.map(template =>
+                    <TemplateRenderer
+                        key={agent?.id + '.' + template.id}
+                        agentId={agent.id}
+                        template={template}
+                        promptCustomizationService={this.promptCustomizationService} />)}
+            </div>
+            <div className='ai-lm-requirements'>
+                <LanguageModelRenderer
+                    agent={agent}
+                    languageModels={this.languageModels}
+                    aiSettingsService={this.aiSettingsService} />
             </div>
         </div>;
     }
