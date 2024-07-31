@@ -65,14 +65,14 @@ export class AIAgentConfigurationWidget extends ReactWidget {
 
     protected render(): React.ReactNode {
         return <div className='ai-agent-configuration-main'>
-            <div className='configuration-agents-list'>
+            <div className='configuration-agents-list preferences-tree-widget theia-TreeContainer' style={{ width: '25%' }}>
                 <ul>
                     {this.agents.getContributions().map(agent =>
-                        <li onClick={() => this.setActiveAgent(agent)}>{agent.name}</li>
+                        <li className='theia-TreeNode theia-CompositeTreeNode theia-ExpandableTreeNode' onClick={() => this.setActiveAgent(agent)}>{agent.name}</li>
                     )}
                 </ul>
             </div>
-            <div className='configuration-agent-panel'>
+            <div className='configuration-agent-panel preferences-editor-widget'>
                 {this.renderAgentDetails()}
             </div>
         </div>;
@@ -83,9 +83,9 @@ export class AIAgentConfigurationWidget extends ReactWidget {
         if (!agent) {
             return <div>Please select an Agent first!</div>;
         }
-        return <div key={agent.id}>
-            <h2>{agent.name}</h2>
-            <h3>{agent.description}</h3>
+        return <div key={agent.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div className='settings-section-title settings-section-category-title' style={{ paddingLeft: 0, paddingBottom: 10 }}>{agent.name}</div>
+            <div style={{ paddingBottom: 10 }}>{agent.description}</div>
             <div className='ai-templates'>
                 {agent.promptTemplates.map(template =>
                     <TemplateRenderer

@@ -66,7 +66,7 @@ export class AIVariableConfigurationWidget extends ReactWidget {
         }
 
         return <ul className='variable-used-agents'>
-            {agents.map(agent => <li><a onClick={() => { this.showAgentConfiguration(agent) }}>{agent.name}</a></li>)}
+            {agents.map(agent => <li className='theia-TreeNode theia-CompositeTreeNode theia-ExpandableTreeNode theia-mod-selected'><a onClick={() => { this.showAgentConfiguration(agent) }}>{agent.name}</a></li>)}
         </ul>;
     }
 

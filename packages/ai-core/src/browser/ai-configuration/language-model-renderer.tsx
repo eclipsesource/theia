@@ -45,7 +45,7 @@ export const LanguageModelRenderer: React.FC<LanguageModelSettingsProps> = (
         }
 
         return <>
-            <div key={index}>{requirement.purpose}</div>
+            <div style={{ paddingBottom: 10 }}><strong>{requirement.purpose}</strong></div>
             <div key={index}>
                 {languageModel.id && <p><strong>Identifier: </strong> {languageModel.id}</p>}
                 {languageModel.name && <p><strong>Name: </strong> {languageModel.name}</p>}
@@ -68,7 +68,7 @@ export const LanguageModelRenderer: React.FC<LanguageModelSettingsProps> = (
     return <div className='language-model-container'>
         {Object.values(lmRequirementMap).map((requirements, index) => (
             <>
-                <label className="theia-header no-select" htmlFor={`purpose-select-${agent.id}`}>Purpose:</label>
+                <div>Purpose:</div>
                 <div>
                     {/* language model metadata */}
                     {renderLanguageModelMetadata(requirements, index)}

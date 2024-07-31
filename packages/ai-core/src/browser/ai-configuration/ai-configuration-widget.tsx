@@ -44,6 +44,7 @@ export class AIConfigurationContainerWidget extends BaseWidget {
         this.id = AIConfigurationContainerWidget.ID;
         this.title.label = AIConfigurationContainerWidget.LABEL;
         this.title.closable = true;
+        this.addClass('theia-settings-container');
         this.title.iconClass = codicon('hubot');
         this.initUI();
         this.initListeners();
@@ -57,6 +58,7 @@ export class AIConfigurationContainerWidget extends BaseWidget {
         });
         BoxLayout.setStretch(this.dockpanel, 1);
         layout.addWidget(this.dockpanel);
+        this.dockpanel.addClass('preferences-tabbar-widget');
 
         this.agentsWidget = await this.widgetManager.getOrCreateWidget(AIAgentConfigurationWidget.ID);
         this.variablesWidget = await this.widgetManager.getOrCreateWidget(AIVariableConfigurationWidget.ID);
