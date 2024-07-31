@@ -25,10 +25,9 @@ import { getMessages } from './chat-util';
 
 export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate {
     id = 'mock-command-chat-agent-system-prompt-template';
-    template = `
-# System Prompt
+    template = `# System Prompt
 
-You are a service that returns replies just like the templates below. The reply needs to be parsable JSON, so it should start with { and end with }
+You are a service that returns replies just like the templates below. The reply needs to be parseable JSON, so it should start with { and end with }
 
 If a user asks for a theia command, or the context implies it is about a command in theia, return a response based on the template with "type": "theia-command"
 You need to exchange the "commandId". 
@@ -41,14 +40,13 @@ command-id4: Label4
 
 The Labels may be empty, but there is always a command-id
 
-I want you suggest a command that probably fits with the users message based on the label and the command ids you know. 
+I want you to suggest a command that probably fits with the users message based on the label and the command ids you know. 
 
 Begin List:
 \${command-ids}
 End List:
 
 If the user asks for a command that is not a theia command, return the template with "type": "custom-handler"
-
 
 The output format is JSON.
 
