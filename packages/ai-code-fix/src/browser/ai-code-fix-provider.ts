@@ -21,6 +21,7 @@ import { injectable, inject } from '@theia/core/shared/inversify';
 import { PreferenceService } from '@theia/core/lib/browser';
 import { ITextModel } from '@theia/monaco-editor-core/esm/vs/editor/common/model';
 import { CodeActionContext } from '@theia/monaco-editor-core/esm/vs/editor/standalone/browser/standaloneLanguages';
+import { Deferred } from '@theia/core/lib/common/promise-util';
 
 @injectable()
 export class AICodeFixProvider implements monaco.languages.CodeActionProvider {
@@ -30,6 +31,8 @@ export class AICodeFixProvider implements monaco.languages.CodeActionProvider {
 
     @inject(PreferenceService)
     protected readonly preferenceService: PreferenceService;
+
+    private pendingCodeFixRequest = Promise.resolve<monaco.languages.CodeAction[]>([]);
 
     constructor() {
     }
@@ -42,12 +45,20 @@ export class AICodeFixProvider implements monaco.languages.CodeActionProvider {
         const codeActions = [];
         for (const marker of (context as monaco.languages.CodeActionContext).markers) {
             if (range.startLineNumber === marker.startLineNumber) {
-                codeActions.push(...(await this.agent.provideQuickFix(model, marker, context, token)));
+                codeActions.push(...(await this.postCodeFixRequest(model, marker, context, token)));
             }
         }
         return { actions: codeActions, dispose: () => { } };
     }
+
     resolveCodeAction?(codeAction: monaco.languages.CodeAction, token: monaco.CancellationToken): monaco.languages.ProviderResult<monaco.languages.CodeAction> {
         throw new Error('Method not implemented.');
+    }
+
+    protected async postCodeFixRequest(...args: Parameters<CodeFixAgent['provideQuickFix']>): ReturnType<CodeFixAgent['provideQuickFix']> {
+        const result = new Deferred<Awaited<ReturnType<CodeFixAgent['provideQuickFix']>>>();
+        const previousPending = this.pendingCodeFixRequest;
+        this.pendingCodeFixRequest = previousPending.finally(async () => result.resolve(await this.agent.provideQuickFix(...args)));
+        return result.promise;
     }
 }
