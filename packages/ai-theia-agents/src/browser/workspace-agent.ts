@@ -20,7 +20,7 @@ import { LanguageModel, LanguageModelResponse, PromptService, LanguageModelToolS
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { URI } from '@theia/core';
-import { FileStat } from '@theia/filesystem/src/common/files';
+import { FileStat } from '@theia/filesystem/lib/common/files';
 
 @injectable()
 export class TheiaWorkspaceAgent extends DefaultChatAgent implements ChatAgent {
