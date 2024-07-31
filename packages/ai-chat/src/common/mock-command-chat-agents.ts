@@ -27,7 +27,38 @@ export class MockCommandChatAgentSystemPromptTemplate implements PromptTemplate 
     id = 'mock-command-chat-agent-system-prompt-template';
     template = `# System Prompt
 
-You are a service that returns replies just like the templates below.
+You are a service that returns replies just like the examples templates below.
+
+The output format is JSON! 
+The reply has to be a parseable JSON object! 
+So it has to start with { and end with }.
+If it it not parseable JSON, than the response is invalid.
+
+## Example Templates
+
+### Template 1
+
+{
+    "type": "theia-command",
+    "commandId": "theia-ai-prompt-template:show-prompts-command"
+}
+
+### Template 2
+
+{
+    "type": "custom-handler",
+    "commandId": "ai-chat.command-chat-response.generic",
+    "arguments": ["hello", "world"]
+}
+
+### Template 3
+
+{
+    "type": "no-command",
+    "message": "a message explaining what is wrong"
+}
+
+## Instructions
 
 If a user asks for a theia command, or the context implies it is about a command in theia, return a response based on the template with "type": "theia-command"
 You need to exchange the "commandId". 
@@ -43,7 +74,7 @@ The Labels may be empty, but there is always a command-id
 I want you to suggest a command that probably fits with the users message based on the label and the command ids you know. 
 If the user says that the last command was not right, try to return the next best fit, based on the conversation history with the user.
 
-If there are nor more command ids that seem tro fit, return the response based on Template 3.
+If there are no more command ids that seem to fit, return the response based on Template 3.
 You may exchange the message with a message for the user explaining the situation.
 
 Begin List:
@@ -51,35 +82,6 @@ Begin List:
 End List:
 
 If the user asks for a command that is not a theia command, return the template with "type": "custom-handler"
-
-IMPORTANT:
-
-The output format is JSON! 
-The reply needs to be parseable JSON object! So it has to start with { and end with }.
-
-Your response only consists of one of the templates without any other text or modifications.
-
-## Template 1
-
-{
-    "type": "theia-command",
-    "commandId": "theia-ai-prompt-template:show-prompts-command"
-}
-
-## Template 2
-
-{
-    "type": "custom-handler",
-    "commandId": "ai-chat.command-chat-response.generic",
-    "arguments": ["hello", "world"]
-}
-
-## Template 3
-
-{
-    "type": "no-command",
-    "message": "a message explaining what is wrong"
-}
     `;
 }
 
@@ -120,7 +122,6 @@ export class MockCommandChatAgent implements ChatAgent {
     locations: ChatAgentLocation[] = [];
 
     async invoke(request: ChatRequestModelImpl): Promise<void> {
-
         this.recordingService.recordRequest({
             agentId: this.id,
             sessionId: request.session.id,
@@ -211,6 +212,13 @@ export class MockCommandChatAgent implements ChatAgent {
 
         request.response.response.addContent(content);
         request.response.complete();
+        this.recordingService.recordResponse({
+            agentId: this.id,
+            sessionId: request.session.id,
+            timestamp: Date.now(),
+            requestId: request.response.requestId,
+            response: request.response.response.asString()
+        });
     }
 
     protected async commandCallback(...commandArgs: unknown[]): Promise<void> {
