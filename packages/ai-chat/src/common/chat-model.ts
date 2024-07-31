@@ -383,6 +383,32 @@ export class CommandChatResponseContentImpl implements CommandChatResponseConten
     }
 }
 
+export class HorizontalLayoutChatResponseContentImpl implements HorizontalLayoutChatResponseContent {
+    kind: 'horizontal' = 'horizontal';
+    protected _content: BaseChatResponseContent[];
+
+    constructor(content: BaseChatResponseContent[] = []) {
+        this._content = content;
+    }
+
+    get content(): BaseChatResponseContent[] {
+        return this._content;
+    }
+
+    asString(): string {
+        return this._content.map(child => child.asString && child.asString()).join(' ');
+    }
+
+    merge(nextChatResponseContent: BaseChatResponseContent): boolean {
+        if (isHorizontalLayoutChatResponseContent(nextChatResponseContent)) {
+            this._content.push(...nextChatResponseContent.content);
+        } else {
+            this._content.push(nextChatResponseContent);
+        }
+        return true;
+    }
+}
+
 class ChatResponseImpl implements ChatResponse {
     protected readonly _onDidChangeEmitter = new Emitter<void>();
     onDidChange: Event<void> = this._onDidChangeEmitter.event;

@@ -45,7 +45,7 @@ export class HorizontalLayoutPartRenderer
         const contributions = this.chatResponsePartRenderers.getContributions();
         return (
             <div className="ai-chat-horizontal-layout" style={{ display: 'flex', flexDirection: 'row' }}>
-                {response.content.map((content, index) => {
+                {response.content.map((content) => {
                     const renderer = contributions
                         .map((c) => ({
                             prio: c.canHandle(content),
