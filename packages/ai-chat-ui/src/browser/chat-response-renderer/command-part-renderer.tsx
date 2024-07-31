@@ -54,7 +54,6 @@ export class CommandPartRenderer implements ChatResponsePartRenderer<CommandChat
         );
     }
     private onCommand(arg: AIChatCommandArguments): void {
-        this.commandService.executeCommand(arg.command.id, arg).catch(e => { console.error(e); });
+        this.commandService.executeCommand(arg.command.id, ...(arg.arguments ?? [])).catch(e => { console.error(e); });
     }
-
 }
