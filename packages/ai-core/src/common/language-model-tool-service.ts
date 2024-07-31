@@ -27,7 +27,7 @@ export interface LanguageModelToolServer {
 }
 
 /**
- * F/B: agent -> resgiters at the toolservice
+ * F/B: agent -> registers at the toolservice
  * RPCClient: llm -> notifies the toolservice that a tool was called
  * F/B: toolservice -> notifies the agent that a tool was called
  * F/B: agent returns the tool call result -> toolservice

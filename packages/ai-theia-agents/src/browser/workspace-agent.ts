@@ -16,7 +16,7 @@
 import { ChatAgent, ChatMessage, ChatModel, ChatRequestParser, DefaultChatAgent } from '@theia/ai-chat/lib/common';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import { template } from '../common/template';
-import { LanguageModel, LanguageModelResponse, PromptService, LanguageModelToolServiceFrontend, LanguageModelToolServer } from '@theia/ai-core';
+import { LanguageModel, LanguageModelResponse, PromptService, LanguageModelToolServiceFrontend } from '@theia/ai-core';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { URI } from '@theia/core';
@@ -37,9 +37,6 @@ export class TheiaWorkspaceAgent extends DefaultChatAgent implements ChatAgent {
 
     @inject(LanguageModelToolServiceFrontend)
     protected toolService: LanguageModelToolServiceFrontend;
-
-    @inject(LanguageModelToolServer)
-    protected toolServer: LanguageModelToolServer;
 
     @inject(WorkspaceService)
     protected workspaceService: WorkspaceService;

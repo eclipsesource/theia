@@ -39,6 +39,7 @@ import {
     LanguageModelResponse,
     LanguageModelSelector,
     LanguageModelStreamResponsePart,
+    LanguageModelToolServer,
 } from '../common';
 import { AISettingsService } from './ai-settings-service';
 
@@ -87,6 +88,9 @@ export class FrontendLanguageModelRegistryImpl
 
     @inject(AISettingsService)
     protected settingsService: AISettingsService;
+    
+    @inject(LanguageModelToolServer)
+    protected toolServer: LanguageModelToolServer;
 
     override addLanguageModels(models: LanguageModelMetaData[] | LanguageModel[]): void {
         models.map(model => {
