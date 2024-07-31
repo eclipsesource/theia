@@ -20,6 +20,7 @@ import { inject, injectable, postConstruct } from '@theia/core/shared/inversify'
 import '../../../src/browser/style/index.css';
 import { AIAgentConfigurationWidget } from './agent-configuration-widget';
 import { AIVariableConfigurationWidget } from './variable-configuration-widget';
+import { AIConfigurationSelectionService } from './ai-configuration-service';
 
 @injectable()
 export class AIConfigurationContainerWidget extends BaseWidget {
@@ -32,6 +33,11 @@ export class AIConfigurationContainerWidget extends BaseWidget {
     protected readonly dockPanelFactory: TheiaDockPanel.Factory;
     @inject(WidgetManager)
     protected readonly widgetManager: WidgetManager;
+    @inject(AIConfigurationSelectionService)
+    protected readonly aiConfigurationSelectionService: AIConfigurationSelectionService;
+
+    protected agentsWidget: AIAgentConfigurationWidget;
+    protected variablesWidget: AIVariableConfigurationWidget;
 
     @postConstruct()
     protected init(): void {
@@ -40,6 +46,7 @@ export class AIConfigurationContainerWidget extends BaseWidget {
         this.title.closable = true;
         this.title.iconClass = codicon('hubot');
         this.initUI();
+        this.initListeners();
     }
 
     protected async initUI(): Promise<void> {
@@ -51,8 +58,21 @@ export class AIConfigurationContainerWidget extends BaseWidget {
         BoxLayout.setStretch(this.dockpanel, 1);
         layout.addWidget(this.dockpanel);
 
-        this.dockpanel.addWidget(await this.widgetManager.getOrCreateWidget(AIAgentConfigurationWidget.ID));
-        this.dockpanel.addWidget(await this.widgetManager.getOrCreateWidget(AIVariableConfigurationWidget.ID));
+        this.agentsWidget = await this.widgetManager.getOrCreateWidget(AIAgentConfigurationWidget.ID);
+        this.variablesWidget = await this.widgetManager.getOrCreateWidget(AIVariableConfigurationWidget.ID);
+        this.dockpanel.addWidget(this.agentsWidget);
+        this.dockpanel.addWidget(this.variablesWidget);
+
         this.update();
+    }
+
+    protected initListeners(): void {
+        this.aiConfigurationSelectionService.onDidSelectConfiguration(widgetId => {
+            if (widgetId === AIAgentConfigurationWidget.ID) {
+                this.dockpanel.activateWidget(this.agentsWidget);
+            } else if (widgetId === AIVariableConfigurationWidget.ID) {
+                this.dockpanel.activateWidget(this.variablesWidget);
+            }
+        });
     }
 }

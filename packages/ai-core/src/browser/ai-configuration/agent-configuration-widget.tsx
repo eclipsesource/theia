@@ -22,6 +22,7 @@ import { Agent, LanguageModel, LanguageModelRegistry, PromptCustomizationService
 import { AISettingsService } from '../ai-settings-service';
 import { LanguageModelRenderer } from './language-model-renderer';
 import { TemplateRenderer } from './template-settings-renderer';
+import { AIConfigurationSelectionService } from './ai-configuration-service';
 
 @injectable()
 export class AIAgentConfigurationWidget extends ReactWidget {
@@ -41,9 +42,10 @@ export class AIAgentConfigurationWidget extends ReactWidget {
     @inject(AISettingsService)
     protected readonly aiSettingsService: AISettingsService;
 
-    protected languageModels: LanguageModel[] | undefined;
+    @inject(AIConfigurationSelectionService)
+    protected readonly aiConfigurationSelectionService: AIConfigurationSelectionService;
 
-    protected selectedAgent?: Agent;
+    protected languageModels: LanguageModel[] | undefined;
 
     @postConstruct()
     protected init(): void {
@@ -57,6 +59,7 @@ export class AIAgentConfigurationWidget extends ReactWidget {
         });
 
         this.aiSettingsService.onDidChange(() => this.update());
+        this.aiConfigurationSelectionService.onDidAgentChange(() => this.update());
         this.update();
     }
 
@@ -65,7 +68,7 @@ export class AIAgentConfigurationWidget extends ReactWidget {
             <div className='configuration-agents-list'>
                 <ul>
                     {this.agents.getContributions().map(agent =>
-                        <li onClick={() => this.selectAgent(agent)}>{agent.name}</li>
+                        <li onClick={() => this.setActiveAgent(agent)}>{agent.name}</li>
                     )}
                 </ul>
             </div>
@@ -76,7 +79,7 @@ export class AIAgentConfigurationWidget extends ReactWidget {
     }
 
     private renderAgentDetails(): React.ReactNode {
-        const agent = this.selectedAgent;
+        const agent = this.aiConfigurationSelectionService.getActiveAgent();
         if (!agent) {
             return <div>Please select an Agent first!</div>;
         }
@@ -100,8 +103,8 @@ export class AIAgentConfigurationWidget extends ReactWidget {
         </div>;
     }
 
-    protected selectAgent(agent: Agent): void {
-        this.selectedAgent = agent;
+    protected setActiveAgent(agent: Agent): void {
+        this.aiConfigurationSelectionService.setActiveAgent(agent);
         this.update();
     }
 

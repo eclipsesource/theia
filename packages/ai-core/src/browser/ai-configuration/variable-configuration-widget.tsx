@@ -19,6 +19,8 @@ import { ReactWidget } from '@theia/core/lib/browser';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
 import { Agent, AIVariable, AIVariableService } from '../../common';
+import { AIConfigurationSelectionService } from './ai-configuration-service';
+import { AIAgentConfigurationWidget } from './agent-configuration-widget';
 
 @injectable()
 export class AIVariableConfigurationWidget extends ReactWidget {
@@ -31,6 +33,9 @@ export class AIVariableConfigurationWidget extends ReactWidget {
 
     @inject(ContributionProvider) @named(Agent)
     protected readonly agents: ContributionProvider<Agent>;
+
+    @inject(AIConfigurationSelectionService)
+    protected readonly aiConfigurationSelectionService: AIConfigurationSelectionService;
 
     @postConstruct()
     protected init(): void {
@@ -45,7 +50,7 @@ export class AIVariableConfigurationWidget extends ReactWidget {
             <ul>
                 {this.variableService.getVariables().map(variable =>
                     <li className='variable-item'>
-                        <span>{variable.name}</span>
+                        <strong>{variable.name}</strong>
                         <small>{variable.description}</small>
                         {this.renderReferencedVariables(variable)}
                     </li>
@@ -60,12 +65,18 @@ export class AIVariableConfigurationWidget extends ReactWidget {
             return;
         }
 
-        return <ul>
-            {agents.map(a => <li>{a.name}</li>)}
+        return <ul className='variable-used-agents'>
+            {agents.map(agent => <li><a onClick={() => { this.showAgentConfiguration(agent) }}>{agent.name}</a></li>)}
         </ul>;
+    }
+
+    protected showAgentConfiguration(agent: Agent): void {
+        this.aiConfigurationSelectionService.setActiveAgent(agent);
+        this.aiConfigurationSelectionService.selectConfigurationTab(AIAgentConfigurationWidget.ID);
     }
 
     protected getAgentsForVariable(variable: AIVariable): Agent[] {
         return this.agents.getContributions().filter(a => a.variables?.includes(variable.id));
     }
 }
+

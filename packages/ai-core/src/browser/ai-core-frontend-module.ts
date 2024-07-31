@@ -52,6 +52,8 @@ import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-custom
 import { FrontendVariableService } from './frontend-variable-service';
 import { bindPromptPreferences } from './prompt-preferences';
 import { PromptTemplateContribution } from './prompttemplate-contribution';
+import { TomorrowVariableContribution } from '../tomorrow-variable-contribution';
+import { AIConfigurationSelectionService } from './ai-configuration/ai-configuration-service';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, LanguageModelProvider);
@@ -89,6 +91,7 @@ export default new ContainerModule(bind => {
     bind(CommandContribution).toService(PromptTemplateContribution);
     bind(TabBarToolbarContribution).toService(PromptTemplateContribution);
 
+    bind(AIConfigurationSelectionService).toSelf().inSingletonScope();
     bind(AIConfigurationContainerWidget).toSelf();
     bind(WidgetFactory)
         .toDynamicValue(ctx => ({
@@ -104,6 +107,7 @@ export default new ContainerModule(bind => {
     bind(AIVariableService).toService(FrontendVariableService);
     bind(FrontendApplicationContribution).toService(FrontendVariableService);
     bind(AIVariableContribution).to(TodayVariableContribution).inSingletonScope();
+    bind(AIVariableContribution).to(TomorrowVariableContribution).inSingletonScope();
 
     bind(FrontendApplicationContribution).to(AICoreFrontendApplicationContribution).inSingletonScope();
 

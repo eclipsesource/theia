@@ -28,6 +28,18 @@
 #ai-variable-configuration-container-widget .variable-item {
   display: flex;
   flex-direction: column;
+  margin-bottom: 0.5rem;
+}
+
+#ai-variable-configuration-container-widget .variable-used-agents {
+  margin-left: 0.5rem;
+  padding: 0.5rem;
+  border-left: solid 1px var(--theia-tree-indentGuidesStroke);
+}
+
+#ai-variable-configuration-container-widget .variable-used-agents a:hover {
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* Agent Settings */
