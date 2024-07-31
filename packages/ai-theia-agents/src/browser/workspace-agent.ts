@@ -141,8 +141,9 @@ export class TheiaWorkspaceAgent extends DefaultChatAgent implements ChatAgent {
     }
 
     async getFileContent(file: string): Promise<string> {
-        console.log('Calling getFileContent with file:', file);
-        return 'mock file content for ' + file;
+        const uri = new URI(file);
+        const fileContent = await this.fileService.read(uri);
+        return fileContent.value;
     }
 
 }
