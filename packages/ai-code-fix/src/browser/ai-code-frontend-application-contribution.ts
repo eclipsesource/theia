@@ -19,7 +19,6 @@ import { FrontendApplicationContribution, PreferenceService } from '@theia/core/
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { AICodeFixProvider } from './ai-code-fix-provider';
 import { AICodeFixPrefs } from './ai-code-fix-preference';
-import { ITextModel } from '@theia/monaco-editor-core/esm/vs/editor/common/model';
 
 const AI_CODE_FIX_COMMAND_ID = 'ai-code-fix';
 
@@ -36,12 +35,11 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
     onDidInitializeLayout(): void {
         const enableCodeCompletion = this.preferenceService.get<boolean>(AICodeFixPrefs.ENABLED, false);
         if (enableCodeCompletion) {
-            const disposeCommand = monaco.editor.registerCommand(AI_CODE_FIX_COMMAND_ID, (accessor, ...args) => {
+            const disposeCommand = monaco.editor.registerCommand(AI_CODE_FIX_COMMAND_ID, (_accessor, ...args) => {
                 const arg = args[0];
                 const newText: string = arg.newText;
-                const model: ITextModel = arg.model;
                 const editor: monaco.editor.ICodeEditor = arg.editor;
-                const range = model.getFullModelRange();
+                const range = arg.range;
                 const command = {
                     identifier: AI_CODE_FIX_COMMAND_ID,
                     range,

@@ -51,25 +51,33 @@ export class CodeFixAgentImpl implements CodeFixAgent {
         const languageModel = languageModels[0];
         console.log('Code fix agent is using language model:', languageModel.id);
 
-        const fileContent = model.getValue();
         const fileName = model.uri.toString(false);
         const language = model.getLanguageId();
         const errorMsg = marker.message;
         const lineNumber = marker.startLineNumber;
+        const contextStartLineNumber = Math.max(0, marker.startLineNumber - 10);
+        const contextEndLineNumber = Math.min(model.getLineCount(), marker.endLineNumber + 10);
+        const contextRange = {
+            startLineNumber: contextStartLineNumber,
+            startColumn: 1,
+            endLineNumber: contextEndLineNumber,
+            endColumn: model.getLineMaxColumn(contextEndLineNumber)
+        };
+        const contextRangeContent = model.getValueInRange(contextRange);
         const editor = monaco.editor.getEditors().find(ed => ed.getModel() === model);
         if (!editor) {
             console.error('No editor found for code-fix-agent');
             return [];
         }
 
-        const prompt = await this.promptService.getPrompt('code-fix-prompt', { fileContent, file: fileName, language, errorMsg: errorMsg, lineNumber: lineNumber });
+        const prompt = await this.promptService.getPrompt('code-fix-prompt', { contextRangeContent, file: fileName, language, errorMsg: errorMsg, lineNumber: lineNumber });
         if (!prompt) {
             console.error('No prompt found for code-fix-agent');
             return [];
         }
         console.log('Code fix agent is using prompt:', prompt);
 
-        const response = await languageModel.request(({ messages: [{ type: 'text', actor: 'user', query: prompt }] }));
+        const response = await languageModel.request(({ messages: [{ type: 'text', actor: 'user', query: prompt.trim() }] }));
         const fixText = await getTextOfResponse(response);
         console.log('Code fix agent suggests', fixText);
 
@@ -79,7 +87,7 @@ export class CodeFixAgentImpl implements CodeFixAgent {
                 command: {
                     id: 'ai-code-fix',
                     title: 'AI Code Fix',
-                    arguments: [{ model, editor, newText: fixText }]
+                    arguments: [{ model, editor, range: contextRange, newText: fixText }]
                 },
             }];
 
@@ -92,10 +100,11 @@ export class CodeFixAgentImpl implements CodeFixAgent {
             id: 'code-fix-prompt',
             template: `
             You are a code fixing agent. The current file you have to fix is named \${file}.
-            The language of the file is \${language}. Return your result as plain text without markdown formatting.
-            Provide a corrected version of the following code. 
+            The language of the file is \${language}.
+            Provide a corrected version of the following code snippet.
+            As result, return only the fixed snippet as plain text without markdown formatting.
 
-            \${fileContent}
+            \${contextRangeContent}
 
             The error is reported on line number \${lineNumber} and the error message is \${errorMsg}.
             Provide the full content of the file.
