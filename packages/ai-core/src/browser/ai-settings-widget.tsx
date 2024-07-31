@@ -72,9 +72,9 @@ export class AISettingsWidget extends ReactWidget {
                     this.selectedModels.set(agent.id, new Map());
                 }
                 if (req.identifier) {
-                    this.selectedModels.get(agent.id)?.set(req.purpose, req.identifier)
+                    this.selectedModels.get(agent.id)?.set(req.purpose, req.identifier);
                 }
-            })
+            });
         });
 
         this.update();

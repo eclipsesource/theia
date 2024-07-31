@@ -123,6 +123,11 @@ export interface CodeChatResponseContent
     location?: Location;
 }
 
+export interface HorizontalLayoutChatResponseContent extends BaseChatResponseContent {
+    kind: 'horizontal';
+    content: BaseChatResponseContent[];
+}
+
 export interface Location {
     uri: URI;
     position: Position;
@@ -172,12 +177,20 @@ export const isCodeChatResponseContent = (
     'code' in obj &&
     typeof (obj as { code: unknown }).code === 'string';
 
+export const isHorizontalLayoutChatResponseContent = (obj: unknown): obj is HorizontalLayoutChatResponseContent =>
+    isBaseChatResponseContent(obj) &&
+    obj.kind === 'horizontal' &&
+    'content' in obj &&
+    Array.isArray((obj as { content: unknown }).content) &&
+    (obj as { content: unknown[] }).content.every(isBaseChatResponseContent);
+
 export type ChatResponseContent =
     | BaseChatResponseContent
     | TextChatResponseContent
     | MarkdownChatResponseContent
     | CommandChatResponseContent
-    | CodeChatResponseContent;
+    | CodeChatResponseContent
+    | HorizontalLayoutChatResponseContent;
 
 export interface ChatResponse {
     readonly content: ChatResponseContent[];
