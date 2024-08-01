@@ -14,20 +14,20 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
-import { Agent, PromptCustomizationService, PromptTemplate } from '../common';
-import { PromptPreferences } from './prompt-preferences';
-import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { ContributionProvider, DisposableCollection, URI } from '@theia/core';
-import { FileChangesEvent } from '@theia/filesystem/lib/common/files';
-import { BinaryBuffer } from '@theia/core/lib/common/buffer';
 import { OpenerService } from '@theia/core/lib/browser';
+import { BinaryBuffer } from '@theia/core/lib/common/buffer';
+import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
+import { FileService } from '@theia/filesystem/lib/browser/file-service';
+import { FileChangesEvent } from '@theia/filesystem/lib/common/files';
+import { Agent, PromptCustomizationService, PromptTemplate } from '../common';
+import { AICorePreferences, PREFERENCE_NAME_PROMPT_TEMPLATES } from './ai-core-preferences';
 
 @injectable()
 export class FrontendPromptCustomizationServiceImpl implements PromptCustomizationService {
 
-    @inject(PromptPreferences)
-    protected readonly preferences: PromptPreferences;
+    @inject(AICorePreferences)
+    protected readonly preferences: AICorePreferences;
 
     @inject(FileService)
     protected readonly fileService: FileService;
@@ -46,7 +46,7 @@ export class FrontendPromptCustomizationServiceImpl implements PromptCustomizati
     @postConstruct()
     protected init(): void {
         this.preferences.onPreferenceChanged(event => {
-            if (event.preferenceName === 'ai-chat.templates-folder') {
+            if (event.preferenceName === PREFERENCE_NAME_PROMPT_TEMPLATES) {
                 this.update();
             }
         });
@@ -58,7 +58,7 @@ export class FrontendPromptCustomizationServiceImpl implements PromptCustomizati
         this.templates.clear();
         this.trackedTemplateURIs.clear();
 
-        const templateFolder = this.preferences['ai-chat.templates-folder'];
+        const templateFolder = this.preferences[PREFERENCE_NAME_PROMPT_TEMPLATES];
         if (templateFolder === undefined || templateFolder.trim().length === 0) {
             return;
         }
@@ -135,7 +135,7 @@ export class FrontendPromptCustomizationServiceImpl implements PromptCustomizati
         if (template === undefined) {
             throw new Error(`Unable to edit template ${id}: template not found.`);
         }
-        const templatesFolder = this.preferences['ai-chat.templates-folder'];
+        const templatesFolder = this.preferences[PREFERENCE_NAME_PROMPT_TEMPLATES];
         const editorUri = new URI(`file://${templatesFolder}/${id}.prompttemplate`);
         if (! await this.fileService.exists(editorUri)) {
             await this.fileService.createFile(editorUri, BinaryBuffer.fromString(content ?? template.template));
@@ -148,7 +148,7 @@ export class FrontendPromptCustomizationServiceImpl implements PromptCustomizati
     }
 
     async resetTemplate(id: string): Promise<void> {
-        const templatesFolder = this.preferences['ai-chat.templates-folder'];
+        const templatesFolder = this.preferences[PREFERENCE_NAME_PROMPT_TEMPLATES];
         const editorUri = new URI(`file://${templatesFolder}/${id}.prompttemplate`);
         if (await this.fileService.exists(editorUri)) {
             await this.fileService.delete(editorUri);
