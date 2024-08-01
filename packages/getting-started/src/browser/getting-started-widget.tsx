@@ -396,7 +396,7 @@ export class GettingStartedWidget extends ReactWidget {
         return <div className='gs-container gs-experimental-container'>
             <div className='flex-grid'>
                 <div className='col'>
-                    <h3 className='gs-section-header'> 🚀 Theia AI (experimental) is available! ✨</h3>
+                    <h3 className='gs-section-header'> 🚀 Theia AI [Experimental] is available! ✨</h3>
                     <br />
                     <div className='gs-action-container'>
                         Theia IDE now contains the experimental "Theia AI" feature, which offers early access to cutting-edge AI capabilities within your IDE.

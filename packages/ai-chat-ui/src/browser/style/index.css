@@ -214,6 +214,10 @@ div:last-child>.theia-ChatNode {
     margin: 10px 0;
 }
 
+.section-content a {
+    cursor: pointer;
+}
+
 .section-content strong {
     font-weight: bold;
 }
