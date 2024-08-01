@@ -76,6 +76,7 @@ interface StreamState {
 export class FrontendLanguageModelRegistryImpl
     extends DefaultLanguageModelRegistryImpl
     implements TokenReceiver, ToolReceiver {
+
     @inject(LanguageModelRegistryFrontendDelegate)
     protected registryDelegate: LanguageModelRegistryFrontendDelegate;
 
@@ -174,6 +175,9 @@ export class FrontendLanguageModelRegistryImpl
             request: async (request: LanguageModelRequest) => {
                 const requestId = `${FrontendLanguageModelRegistryImpl.requestCounter++}`;
                 this.requests.set(requestId, request);
+                request.cancelationToken?.onCancellationRequested(() => {
+                    this.providerDelegate.cancel(requestId);
+                });
                 const response = await this.providerDelegate.request(
                     description.id,
                     request,

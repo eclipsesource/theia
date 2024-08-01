@@ -28,7 +28,7 @@ import {
     PromptTemplate
 } from '@theia/ai-core/lib/common';
 import { TODAY_VARIABLE } from '@theia/ai-core/lib/common/today-variable-contribution';
-import { generateUuid, ILogger, isArray } from '@theia/core';
+import { CancellationToken, CancellationTokenSource, generateUuid, ILogger, isArray } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatModel, ChatRequestModelImpl, ChatResponseContent, CodeChatResponseContentImpl, MarkdownChatResponseContentImpl, ToolCallResponseContentImpl } from './chat-model';
 import { ChatMessage } from './chat-util';
@@ -109,8 +109,13 @@ export class DefaultChatAgent implements ChatAgent {
             request: request.request.text,
             messages
         });
-
-        const languageModelResponse = await this.callLlm(languageModels[0], messages);
+        const cancelationToken = new CancellationTokenSource();
+        request.response.onDidChange(() => {
+            if (request.response.isCanceled) {
+                cancelationToken.cancel();
+            }
+        });
+        const languageModelResponse = await this.callLlm(languageModels[0], messages, cancelationToken.token);
         if (isLanguageModelTextResponse(languageModelResponse)) {
             request.response.response.addContent(
                 new MarkdownChatResponseContentImpl(languageModelResponse.text)
@@ -206,9 +211,9 @@ export class DefaultChatAgent implements ChatAgent {
         });
     }
 
-    protected async callLlm(languageModel: LanguageModel, messages: ChatMessage[]): Promise<LanguageModelResponse> {
+    protected async callLlm(languageModel: LanguageModel, messages: ChatMessage[], cancelationToken: CancellationToken = CancellationToken.None): Promise<LanguageModelResponse> {
         const tools = this.getTools();
-        const languageModelResponse = languageModel.request({ messages, tools });
+        const languageModelResponse = languageModel.request({ messages, tools, cancelationToken });
         return languageModelResponse;
     }
 

@@ -71,9 +71,12 @@ export class OpenAiModel implements LanguageModel {
             runner = this.openai.beta.chat.completions.stream({
                 model: this.model,
                 messages: request.messages.map(this.toOpenAIMessage),
-                stream: true
+                stream: true,
             });
         }
+        request.cancelationToken?.onCancellationRequested(() => {
+            runner.abort();
+        });
 
         let runnerEnd = false;
 
