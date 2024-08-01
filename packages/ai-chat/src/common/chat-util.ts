@@ -13,10 +13,10 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { ChatActor } from '@theia/ai-core';
+import { MessageActor } from '@theia/ai-core';
 
 export interface ChatMessage {
-    actor: ChatActor;
+    actor: MessageActor;
     type: 'text';
     query: string;
 }

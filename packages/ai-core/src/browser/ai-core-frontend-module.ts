@@ -32,9 +32,6 @@ import {
     PromptCustomizationService,
     PromptService,
     PromptServiceImpl,
-    PromptCustomizationService,
-    AIVariableContribution,
-    AIVariableService,
     LanguageModelToolServer,
     LanguageModelToolServiceFrontend,
     languageModelToolServicePath

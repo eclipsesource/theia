@@ -127,6 +127,8 @@ export interface LanguageModelSelector extends VsCodeLanguageModelSelector {
     readonly purpose: string;
 }
 
+export type LanguageModelRequirement = Omit<LanguageModelSelector, 'agent'>;
+
 export const LanguageModelRegistry = Symbol('LanguageModelRegistry');
 export interface LanguageModelRegistry {
     addLanguageModels(models: LanguageModel[]): void;
