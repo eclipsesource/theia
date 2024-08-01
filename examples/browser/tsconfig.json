@@ -39,6 +39,9 @@
       "path": "../../packages/ai-rag-provider"
     },
     {
+      "path": "../../packages/ai-pr-finalization"
+    },
+    {
       "path": "../../packages/ai-terminal"
     },
     {
