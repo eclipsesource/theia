@@ -19,8 +19,8 @@ import { ContributionProvider, MaybePromise } from '@theia/core';
 import { Agent } from './agent';
 
 export const AGENTS_VARIABLE: AIVariable = {
-    id: 'ai-agents',
-    name: 'ai-agents',
+    id: 'agents',
+    name: 'agents',
     description: 'Returns the list of agents available in the system',
     args: []
 };
