@@ -19,6 +19,7 @@ import { TabBarToolbarContribution, TabBarToolbarRegistry } from '@theia/core/li
 import { AIChatContribution } from './aichat-ui-contribution';
 import { Emitter, nls } from '@theia/core';
 import { ChatCommands } from './chat-view-commands';
+import { COMMAND_EXTRACT_CHAT_VIEW } from './ai-chat-command-contribution';
 
 @injectable()
 export class ChatViewWidgetToolbarContribution implements TabBarToolbarContribution {
@@ -48,6 +49,12 @@ export class ChatViewWidgetToolbarContribution implements TabBarToolbarContribut
             command: ChatCommands.UNLOCK__WIDGET.id,
             tooltip: nls.localizeByDefault('Turn Auto Scrolling On'),
             onDidChange: this.onChatWidgetStateChanged,
+            priority: 2
+        });
+        registry.registerItem({
+            id: COMMAND_EXTRACT_CHAT_VIEW.id,
+            command: COMMAND_EXTRACT_CHAT_VIEW.id,
+            tooltip: COMMAND_EXTRACT_CHAT_VIEW.label,
             priority: 2
         });
     }

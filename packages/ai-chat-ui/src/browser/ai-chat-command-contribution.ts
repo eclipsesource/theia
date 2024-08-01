@@ -17,6 +17,9 @@
 import { COMMAND_CHAT_RESPONSE_COMMAND } from '@theia/ai-chat/lib/common';
 import { Command, CommandContribution, CommandRegistry, MessageService } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
+import { codicon, WidgetManager } from '@theia/core/lib/browser';
+import { SecondaryWindowHandler } from '@theia/core/lib/browser/secondary-window-handler';
+import { ChatViewWidget } from './chat-view-widget';
 
 export interface AIChatCommandArguments {
     command: Command;
@@ -28,11 +31,24 @@ const COMMAND_DEMO_SAY_HELLO: Command = {
     id: 'theia-ai:greet-command',
     label: 'Say Hello'
 };
+
+export const COMMAND_EXTRACT_CHAT_VIEW: Command = {
+    id: 'theia-ai:extract-chat-view',
+    label: 'Move Chat view into a separate window',
+    iconClass: codicon('window')
+};
+
 @injectable()
 export class AIChatCommandContribution implements CommandContribution {
 
     @inject(MessageService)
     private readonly messageService: MessageService;
+
+    @inject(SecondaryWindowHandler)
+    protected readonly secondaryWindowHandler: SecondaryWindowHandler;
+
+    @inject(WidgetManager)
+    protected readonly widgetManager: WidgetManager;
 
     registerCommands(commands: CommandRegistry): void {
         commands.registerCommand(COMMAND_CHAT_RESPONSE_COMMAND, {
@@ -46,8 +62,29 @@ export class AIChatCommandContribution implements CommandContribution {
         });
         commands.registerCommand(COMMAND_DEMO_SAY_HELLO, {
             execute: async (arg: string) => {
-                this.messageService.info(`Hello ${arg}!`)
+                this.messageService.info(`Hello ${arg}!`);
             }
         });
+        commands.registerCommand(COMMAND_EXTRACT_CHAT_VIEW, {
+            execute: () => this.extractChatView(),
+            isEnabled: () => this.canExtractChatView,
+            isVisible: () => this.canExtractChatView
+        });
+    }
+
+    get chatView(): ChatViewWidget | undefined {
+        return this.widgetManager.getWidgets(ChatViewWidget.ID).find(w => w instanceof ChatViewWidget) as ChatViewWidget | undefined;
+    }
+
+    protected extractChatView(): void {
+        const chatView = this.chatView;
+        if (chatView) {
+            this.secondaryWindowHandler.moveWidgetToSecondaryWindow(chatView);
+        }
+    }
+
+    get canExtractChatView(): boolean {
+        const chatView = this.chatView;
+        return !!chatView && !chatView.secondaryWindow;
     }
 }
