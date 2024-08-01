@@ -36,7 +36,7 @@ export class OpenAiLanguageModelsManagerImpl implements OpenAiLanguageModelsMana
     async createLanguageModels(...modelIds: string[]): Promise<void> {
         for (const id of modelIds) {
             // we might be called by multiple frontends, therefore check whether a model actually needs to be created
-            if (!(await this.languageModelRegistry.getLanguageModel(id))) {
+            if (!(await this.languageModelRegistry.getLanguageModel(`openai/${id}`))) {
                 this.languageModelRegistry.addLanguageModels([new OpenAiModel(id, () => this.apiKey)]);
             } else {
                 console.info(`Open AI: skip creating model ${id} because it already exists`);
