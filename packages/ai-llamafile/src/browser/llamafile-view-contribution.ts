@@ -13,13 +13,14 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { injectable } from '@theia/core/shared/inversify';
-import { AbstractViewContribution, CommonMenus } from '@theia/core/lib/browser';
-import { LlamafileListWidget } from './llamafile-list-widget';
+import { AIViewContribution } from '@theia/ai-core/lib/browser';
 import { CommandRegistry, MenuModelRegistry } from '@theia/core';
+import { CommonMenus } from '@theia/core/lib/browser';
+import { injectable } from '@theia/core/shared/inversify';
+import { LlamafileListWidget } from './llamafile-list-widget';
 
 @injectable()
-export class LlamafileViewContribution extends AbstractViewContribution<LlamafileListWidget> {
+export class LlamafileViewContribution extends AIViewContribution<LlamafileListWidget> {
 
     constructor() {
         super({
@@ -33,6 +34,7 @@ export class LlamafileViewContribution extends AbstractViewContribution<Llamafil
     override registerCommands(commands: CommandRegistry): void {
         super.registerCommands(commands);
         commands.registerCommand({ id: 'llamafile-view:add', label: 'Add Item' }, {
+            isEnabled: () => this.isExperimentalEnabled,
             execute: () => this.openView({ activate: true }).then(widget => widget.addItem())
         });
     }
@@ -41,6 +43,7 @@ export class LlamafileViewContribution extends AbstractViewContribution<Llamafil
         super.registerMenus(menus);
         menus.registerMenuAction(CommonMenus.EDIT_FIND, {
             commandId: 'llamafile-view:add',
+            when: AIViewContribution.EXPERIMENTAL_AI_CONTEXT_KEY,
             label: 'Add Item'
         });
     }

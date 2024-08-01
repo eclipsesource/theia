@@ -51,7 +51,7 @@ export const aiCorePreferenceSchema: PreferenceSchema = {
     }
 };
 export interface AICoreConfiguration {
-    [PREFERENCE_NAME_ENABLE_EXPERIMENTAL]: string | undefined;
+    [PREFERENCE_NAME_ENABLE_EXPERIMENTAL]: boolean | undefined;
     [PREFERENCE_NAME_PROMPT_TEMPLATES]: string | undefined;
 }
 

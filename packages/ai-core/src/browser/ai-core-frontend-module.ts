@@ -41,7 +41,6 @@ import {
 import { bindViewContribution, FrontendApplicationContribution, WidgetFactory } from '@theia/core/lib/browser';
 import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate';
-import { TodayVariableContribution } from '../common/today-variable-contribution';
 import { TomorrowVariableContribution } from '../tomorrow-variable-contribution';
 import { AIAgentConfigurationWidget } from './ai-configuration/agent-configuration-widget';
 import { AIConfigurationSelectionService } from './ai-configuration/ai-configuration-service';
@@ -55,11 +54,9 @@ import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-custom
 import { FrontendVariableService } from './frontend-variable-service';
 import { PromptTemplateContribution } from './prompttemplate-contribution';
 import { TheiaVariableContribution } from './theia-variable-contribution';
-<<<<<<< HEAD
 import { TodayVariableContribution } from '../common/today-variable-contribution';
 import { AgentsVariableContribution } from '../common/agents-variable-contribution';
-=======
->>>>>>> 676cebe7c4f (add master ai feature setting)
+import { AIViewFrontendApplicationContribution } from './ai-view-contribution';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, LanguageModelProvider);
@@ -134,4 +131,6 @@ export default new ContainerModule(bind => {
             createWidget: () => ctx.container.get(AIAgentConfigurationWidget)
         }))
         .inSingletonScope();
+    bind(AIViewFrontendApplicationContribution).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(AIViewFrontendApplicationContribution);
 });

@@ -13,12 +13,15 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { AbstractViewContribution, FrontendApplication } from '@theia/core/lib/browser';
+import { FrontendApplication } from '@theia/core/lib/browser';
+import { injectable } from '@theia/core/shared/inversify';
+import { AIViewContribution } from '../ai-view-contribution';
 import { AIConfigurationContainerWidget } from './ai-configuration-widget';
 
 export const AI_CONFIGURATION_TOGGLE_COMMAND_ID = 'aiConfiguration:toggle';
 
-export class AIAgentConfigurationViewContribution extends AbstractViewContribution<AIConfigurationContainerWidget> {
+@injectable()
+export class AIAgentConfigurationViewContribution extends AIViewContribution<AIConfigurationContainerWidget> {
 
     constructor() {
         super({
