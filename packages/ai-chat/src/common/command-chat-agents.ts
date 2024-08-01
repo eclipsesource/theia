@@ -26,6 +26,7 @@ import {
     isLanguageModelStreamResponse,
 } from '@theia/ai-core';
 import {
+    ChatModel,
     ChatRequestModelImpl,
     ChatResponseContent,
     CommandChatResponseContentImpl,
@@ -38,7 +39,7 @@ import {
     MessageService,
     generateUuid,
 } from '@theia/core';
-import { getMessages } from './chat-util';
+import { ChatMessage } from './chat-util';
 
 export class CommandChatAgentSystemPromptTemplate implements PromptTemplate {
     id = 'command-chat-agent-system-prompt-template';
@@ -68,7 +69,8 @@ This reply is to tell the user to execute the \`theia-ai-prompt-template:show-pr
 
 ## Example 2
 
-This reply is to tell the user to execute the \`theia-ai-prompt-template:show-prompts-command\` command that is available in the theia command registry, when the user want to pass arguments to the command.
+This reply is to tell the user to execute the \`theia-ai-prompt-template:show-prompts-command\` command that is available in the theia command registry, 
+when the user want to pass arguments to the command.
 
 \`\`\`json
 {
@@ -309,7 +311,7 @@ export class CommandChatAgent implements ChatAgent {
             throw new Error('Couldn\'t get system prompt ');
         }
 
-        const prevMessages: LanguageModelRequestMessage[] = getMessages(request.session);
+        const prevMessages: LanguageModelRequestMessage[] = this.getMessages(request.session);
         const messages = [...prevMessages];
         messages.unshift({
             actor: 'ai',
@@ -407,6 +409,27 @@ export class CommandChatAgent implements ChatAgent {
     protected async commandCallback(...commandArgs: unknown[]): Promise<void> {
         this.messageService.info(`Executing callback with args ${commandArgs.join(', ')}. The first arg is the command id registered for the dynamically registered command. 
         The other args are the actual args for the handler.`, 'Got it');
+    }
+
+    protected getMessages(model: ChatModel): ChatMessage[] {
+        return model.getRequests().flatMap(request => {
+            const messages: ChatMessage[] = [];
+            const query = request.message.parts.map(part => part.promptText).join('');
+            messages.push({
+                actor: 'user',
+                type: 'text',
+                query,
+            });
+            if (request.response.isComplete) {
+                messages.push({
+                    actor: 'ai',
+                    type: 'text',
+                    query: request.response.response.asString(),
+                });
+            }
+            return messages;
+        });
+
     }
 
 }
