@@ -59,7 +59,7 @@ export class GitVariableContribution implements AIVariableContribution, AIVariab
 
     protected async resolveGitVariable(request: AIVariableResolutionRequest, commandId: string): Promise<ResolvedAIVariable> {
         const output = await this.commandService.executeCommand<string>(commandId);
-        if (output) {
+        if (output !== undefined) {
             console.debug('resolved git variable', request.variable.name, output);
             return { variable: request.variable, value: output };
         } else {
