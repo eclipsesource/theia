@@ -102,9 +102,7 @@ export class TypeDocSymbolSelectionResolver implements AIEditorSelectionResolver
     }
 
     protected findSymbolPath(uri: URI): string[] | undefined {
-        const input = uri.toString();
-        const hashIndex = input.indexOf('#');
-        return hashIndex === -1 ? undefined : input.substring(hashIndex + 1).split('.');
+        return uri.fragment.split('.');
     }
 
     protected findSymbolByPath(symbols: DocumentSymbol[], symbolPath: string[]): DocumentSymbol | undefined {
@@ -150,9 +148,7 @@ export class TextFragmentSelectionResolver implements AIEditorSelectionResolver 
     }
 
     protected findFragment(uri: URI): string | undefined {
-        const input = uri.toString();
-        const hashIndex = input.indexOf('#');
-        return hashIndex === -1 ? undefined : input.substring(hashIndex + 1);
+        return uri.fragment;
     }
 }
 
