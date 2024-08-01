@@ -13,7 +13,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { BaseWidget, codicon, Message, PanelLayout } from '@theia/core/lib/browser';
+import { BaseWidget, codicon, ExtractableWidget, Message, PanelLayout } from '@theia/core/lib/browser';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import { nls } from '@theia/core/lib/common/nls';
 import { ChatViewTreeWidget } from './chat-tree-view/chat-view-tree-widget';
@@ -22,10 +22,12 @@ import { ChatModel, ChatRequest, ChatService } from '@theia/ai-chat';
 import { ILogger } from '@theia/core';
 
 @injectable()
-export class ChatViewWidget extends BaseWidget {
+export class ChatViewWidget extends BaseWidget implements ExtractableWidget {
 
     public static ID = 'chat-view-widget';
     static LABEL = nls.localizeByDefault('Chat');
+
+    public secondaryWindow: Window | undefined;
 
     @inject(ChatService)
     private chatService: ChatService;
@@ -87,4 +89,7 @@ export class ChatViewWidget extends BaseWidget {
         // Tree Widget currently tracks the ChatModel itself. Therefore no notification necessary.
     }
 
+    get isExtractable(): boolean {
+        return true;
+    }
 }
