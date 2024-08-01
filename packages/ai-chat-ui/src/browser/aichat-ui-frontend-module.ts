@@ -82,4 +82,4 @@ export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
 
     bind(AIMonacoEditorProvider).toSelf().inSingletonScope();
     rebind(MonacoEditorProvider).toService(AIMonacoEditorProvider);
- });
+});

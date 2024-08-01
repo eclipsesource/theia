@@ -50,7 +50,6 @@ export class AIMonacoEditorProvider extends MonacoEditorProvider {
             // customization: not only log the error to the console but show to user
             const details = error instanceof Error ? ': ' + error.message : '';
             this.messageService.error(`Failed to open the editor for '${uri.toString()}'${details}`, { timeout: 10_000 });
-            console.error(`Fail to open '${uri.toString()}':`, error);
             return false;
         }
     }
