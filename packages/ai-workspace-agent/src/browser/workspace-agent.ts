@@ -13,10 +13,10 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { ChatAgent, ChatMessage, ChatRequestParser, DefaultChatAgent } from '@theia/ai-chat/lib/common';
+import { ChatAgent, DefaultChatAgent } from '@theia/ai-chat/lib/common';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { template } from '../common/template';
-import { LanguageModel, LanguageModelResponse, FunctionCallRegistry } from '@theia/ai-core';
+import { FunctionCallRegistry, ToolRequest } from '@theia/ai-core';
 import { FileContentFunction, GetWorkspaceFileList } from './functions';
 
 @injectable()
@@ -26,20 +26,14 @@ export class WorkspaceAgent extends DefaultChatAgent implements ChatAgent {
     override description = 'An AI Agent that can access the current Workspace contents';
     override promptTemplates = [template];
 
-    @inject(ChatRequestParser)
-    protected chatRequestParser: ChatRequestParser;
+    @inject(FunctionCallRegistry)
+    protected functionCallRegistry: FunctionCallRegistry;
 
     protected override getSystemMessage(): Promise<string | undefined> {
         return this.promptService.getPrompt(template.id);
     }
 
-    @inject(FunctionCallRegistry)
-    protected functionCallRegistry: FunctionCallRegistry;
-
-    protected override callLlm(languageModel: LanguageModel, messages: ChatMessage[]): Promise<LanguageModelResponse> {
-        const tools = this.functionCallRegistry.getFunctions(GetWorkspaceFileList.ID, FileContentFunction.ID);
-
-        const languageModelResponse = languageModel.request({ messages, tools });
-        return languageModelResponse;
+    protected override getTools(): ToolRequest<object>[] | undefined {
+        return this.functionCallRegistry.getFunctions(GetWorkspaceFileList.ID, FileContentFunction.ID);
     }
 }
