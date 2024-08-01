@@ -140,9 +140,7 @@ export class ChatServiceImpl implements ChatService {
             }
         });
 
-        const chatAgents = this.chatAgentService.getAgents()
-            // .filter(agent => agent.id === 'CommandChatAgent') // Comment in this line to use the CommandChatAgent
-            ;
+        const chatAgents = this.chatAgentService.getAgents();
         if (chatAgents.length > 0) {
             // TODO collect the correct agent
             this.chatAgentService.invokeAgent(chatAgents[0].id, requestModel);
