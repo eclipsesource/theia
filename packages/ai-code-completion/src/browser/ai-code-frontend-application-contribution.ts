@@ -19,33 +19,38 @@ import * as monaco from '@theia/monaco-editor-core';
 import { FrontendApplicationContribution, PreferenceService } from '@theia/core/lib/browser';
 import { AICodeCompletionProvider } from './ai-code-completion-provider';
 import { inject, injectable } from '@theia/core/shared/inversify';
+import { DisposableCollection } from '@theia/core';
+import { AICodeInlineCompletionsProvider } from './ai-code-inline-completion-provider';
 
 @injectable()
 export class AIFrontendApplicationContribution implements FrontendApplicationContribution {
     @inject(AICodeCompletionProvider)
     private codeCompletionProvider: AICodeCompletionProvider;
 
+    @inject(AICodeInlineCompletionsProvider)
+    private inlineCodeCompletionProvider: AICodeInlineCompletionsProvider;
+
     @inject(PreferenceService)
     private readonly preferenceService: PreferenceService;
 
-    private disposable: monaco.IDisposable | undefined;
+    private toDispose = new DisposableCollection();
 
     onDidInitializeLayout(): void {
         const enableCodeCompletion = this.preferenceService.get<boolean>('ai-code-completion.enable', false);
-        if (enableCodeCompletion) {
-            this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
-        }
+        this.enable(enableCodeCompletion);
         this.preferenceService.onPreferenceChanged(event => {
             if (event.preferenceName === 'ai-code-completion.enable') {
-                if (this.disposable) {
-                    this.disposable.dispose();
-                    this.disposable = undefined;
-                }
-                if (event.newValue) {
-                    this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
-                }
+                this.enable(event.newValue);
             }
         });
+    }
+
+    protected enable(enable: boolean): void {
+        this.toDispose.dispose();
+        if (enable) {
+            this.toDispose.push(monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider));
+            this.toDispose.push(monaco.languages.registerInlineCompletionsProvider({ scheme: 'file' }, this.inlineCodeCompletionProvider));
+        }
     }
 
     onStop(): void {
