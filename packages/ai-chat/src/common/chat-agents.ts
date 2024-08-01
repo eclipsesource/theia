@@ -109,13 +109,13 @@ export class DefaultChatAgent implements ChatAgent {
             request: request.request.text,
             messages
         });
-        const cancelationToken = new CancellationTokenSource();
+        const cancellationToken = new CancellationTokenSource();
         request.response.onDidChange(() => {
             if (request.response.isCanceled) {
-                cancelationToken.cancel();
+                cancellationToken.cancel();
             }
         });
-        const languageModelResponse = await this.callLlm(languageModels[0], messages, cancelationToken.token);
+        const languageModelResponse = await this.callLlm(languageModels[0], messages, cancellationToken.token);
         if (isLanguageModelTextResponse(languageModelResponse)) {
             request.response.response.addContent(
                 new MarkdownChatResponseContentImpl(languageModelResponse.text)
@@ -211,9 +211,9 @@ export class DefaultChatAgent implements ChatAgent {
         });
     }
 
-    protected async callLlm(languageModel: LanguageModel, messages: ChatMessage[], cancelationToken: CancellationToken = CancellationToken.None): Promise<LanguageModelResponse> {
+    protected async callLlm(languageModel: LanguageModel, messages: ChatMessage[], cancellationToken: CancellationToken = CancellationToken.None): Promise<LanguageModelResponse> {
         const tools = this.getTools();
-        const languageModelResponse = languageModel.request({ messages, tools, cancelationToken });
+        const languageModelResponse = languageModel.request({ messages, tools, cancellationToken });
         return languageModelResponse;
     }
 

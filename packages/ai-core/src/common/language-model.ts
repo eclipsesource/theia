@@ -42,7 +42,7 @@ export interface ToolRequest<T extends object> {
 export interface LanguageModelRequest {
     messages: LanguageModelRequestMessage[],
     tools?: ToolRequest<object>[];
-    cancelationToken?: CancellationToken;
+    cancellationToken?: CancellationToken;
 }
 
 export interface LanguageModelTextResponse {

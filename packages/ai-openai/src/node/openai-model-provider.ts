@@ -74,7 +74,7 @@ export class OpenAiModel implements LanguageModel {
                 stream: true,
             });
         }
-        request.cancelationToken?.onCancellationRequested(() => {
+        request.cancellationToken?.onCancellationRequested(() => {
             runner.abort();
         });
 

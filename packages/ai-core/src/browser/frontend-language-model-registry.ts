@@ -13,7 +13,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { ILogger } from '@theia/core';
+import { CancellationToken, ILogger } from '@theia/core';
 import {
     inject,
     injectable,
@@ -175,7 +175,7 @@ export class FrontendLanguageModelRegistryImpl
             request: async (request: LanguageModelRequest) => {
                 const requestId = `${FrontendLanguageModelRegistryImpl.requestCounter++}`;
                 this.requests.set(requestId, request);
-                request.cancelationToken?.onCancellationRequested(() => {
+                request.cancellationToken?.onCancellationRequested(() => {
                     this.providerDelegate.cancel(requestId);
                 });
                 const response = await this.providerDelegate.request(
@@ -282,7 +282,7 @@ const languageModelOutputHandler = (
 ): ProxyHandler<LanguageModel> => ({
     get<K extends keyof LanguageModel>(
         target: LanguageModel,
-        prop: K
+        prop: K,
     ): LanguageModel[K] | LanguageModel['request'] {
         const original = target[prop];
         if (prop === 'request' && typeof original === 'function') {
@@ -292,6 +292,22 @@ const languageModelOutputHandler = (
                 outputChannel.appendLine(
                     `Sending request: ${JSON.stringify(args)}`
                 );
+                if (args[0].cancellationToken) {
+                    args[0].cancellationToken = new Proxy(args[0].cancellationToken, {
+                        get<CK extends keyof CancellationToken>(
+                            cTarget: CancellationToken,
+                            cProp: CK
+                        ): CancellationToken[CK] | CancellationToken['onCancellationRequested'] {
+                            if (cProp === 'onCancellationRequested') {
+                                return (...cargs: Parameters<CancellationToken['onCancellationRequested']>) => cTarget.onCancellationRequested(() => {
+                                    outputChannel.appendLine('\nCancel requested', OutputChannelSeverity.Warning);
+                                    cargs[0]();
+                                }, cargs[1], cargs[2]);
+                            }
+                            return cTarget[cProp];
+                        }
+                    });
+                }
                 try {
                     const result = await original.apply(target, args);
                     if (isLanguageModelStreamResponse(result)) {

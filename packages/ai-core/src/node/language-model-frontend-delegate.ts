@@ -59,14 +59,14 @@ export class LanguageModelFrontendDelegateImpl implements LanguageModelFrontendD
     private logger: ILogger;
 
     private frontendDelegateClient: LanguageModelDelegateClient;
-    private requestCancelationTokenMap: Map<string, CancellationTokenSource> = new Map();
+    private requestCancellationTokenMap: Map<string, CancellationTokenSource> = new Map();
 
     setClient(client: LanguageModelDelegateClient): void {
         this.frontendDelegateClient = client;
     }
 
     cancel(requestId: string): void {
-        this.requestCancelationTokenMap.get(requestId)?.cancel();
+        this.requestCancellationTokenMap.get(requestId)?.cancel();
     }
 
     async request(
@@ -83,10 +83,10 @@ export class LanguageModelFrontendDelegateImpl implements LanguageModelFrontendD
         request.tools?.forEach(tool => {
             tool.handler = async args_string => this.frontendDelegateClient.toolCall(requestId, tool.id, args_string);
         });
-        if (request.cancelationToken) {
+        if (request.cancellationToken) {
             const tokenSource = new CancellationTokenSource();
-            request.cancelationToken = tokenSource.token;
-            this.requestCancelationTokenMap.set(requestId, tokenSource);
+            request.cancellationToken = tokenSource.token;
+            this.requestCancellationTokenMap.set(requestId, tokenSource);
         }
         const response = await model.request(request);
         if (isLanguageModelTextResponse(response)) {
