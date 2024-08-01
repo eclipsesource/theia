@@ -19,7 +19,7 @@
  *--------------------------------------------------------------------------------------------*/
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatAgents.ts
 
-import { CommunicationRecordingService, LanguageModel, LanguageModelResponse, LanguageModelRequirement, PromptService, ToolRequest, getTextOfResponse } from '@theia/ai-core';
+import { CommunicationRecordingService, LanguageModel, LanguageModelResponse, LanguageModelRequirement, PromptService, ToolRequest, getTextOfResponse, isLanguageModelTextResponse } from '@theia/ai-core';
 import {
     Agent,
     isLanguageModelStreamResponse,
@@ -205,6 +205,20 @@ export class DefaultChatAgent extends AbstractChatAgent {
     locations: ChatAgentLocation[] = ChatAgentLocation.ALL;
 
     protected override async addContentsToResponse(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
+        if (isLanguageModelTextResponse(languageModelResponse)) {
+            request.response.response.addContent(
+                new MarkdownChatResponseContentImpl(languageModelResponse.text)
+            );
+            request.response.complete();
+            this.recordingService.recordResponse({
+                agentId: this.id,
+                sessionId: request.session.id,
+                timestamp: Date.now(),
+                requestId: request.response.requestId,
+                response: request.response.response.asString()
+            });
+            return;
+        }
         if (isLanguageModelStreamResponse(languageModelResponse)) {
             for await (const token of languageModelResponse.stream) {
                 const newContents = this.parse(token, request.response.response.content);
