@@ -277,6 +277,33 @@ export class FrontendLanguageModelRegistryImpl
     }
 }
 
+const formatJsonWithIndentation = (obj: unknown): string[] => {
+    // eslint-disable-next-line no-null/no-null
+    const jsonString = JSON.stringify(obj, null, 2);
+    const lines = jsonString.split('\n');
+    const formattedLines: string[] = [];
+
+    lines.forEach(line => {
+        const subLines = line.split('\\n');
+        const index = indexOfValue(subLines[0]) + 1;
+        formattedLines.push(subLines[0]);
+        const prefix = index > 0 ? ' '.repeat(index) : '';
+        if (index !== -1) {
+            for (let i = 1; i < subLines.length; i++) {
+                formattedLines.push(prefix + subLines[i]);
+            }
+        }
+    });
+
+    return formattedLines;
+};
+
+const indexOfValue = (jsonLine: string): number => {
+    const pattern = /"([^"]+)"\s*:\s*/g;
+    const match = pattern.exec(jsonLine);
+    return match ? match.index + match[0].length : -1;
+};
+
 const languageModelOutputHandler = (
     outputChannel: OutputChannel
 ): ProxyHandler<LanguageModel> => ({
@@ -290,8 +317,10 @@ const languageModelOutputHandler = (
                 ...args: Parameters<LanguageModel['request']>
             ): Promise<LanguageModelResponse> {
                 outputChannel.appendLine(
-                    `Sending request: ${JSON.stringify(args)}`
+                    'Sending request:'
                 );
+                const formattedRequest = formatJsonWithIndentation(args[0]);
+                formattedRequest.forEach(line => outputChannel.appendLine(line));
                 if (args[0].cancellationToken) {
                     args[0].cancellationToken = new Proxy(args[0].cancellationToken, {
                         get<CK extends keyof CancellationToken>(
