@@ -13,12 +13,17 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-export * from './agent';
-export * from './communication-recording-service';
-export * from './language-model';
-export * from './language-model-delegate';
-export * from './language-model-util';
-export * from './prompt-service';
-export * from './types';
-export * from './variable-service';
-export * from './language-model-tool-service';
+
+import { AIVariableContribution } from '@theia/ai-core';
+import { ContainerModule } from '@theia/core/shared/inversify';
+import { RAG_SERVICE_PATH, RagService } from '../common';
+import { RemoteConnectionProvider, ServiceConnectionProvider } from '@theia/core/lib/browser/messaging/service-connection-provider';
+import { GLSPVariableContribution } from './glsp-variable-provider';
+
+export default new ContainerModule(bind => {
+    bind(RagService).toDynamicValue(ctx => {
+        const provider = ctx.container.get<ServiceConnectionProvider>(RemoteConnectionProvider);
+        return provider.createProxy<RagService>(RAG_SERVICE_PATH);
+    }).inSingletonScope();
+    bind(AIVariableContribution).to(GLSPVariableContribution).inSingletonScope();
+});
