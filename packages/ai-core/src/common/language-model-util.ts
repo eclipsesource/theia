@@ -16,7 +16,7 @@
 
 import { isLanguageModelStreamResponse, isLanguageModelTextResponse, LanguageModelResponse } from './language-model';
 
-export const getTextResponse = async (response: LanguageModelResponse): Promise<string> => {
+export const getTextOfResponse = async (response: LanguageModelResponse): Promise<string> => {
     if (isLanguageModelTextResponse(response)) {
         return response.text;
     } else if (isLanguageModelStreamResponse(response)) {

@@ -17,7 +17,7 @@
 import * as monaco from '@theia/monaco-editor-core';
 import {
     Agent, CommunicationHistoryEntry, CommunicationRecordingService,
-    getTextResponse, LanguageModelRegistry, LanguageModelRequest,
+    getTextOfResponse, LanguageModelRegistry, LanguageModelRequest,
     LanguageModelSelector, PromptService, PromptTemplate
 } from '@theia/ai-core/lib/common';
 import { inject, injectable } from '@theia/core/shared/inversify';
@@ -98,7 +98,7 @@ export class CodeFixAgentImpl implements CodeFixAgent {
         };
         this.recordingService.recordRequest(requestEntry);
         const response = await languageModel.request(request);
-        const fixText = await getTextResponse(response);
+        const fixText = await getTextOfResponse(response);
         this.recordingService.recordResponse({
             agentId: this.id,
             sessionId,

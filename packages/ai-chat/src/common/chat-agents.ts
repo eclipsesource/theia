@@ -19,7 +19,7 @@
  *--------------------------------------------------------------------------------------------*/
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatAgents.ts
 
-import { CommunicationRecordingService, LanguageModel, LanguageModelResponse, LanguageModelRequirement, PromptService, ToolRequest } from '@theia/ai-core';
+import { CommunicationRecordingService, LanguageModel, LanguageModelResponse, LanguageModelRequirement, PromptService, ToolRequest, getTextOfResponse } from '@theia/ai-core';
 import {
     Agent,
     isLanguageModelStreamResponse,
@@ -162,11 +162,24 @@ export abstract class AbstractChatAgent implements ChatAgent {
         return languageModelResponse;
     }
 
-    protected async addContentsToResponse(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
+    protected abstract addContentsToResponse(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void>;
+}
 
+@injectable()
+export abstract class AbstractTextToModelParsingChatAgent<T> extends AbstractChatAgent {
+
+    protected async addContentsToResponse(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
+        const responseAsText = await getTextOfResponse(languageModelResponse);
+        const parsedCommand = await this.parseTextResponse(responseAsText);
+        const content = this.createResponseContent(parsedCommand, request);
+        request.response.response.addContent(content);
     }
 
+    protected abstract parseTextResponse(text: string): Promise<T>;
+
+    protected abstract createResponseContent(parsedModel: T, request: ChatRequestModelImpl): ChatResponseContent;
 }
+
 @injectable()
 export class DefaultChatAgent extends AbstractChatAgent {
 

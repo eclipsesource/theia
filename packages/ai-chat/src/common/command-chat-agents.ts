@@ -15,20 +15,12 @@
 // *****************************************************************************
 
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { ChatAgent, ChatAgentLocation } from './chat-agents';
+import { AbstractTextToModelParsingChatAgent, ChatAgentLocation } from './chat-agents';
 import {
     PromptTemplate,
-    LanguageModelSelector,
-    CommunicationRecordingService,
-    LanguageModelRegistry,
-    PromptService,
-    LanguageModelRequestMessage,
-    isLanguageModelStreamResponse,
-    getTextOfResponse as getTextResponse,
-    LanguageModelResponse,
+    LanguageModelSelector
 } from '@theia/ai-core';
 import {
-    ChatModel,
     ChatRequestModelImpl,
     ChatResponseContent,
     CommandChatResponseContentImpl,
@@ -41,7 +33,6 @@ import {
     MessageService,
     generateUuid,
 } from '@theia/core';
-import { ChatMessage } from './chat-util';
 
 export class CommandChatAgentSystemPromptTemplate implements PromptTemplate {
     id = 'command-chat-agent-system-prompt-template';
@@ -258,22 +249,12 @@ interface ParsedCommand {
 }
 
 @injectable()
-export class CommandChatAgent implements ChatAgent {
-
-    @inject(PromptService)
-    protected promptService: PromptService;
-
+export class CommandChatAgent extends AbstractTextToModelParsingChatAgent<ParsedCommand> {
     @inject(CommandRegistry)
     protected readonly commandRegistry: CommandRegistry;
 
     @inject(MessageService)
     private readonly messageService: MessageService;
-
-    @inject(CommunicationRecordingService)
-    protected recordingService: CommunicationRecordingService;
-
-    @inject(LanguageModelRegistry)
-    protected languageModelRegistry: LanguageModelRegistry;
 
     id: string = 'CommandChatAgent';
     name: string = 'CommandChatAgent';
@@ -285,47 +266,9 @@ export class CommandChatAgent implements ChatAgent {
         identifier: 'openai/gpt-4o',
     }];
     locations: ChatAgentLocation[] = ChatAgentLocation.ALL;
+    override iconClass?: string | undefined;
 
-    async invoke(request: ChatRequestModelImpl): Promise<void> {
-        // record
-        this.recordingService.recordRequest({
-            agentId: this.id,
-            sessionId: request.session.id,
-            timestamp: Date.now(),
-            requestId: request.id,
-            request: request.request.text
-        });
-
-        // select model
-        const selector = this.languageModelRequirements.find(req => req.purpose === 'chat')!;
-        const languageModels = await this.languageModelRegistry.selectLanguageModels({ agent: this.id, ...selector });
-        if (languageModels.length === 0) {
-            throw new Error('Couldn\'t find a language model. Please check your setup!');
-        }
-
-        // system prompt -> get messages -> request -> response to text -> parse text to model -> model to response content
-        const systemPrompt = await this.getSystemPrompt();
-        const messages = this.getMessages(request.session, systemPrompt);
-        const languageModelResponse = await languageModels[0].request({ messages });
-        const responseAsText = await getTextResponse(languageModelResponse);
-        const parsedCommand = await this.parseTextResponse(responseAsText);
-        const content = this.createResponseContent(parsedCommand, request);
-
-        // add content
-        request.response.response.addContent(content);
-        request.response.complete();
-
-        // record
-        this.recordingService.recordResponse({
-            agentId: this.id,
-            sessionId: request.session.id,
-            timestamp: Date.now(),
-            requestId: request.response.requestId,
-            response: request.response.response.asString()
-        });
-    }
-
-    protected async getSystemPrompt(): Promise<string> {
+    protected async getSystemMessage(): Promise<string | undefined> {
         const knownCommands: string[] = [];
         for (const command of this.commandRegistry.getAllCommands()) {
             knownCommands.push(`${command.id}: ${command.label}`);
@@ -338,33 +281,6 @@ export class CommandChatAgent implements ChatAgent {
             throw new Error('Couldn\'t get system prompt ');
         }
         return systemPrompt;
-    }
-
-    protected getMessages(model: ChatModel, systemPrompt: string): ChatMessage[] {
-        const prevMessages = model.getRequests().flatMap(req => {
-            const msgs: ChatMessage[] = [];
-            const query = req.message.parts.map(part => part.promptText).join('');
-            msgs.push({
-                actor: 'user',
-                type: 'text',
-                query,
-            });
-            if (req.response.isComplete) {
-                msgs.push({
-                    actor: 'ai',
-                    type: 'text',
-                    query: req.response.response.asString(),
-                });
-            }
-            return msgs;
-        });
-        const messages = [...prevMessages];
-        messages.unshift({
-            actor: 'ai',
-            type: 'text',
-            query: systemPrompt
-        });
-        return messages;
     }
 
     /**
