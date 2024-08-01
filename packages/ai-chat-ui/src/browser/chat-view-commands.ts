@@ -13,19 +13,23 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { injectable } from '@theia/core/shared/inversify';
-import { LanguageModelToolServer, LanguageModelToolServiceFrontend } from '../common';
 
-@injectable()
-export class LanguageModelToolServerImpl implements LanguageModelToolServer {
+import { Command, nls } from '@theia/core';
+import { codicon } from '@theia/core/lib/browser';
 
-    protected client: LanguageModelToolServiceFrontend;
+export namespace ChatCommands {
+    const CHAT_CATEGORY = 'Chat';
+    const CHAT_CATEGORY_KEY = nls.getDefaultKey(CHAT_CATEGORY);
 
-    async callTool(agentId: string, toolId: string, arg_string: string): Promise<unknown> {
-        return this.client.callTool(agentId, toolId, arg_string);
-    }
+    export const LOCK__WIDGET = Command.toLocalizedCommand({
+        id: 'chat:widget:lock',
+        category: CHAT_CATEGORY,
+        iconClass: codicon('unlock')
+    }, '', CHAT_CATEGORY_KEY);
 
-    setClient(client: LanguageModelToolServiceFrontend): void {
-        this.client = client;
-    }
+    export const UNLOCK__WIDGET = Command.toLocalizedCommand({
+        id: 'chat:widget:unlock',
+        category: CHAT_CATEGORY,
+        iconClass: codicon('lock')
+    }, '', CHAT_CATEGORY_KEY);
 }

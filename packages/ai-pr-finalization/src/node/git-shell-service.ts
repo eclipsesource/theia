@@ -14,21 +14,20 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { injectable } from '@theia/core/shared/inversify';
-import { LanguageModelToolServiceFrontend } from '../common';
+import * as child_process from 'child_process';
+import { GitShellService } from '../common/git-shell-service-protocol';
 
 @injectable()
-export class LanguageModelToolServiceFrontendImpl implements LanguageModelToolServiceFrontend {
-    private callbackMap: Map<string, (toolId: string, arg_string: string) => unknown> = new Map();
-
-    registerToolCallback(agentId: string, callback: (toolId: string, arg_string: string) => unknown): void {
-        this.callbackMap.set(agentId, callback);
-    }
-    async callTool(agentId: string, toolId: string, arg_string: string): Promise<unknown> {
-        const callback = this.callbackMap.get(agentId);
-        if (callback) {
-            return callback(toolId, arg_string);
-        } else {
-            return Promise.reject(new Error(`No callback registered for agentId ${agentId}`));
-        }
+export class GitShellServiceImpl implements GitShellService {
+    async executeGitCommand(args: string[]): Promise<string> {
+        return new Promise((resolve, reject) => {
+            child_process.exec(`git ${args.join(' ')}`, (error, stdout, stderr) => {
+                if (error) {
+                    reject(stderr);
+                } else {
+                    resolve(stdout);
+                }
+            });
+        });
     }
 }

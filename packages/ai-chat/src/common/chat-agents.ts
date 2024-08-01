@@ -27,10 +27,10 @@ import {
     LanguageModelRegistry, LanguageModelStreamResponsePart,
     PromptTemplate
 } from '@theia/ai-core/lib/common';
-import { TODAY_VARIABLE } from '@theia/ai-core/lib/today-variable-contribution';
-import { generateUuid, ILogger, isArray, MaybePromise } from '@theia/core';
+import { TODAY_VARIABLE } from '@theia/ai-core/lib/common/today-variable-contribution';
+import { generateUuid, ILogger, isArray } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { ChatModel, ChatRequestModelImpl, ChatResponseContent, CodeChatResponseContentImpl, MarkdownChatResponseContentImpl } from './chat-model';
+import { ChatModel, ChatRequestModelImpl, ChatResponseContent, CodeChatResponseContentImpl, MarkdownChatResponseContentImpl, ToolCallResponseContentImpl } from './chat-model';
 import { ChatMessage } from './chat-util';
 
 export enum ChatAgentLocation {
@@ -126,7 +126,7 @@ export class DefaultChatAgent implements ChatAgent {
             for await (const token of languageModelResponse.stream) {
                 const newContents = this.parse(token, request.response.response.content);
                 if (isArray(newContents)) {
-                    newContents.forEach(request.response.response.addContent);
+                    newContents.forEach(newContent => request.response.response.addContent(newContent));
                 } else {
                     request.response.response.addContent(newContents);
                 }
@@ -207,7 +207,7 @@ export class DefaultChatAgent implements ChatAgent {
         return languageModelResponse;
     }
 
-    protected getMessages(model: ChatModel, includeResponseInProgress = false, systemMessage?: string): MaybePromise<ChatMessage[]> {
+    protected async getMessages(model: ChatModel, includeResponseInProgress = false): Promise<ChatMessage[]> {
         const requestMessages = model.getRequests().flatMap(request => {
             const messages: ChatMessage[] = [];
             const query = request.message.parts.map(part => part.promptText).join('');
@@ -225,6 +225,7 @@ export class DefaultChatAgent implements ChatAgent {
             }
             return messages;
         });
+        const systemMessage = await this.getSystemMessage();
         if (systemMessage) {
             const systemMsg: ChatMessage = {
                 actor: 'system',
@@ -237,8 +238,23 @@ export class DefaultChatAgent implements ChatAgent {
         return requestMessages;
     }
 
+    protected async getSystemMessage(): Promise<string | undefined> {
+        return undefined;
+    }
+
     private parse(token: LanguageModelStreamResponsePart, previousContent: ChatResponseContent[]): ChatResponseContent | ChatResponseContent[] {
-        return new MarkdownChatResponseContentImpl(token.content ?? '');
+        const content = token.content;
+        // eslint-disable-next-line no-null/no-null
+        if (content !== undefined && content !== null) {
+            return new MarkdownChatResponseContentImpl(content);
+        }
+        const toolCalls = token.tool_calls;
+        if (toolCalls !== undefined) {
+            const toolCallContents = toolCalls.map(toolCall =>
+                new ToolCallResponseContentImpl(toolCall.id, toolCall.function?.name, toolCall.function?.arguments, toolCall.finished, toolCall.result));
+            return toolCallContents;
+        }
+        return new MarkdownChatResponseContentImpl('');
     }
 }
 

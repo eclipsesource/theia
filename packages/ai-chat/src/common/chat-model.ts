@@ -124,6 +124,20 @@ export interface CodeChatResponseContent
     location?: Location;
 }
 
+export interface HorizontalLayoutChatResponseContent extends BaseChatResponseContent {
+    kind: 'horizontal';
+    content: BaseChatResponseContent[];
+}
+
+export interface ToolCallResponseContent extends Required<BaseChatResponseContent> {
+    kind: 'toolCall';
+    id?: string;
+    name?: string;
+    arguments?: string;
+    finished: boolean;
+    result?: string;
+}
+
 export interface Location {
     uri: URI;
     position: Position;
@@ -134,11 +148,11 @@ export function isLocation(obj: unknown): obj is Location {
         'position' in obj && Position.is((obj as { position: unknown }).position);
 }
 
-export interface CommandChatResponseContent
-    extends BaseChatResponseContent {
+export interface CommandChatResponseContent extends BaseChatResponseContent {
     kind: 'command';
     command: Command;
-    commandHandler?: () => Promise<void>;
+    commandHandler?: (...commandArgs: unknown[]) => Promise<void>;
+    arguments?: unknown[];
 }
 
 export const isTextChatResponseContent = (
@@ -173,12 +187,28 @@ export const isCodeChatResponseContent = (
     'code' in obj &&
     typeof (obj as { code: unknown }).code === 'string';
 
+export const isHorizontalLayoutChatResponseContent = (obj: unknown): obj is HorizontalLayoutChatResponseContent =>
+    isBaseChatResponseContent(obj) &&
+    obj.kind === 'horizontal' &&
+    'content' in obj &&
+    Array.isArray((obj as { content: unknown }).content) &&
+    (obj as { content: unknown[] }).content.every(isBaseChatResponseContent);
+
+export const isToolCallChatResponseContent = (
+    obj: unknown
+): obj is ToolCallResponseContent =>
+    isBaseChatResponseContent(obj) &&
+    obj.kind === 'toolCall';
+
+
 export type ChatResponseContent =
     | BaseChatResponseContent
     | TextChatResponseContent
     | MarkdownChatResponseContent
     | CommandChatResponseContent
-    | CodeChatResponseContent;
+    | CodeChatResponseContent
+    | HorizontalLayoutChatResponseContent
+    | ToolCallResponseContent;
 
 export interface ChatResponse {
     readonly content: ChatResponseContent[];
@@ -349,16 +379,75 @@ export class CodeChatResponseContentImpl implements CodeChatResponseContent {
     }
 }
 
+export class ToolCallResponseContentImpl implements ToolCallResponseContent {
+    kind: 'toolCall' = 'toolCall';
+    protected _id?: string;
+    protected _name?: string;
+    protected _arguments?: string;
+    protected _finished?: boolean;
+    protected _result?: string;
+
+    constructor(id?: string, name?: string, arg_string?: string, finished?: boolean, result?: string) {
+        this._id = id;
+        this._name = name;
+        this._arguments = arg_string;
+        this._finished = finished;
+        this._result = result;
+    }
+
+    get id(): string | undefined {
+        return this._id;
+    }
+
+    get name(): string | undefined {
+        return this._name;
+    }
+
+    get arguments(): string | undefined {
+        return this._arguments;
+    }
+
+    get finished(): boolean {
+        return this._finished === undefined ? false : this._finished;
+    }
+    get result(): string | undefined {
+        return this._result;
+    }
+
+    asString(): string {
+        return `Tool call: ${this._name}(${this._arguments ?? ''})`;
+    }
+    merge(nextChatResponseContent: ToolCallResponseContent): boolean {
+        if (nextChatResponseContent.id === this.id) {
+            this._finished = nextChatResponseContent.finished;
+            this._result = nextChatResponseContent.result;
+            return true;
+        }
+        if (nextChatResponseContent.name !== undefined) {
+            return false;
+        }
+        if (nextChatResponseContent.arguments === undefined) {
+            return false;
+        }
+        this._arguments += `${nextChatResponseContent.arguments}`;
+        return true;
+    }
+}
+
 export const COMMAND_CHAT_RESPONSE_COMMAND: Command = {
     id: 'ai-chat.command-chat-response.generic'
 };
 export class CommandChatResponseContentImpl implements CommandChatResponseContent {
     kind: 'command' = 'command';
-    protected _command: Command;
-    protected _commandHandler?: () => Promise<void>;
 
-    constructor(command: Command = COMMAND_CHAT_RESPONSE_COMMAND, commandHandler?: () => Promise<void>) {
+    arguments: unknown[] | undefined;
+
+    protected _command: Command;
+    protected _commandHandler?: (...commandArgs: unknown[]) => Promise<void>;
+
+    constructor(command: Command = COMMAND_CHAT_RESPONSE_COMMAND, args?: unknown[], commandHandler?: (...commandArgs: unknown[]) => Promise<void>) {
         this._command = command;
+        this.arguments = args;
         this._commandHandler = commandHandler;
     }
 
@@ -366,12 +455,38 @@ export class CommandChatResponseContentImpl implements CommandChatResponseConten
         return this._command;
     }
 
-    get commandHandler(): (() => Promise<void>) | undefined {
+    get commandHandler(): ((...commandArgs: unknown[]) => Promise<void>) | undefined {
         return this._commandHandler;
     }
 
     asString(): string {
         return this._command.id;
+    }
+}
+
+export class HorizontalLayoutChatResponseContentImpl implements HorizontalLayoutChatResponseContent {
+    kind: 'horizontal' = 'horizontal';
+    protected _content: BaseChatResponseContent[];
+
+    constructor(content: BaseChatResponseContent[] = []) {
+        this._content = content;
+    }
+
+    get content(): BaseChatResponseContent[] {
+        return this._content;
+    }
+
+    asString(): string {
+        return this._content.map(child => child.asString && child.asString()).join(' ');
+    }
+
+    merge(nextChatResponseContent: BaseChatResponseContent): boolean {
+        if (isHorizontalLayoutChatResponseContent(nextChatResponseContent)) {
+            this._content.push(...nextChatResponseContent.content);
+        } else {
+            this._content.push(nextChatResponseContent);
+        }
+        return true;
     }
 }
 
@@ -394,17 +509,26 @@ class ChatResponseImpl implements ChatResponse {
         // TODO: Support more complex merges affecting different content than the last, e.g. via some kind of ProcessorRegistry
         // TODO: Support more of the built-in VS Code behavior, see
         //   https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatModel.ts#L188-L244
-        const lastElement =
-            this._content.length > 0
-                ? this._content[this._content.length - 1]
-                : undefined;
-        if (lastElement?.kind === nextContent.kind && hasMerge(lastElement)) {
-            const mergeSuccess = lastElement.merge(nextContent);
-            if (!mergeSuccess) {
+        if (isToolCallChatResponseContent(nextContent) && nextContent.id !== undefined) {
+            const fittingTool = this._content.find(c => isToolCallChatResponseContent(c) && c.id === nextContent.id);
+            if (fittingTool !== undefined) {
+                fittingTool.merge?.(nextContent);
+            } else {
                 this._content.push(nextContent);
             }
         } else {
-            this._content.push(nextContent);
+            const lastElement =
+                this._content.length > 0
+                    ? this._content[this._content.length - 1]
+                    : undefined;
+            if (lastElement?.kind === nextContent.kind && hasMerge(lastElement)) {
+                const mergeSuccess = lastElement.merge(nextContent);
+                if (!mergeSuccess) {
+                    this._content.push(nextContent);
+                }
+            } else {
+                this._content.push(nextContent);
+            }
         }
         this._updateResponseRepresentation();
         this._onDidChangeEmitter.fire();

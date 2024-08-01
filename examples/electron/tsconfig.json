@@ -21,6 +21,9 @@
       "path": "../../packages/ai-code-completion"
     },
     {
+      "path": "../../packages/ai-code-fix"
+    },
+    {
       "path": "../../packages/ai-core"
     },
     {
@@ -34,6 +37,9 @@
     },
     {
       "path": "../../packages/ai-openai"
+    },
+    {
+      "path": "../../packages/ai-pr-finalization"
     },
     {
       "path": "../../packages/ai-rag-provider"

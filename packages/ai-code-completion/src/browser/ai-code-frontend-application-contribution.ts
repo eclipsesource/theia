@@ -30,7 +30,7 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
 
     private disposable: monaco.IDisposable | undefined;
 
-    onStart(): void {
+    onDidInitializeLayout(): void {
         const enableCodeCompletion = this.preferenceService.get<boolean>('ai-code-completion.enable', false);
         if (enableCodeCompletion) {
             this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
