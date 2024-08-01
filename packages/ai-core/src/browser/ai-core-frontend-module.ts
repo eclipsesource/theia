@@ -13,7 +13,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { bindContributionProvider, CommandContribution } from '@theia/core';
+import { bindContributionProvider, CommandContribution, CommandHandler } from '@theia/core';
 import {
     RemoteConnectionProvider,
     ServiceConnectionProvider,
@@ -60,7 +60,7 @@ import { PromptTemplateContribution } from './prompttemplate-contribution';
 import { TheiaVariableContribution } from './theia-variable-contribution';
 import { TodayVariableContribution } from '../common/today-variable-contribution';
 import { AgentsVariableContribution } from '../common/agents-variable-contribution';
-import { AIViewFrontendApplicationContribution } from './ai-view-contribution';
+import { AIActivationService, AICommandHandlerFactory } from './ai-activation-service';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, LanguageModelProvider);
@@ -140,4 +140,17 @@ export default new ContainerModule(bind => {
 
     bind(FunctionCallRegistry).to(FunctionCallRegistryImpl).inSingletonScope();
     bindContributionProvider(bind, ToolProvider);
+
+    bind(AIActivationService).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(AIActivationService);
+
+    bind(AICommandHandlerFactory).toFactory<CommandHandler>(context => (handler: CommandHandler) => {
+        context.container.get(AIActivationService);
+        return {
+            execute: (...args: unknown[]) => handler.execute(...args),
+            isEnabled: (...args: unknown[]) => handler.isEnabled?.(...args) ?? true,
+            isVisible: (...args: unknown[]) => handler.isVisible?.(...args) ?? true,
+            isToggled: (...args: unknown[]) => handler.isToggled?.(...args) ?? false
+        };
+    });
 });

@@ -19,33 +19,40 @@ import * as monaco from '@theia/monaco-editor-core';
 import { FrontendApplicationContribution, PreferenceService } from '@theia/core/lib/browser';
 import { AICodeCompletionProvider } from './ai-code-completion-provider';
 import { inject, injectable } from '@theia/core/shared/inversify';
+import { AIActivationService } from '@theia/ai-core/lib/browser';
 
 @injectable()
 export class AIFrontendApplicationContribution implements FrontendApplicationContribution {
     @inject(AICodeCompletionProvider)
-    private codeCompletionProvider: AICodeCompletionProvider;
+    protected codeCompletionProvider: AICodeCompletionProvider;
 
     @inject(PreferenceService)
-    private readonly preferenceService: PreferenceService;
+    protected readonly preferenceService: PreferenceService;
+
+    @inject(AIActivationService)
+    protected readonly activationService: AIActivationService;
 
     private disposable: monaco.IDisposable | undefined;
 
+    protected get isCodeCompletionEnabled(): boolean {
+        return this.preferenceService.get<boolean>('ai-code-completion.enable', false);
+    }
+
     onDidInitializeLayout(): void {
-        const enableCodeCompletion = this.preferenceService.get<boolean>('ai-code-completion.enable', false);
-        if (enableCodeCompletion) {
+        if (this.isCodeCompletionEnabled && this.activationService.isActive) {
             this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
         }
-        this.preferenceService.onPreferenceChanged(event => {
-            if (event.preferenceName === 'ai-code-completion.enable') {
-                if (this.disposable) {
-                    this.disposable.dispose();
-                    this.disposable = undefined;
-                }
-                if (event.newValue) {
-                    this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
-                }
-            }
-        });
+
+    }
+
+    protected handlePreferenceChange(isCodeCompletionEnabled: boolean, isActive: boolean): void {
+        if (this.disposable) {
+            this.disposable.dispose();
+            this.disposable = undefined;
+        }
+        if (isActive && isCodeCompletionEnabled) {
+            this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
+        }
     }
 
     onStop(): void {

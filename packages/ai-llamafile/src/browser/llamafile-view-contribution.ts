@@ -13,7 +13,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { AIViewContribution } from '@theia/ai-core/lib/browser';
+import { AIViewContribution, EXPERIMENTAL_AI_CONTEXT_KEY } from '@theia/ai-core/lib/browser';
 import { CommandRegistry, MenuModelRegistry } from '@theia/core';
 import { CommonMenus } from '@theia/core/lib/browser';
 import { injectable } from '@theia/core/shared/inversify';
@@ -33,17 +33,16 @@ export class LlamafileViewContribution extends AIViewContribution<LlamafileListW
 
     override registerCommands(commands: CommandRegistry): void {
         super.registerCommands(commands);
-        commands.registerCommand({ id: 'llamafile-view:add', label: 'Add Item' }, {
-            isEnabled: () => this.isExperimentalEnabled,
+        commands.registerCommand({ id: 'llamafile-view:add', label: 'Add Item' }, this.commandHandlerFactory({
             execute: () => this.openView({ activate: true }).then(widget => widget.addItem())
-        });
+        }));
     }
 
     override registerMenus(menus: MenuModelRegistry): void {
         super.registerMenus(menus);
         menus.registerMenuAction(CommonMenus.EDIT_FIND, {
             commandId: 'llamafile-view:add',
-            when: AIViewContribution.EXPERIMENTAL_AI_CONTEXT_KEY,
+            when: EXPERIMENTAL_AI_CONTEXT_KEY,
             label: 'Add Item'
         });
     }
