@@ -70,6 +70,7 @@ export interface ChatRequestModel {
     readonly request: ChatRequest;
     readonly response: ChatResponseModel;
     readonly message: ParsedChatRequest;
+    readonly agentId?: string;
 }
 
 export interface ChatProgressMessage {
@@ -205,6 +206,7 @@ export interface ChatResponseModel {
     readonly response: ChatResponse;
     readonly isComplete: boolean;
     readonly isCanceled: boolean;
+    readonly agentId?: string
 }
 
 /**********************
@@ -232,8 +234,8 @@ export class ChatModelImpl implements ChatModel {
         return this._id;
     }
 
-    addRequest(parsedChatRequest: ParsedChatRequest): ChatRequestModelImpl {
-        const requestModel = new ChatRequestModelImpl(this, parsedChatRequest);
+    addRequest(parsedChatRequest: ParsedChatRequest, agentId?: string): ChatRequestModelImpl {
+        const requestModel = new ChatRequestModelImpl(this, parsedChatRequest, agentId);
         this._requests.push(requestModel);
         this._onDidChangeEmitter.fire({
             kind: 'addRequest',
@@ -248,13 +250,15 @@ export class ChatRequestModelImpl implements ChatRequestModel {
     protected _session: ChatModel;
     protected _request: ChatRequest;
     protected _response: ChatResponseModelImpl;
+    protected _agentId?: string;
 
-    constructor(session: ChatModel, public readonly message: ParsedChatRequest) {
+    constructor(session: ChatModel, public readonly message: ParsedChatRequest, agentId?: string) {
         // TODO accept serialized data as a parameter to restore a previously saved ChatRequestModel
         this._request = message.request;
         this._id = generateUuid();
         this._session = session;
-        this._response = new ChatResponseModelImpl(this._id);
+        this._response = new ChatResponseModelImpl(this._id, agentId);
+        this._agentId = agentId;
     }
 
     get id(): string {
@@ -272,6 +276,11 @@ export class ChatRequestModelImpl implements ChatRequestModel {
     get response(): ChatResponseModelImpl {
         return this._response;
     }
+
+    get agentId(): string | undefined {
+        return this._agentId;
+    }
+
 }
 
 export class TextChatResponseContentImpl implements TextChatResponseContent {
@@ -322,10 +331,10 @@ export class MarkdownChatResponseContentImpl implements MarkdownChatResponseCont
 export class CodeChatResponseContentImpl implements CodeChatResponseContent {
     kind: 'code' = 'code';
     protected _code: string;
-    protected _language: string;
+    protected _language?: string;
     protected _location?: Location;
 
-    constructor(code: string, language: string, location?: Location) {
+    constructor(code: string, language?: string, location?: Location) {
         this._code = code;
         this._language = language;
         this._location = location;
@@ -335,7 +344,7 @@ export class CodeChatResponseContentImpl implements CodeChatResponseContent {
         return this._code;
     }
 
-    get language(): string {
+    get language(): string | undefined {
         return this._language;
     }
 
@@ -478,8 +487,9 @@ class ChatResponseModelImpl implements ChatResponseModel {
     protected _response: ChatResponseImpl;
     protected _isComplete: boolean;
     protected _isCanceled: boolean;
+    protected _agentId?: string;
 
-    constructor(requestId: string) {
+    constructor(requestId: string, agentId?: string) {
         // TODO accept serialized data as a parameter to restore a previously saved ChatResponseModel
         this._requestId = requestId;
         this._id = generateUuid();
@@ -489,6 +499,7 @@ class ChatResponseModelImpl implements ChatResponseModel {
         this._response = response;
         this._isComplete = false;
         this._isCanceled = false;
+        this._agentId = agentId;
     }
 
     get id(): string {
@@ -513,6 +524,10 @@ class ChatResponseModelImpl implements ChatResponseModel {
 
     get isCanceled(): boolean {
         return this._isCanceled;
+    }
+
+    get agentId(): string | undefined {
+        return this._agentId;
     }
 
     complete(): void {

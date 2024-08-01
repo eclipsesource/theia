@@ -14,9 +14,13 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import * as monaco from '@theia/monaco-editor-core';
-import { Agent, getTextOfResponse, LanguageModelRegistry, LanguageModelSelector, PromptService, PromptTemplate } from '@theia/ai-core/lib/common';
+import {
+    Agent, CommunicationHistoryEntry, CommunicationRecordingService, getTextOfResponse,
+    LanguageModelRegistry, LanguageModelRequest, LanguageModelRequirement, PromptService, PromptTemplate
+} from '@theia/ai-core/lib/common';
+import { generateUuid } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
+import * as monaco from '@theia/monaco-editor-core';
 
 export const CodeCompletionAgent = Symbol('CodeCompletionAgent');
 export interface CodeCompletionAgent extends Agent {
@@ -26,13 +30,16 @@ export interface CodeCompletionAgent extends Agent {
 
 @injectable()
 export class CodeCompletionAgentImpl implements CodeCompletionAgent {
-    variables: string[];
+    variables: string[] = [];
 
     @inject(LanguageModelRegistry)
     protected languageModelRegistry: LanguageModelRegistry;
 
     @inject(PromptService)
     protected promptService: PromptService;
+
+    @inject(CommunicationRecordingService)
+    protected recordingService: CommunicationRecordingService;
 
     async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
         context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
@@ -76,9 +83,28 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         }
         console.log('Code completion agent is using prompt:', prompt);
 
-        const response = await languageModel.request(({ messages: [{ type: 'text', actor: 'user', query: prompt }] }));
+        // since we do not actually hold complete conversions, the request/response pair is considered a session
+        const sessionId = generateUuid();
+        const requestId = generateUuid();
+        const request: LanguageModelRequest = { messages: [{ type: 'text', actor: 'user', query: prompt }] };
+        const requestEntry: CommunicationHistoryEntry = {
+            agentId: this.id,
+            sessionId,
+            timestamp: Date.now(),
+            requestId,
+            request: prompt
+        };
+        this.recordingService.recordRequest(requestEntry);
+        const response = await languageModel.request(request);
         const completionText = await getTextOfResponse(response);
         console.log('Code completion suggests', completionText);
+        this.recordingService.recordResponse({
+            agentId: this.id,
+            sessionId,
+            timestamp: Date.now(),
+            requestId,
+            response: completionText
+        });
 
         const suggestions: monaco.languages.CompletionItem[] = [];
         const completionItem: monaco.languages.CompletionItem = {
@@ -100,18 +126,16 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
     promptTemplates: PromptTemplate[] = [
         {
             id: 'code-completion-prompt',
-            template: `
-            You are a code completion agent. The current file you have to complete is named \${file}.
-            The language of the file is \${language}. Return your result as plain text without markdown formatting.
-            Finish the following code snippet.
+            template: `You are a code completion agent. The current file you have to complete is named \${file}.
+The language of the file is \${language}. Return your result as plain text without markdown formatting.
+Finish the following code snippet.
 
-            \${snippet}
+\${snippet}
 
-            Only return the exact replacement for {{MARKER}} to complete the snippet.
-            `,
+Only return the exact replacement for {{MARKER}} to complete the snippet.`,
         }
     ];
-    languageModelRequirements: Omit<LanguageModelSelector, 'agent'>[] = [{
+    languageModelRequirements: LanguageModelRequirement[] = [{
         purpose: 'code-completion',
         identifier: 'openai/gpt-4o'
     }];

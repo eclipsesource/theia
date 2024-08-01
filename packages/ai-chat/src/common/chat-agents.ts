@@ -19,16 +19,15 @@
  *--------------------------------------------------------------------------------------------*/
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatAgents.ts
 
-import { CommunicationRecordingService } from '@theia/ai-core';
+import { CommunicationRecordingService, LanguageModelRequirement } from '@theia/ai-core';
 import {
     Agent,
     isLanguageModelStreamResponse,
     isLanguageModelTextResponse,
-    LanguageModelRegistry,
-    LanguageModelSelector,
-    LanguageModelStreamResponsePart,
+    LanguageModelRegistry, LanguageModelStreamResponsePart,
     PromptTemplate
 } from '@theia/ai-core/lib/common';
+import { TODAY_VARIABLE } from '@theia/ai-core/lib/today-variable-contribution';
 import { generateUuid, ILogger, isArray } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatRequestModelImpl, ChatResponseContent, CodeChatResponseContentImpl, MarkdownChatResponseContentImpl } from './chat-model';
@@ -57,6 +56,7 @@ export namespace ChatAgentLocation {
 
 export interface ChatAgentData extends Agent {
     locations: ChatAgentLocation[];
+    iconClass?: string;
 }
 
 export const ChatAgent = Symbol('ChatAgent');
@@ -75,16 +75,20 @@ export class DefaultChatAgent implements ChatAgent {
     protected recordingService: CommunicationRecordingService;
 
     id: string = 'DefaultChatAgent';
-    name: string = 'Default Chat Agent';
+    name: string = 'DefaultChatAgent';
+    iconClass = 'codicon codicon-copilot';
     description: string = 'The default chat agent provided by Theia.';
-    variables: string[] = [];
+    variables: string[] = [TODAY_VARIABLE.id];
     promptTemplates: PromptTemplate[] = [];
     // FIXME: placeholder values
-    languageModelRequirements: Omit<LanguageModelSelector, 'agent'>[] = [{
+    languageModelRequirements: LanguageModelRequirement[] = [{
         purpose: 'chat',
         identifier: 'openai/gpt-4o',
+    }, {
+        purpose: 'general',
+        identifier: 'openai/gpt-4',
     }];
-    locations: ChatAgentLocation[] = [];
+    locations: ChatAgentLocation[] = ChatAgentLocation.ALL;
 
     async invoke(request: ChatRequestModelImpl): Promise<void> {
         this.recordingService.recordRequest({
@@ -135,27 +139,30 @@ export class DefaultChatAgent implements ChatAgent {
                 let curSearchIndex = 0;
                 const result: ChatResponseContent[] = [];
                 while (curSearchIndex < text.length) {
+                    // find start of code block: ```[language]\n<code>[\n]```
                     const codeStartIndex = text.indexOf('```', curSearchIndex);
                     if (codeStartIndex === -1) {
                         break;
                     }
+
+                    // find language specifier if present
                     const newLineIndex = text.indexOf('\n', codeStartIndex + 3);
-                    let language = '';
-                    if (codeStartIndex + 3 === newLineIndex) {
-                        // no language
-                    } else {
-                        language = text.substring(codeStartIndex + 3, newLineIndex);
-                    }
+                    const language = codeStartIndex + 3 < newLineIndex ? text.substring(codeStartIndex + 3, newLineIndex) : undefined;
+
+                    // find end of code block
                     const codeEndIndex = text.indexOf('```', codeStartIndex + 3);
                     if (codeEndIndex === -1) {
                         break;
                     }
+
+                    // add text before code block as markdown content
                     result.push(new MarkdownChatResponseContentImpl(text.substring(curSearchIndex, codeStartIndex)));
-                    const codeText = text.substring(codeStartIndex + 3, codeEndIndex);
-                    // FIXME remove ! after language is optional
-                    result.push(new CodeChatResponseContentImpl(codeText, language!));
+                    // add code block as code content
+                    const codeText = text.substring(newLineIndex + 1, codeEndIndex).trimEnd();
+                    result.push(new CodeChatResponseContentImpl(codeText, language));
                     curSearchIndex = codeEndIndex + 3;
                 }
+
                 if (result.length > 0) {
                     result.forEach(r => {
                         request.response.response.addContent(r);
@@ -204,12 +211,13 @@ export class DummyChatAgent implements ChatAgent {
     protected recordingService: CommunicationRecordingService;
 
     id: string = 'DummyChatAgent';
-    name: string = 'Dummy Chat Agent';
+    name: string = 'DummyChatAgent';
+    iconClass = 'codicon codicon-bug';
     description: string = 'The dummy chat agent provided by ES.';
-    variables: string[] = [];
+    variables: string[] = [TODAY_VARIABLE.id];
     promptTemplates: PromptTemplate[] = [];
-    languageModelRequirements: Omit<LanguageModelSelector, 'agentId'>[] = [];
-    locations: ChatAgentLocation[] = [];
+    languageModelRequirements: LanguageModelRequirement[] = [];
+    locations: ChatAgentLocation[] = ChatAgentLocation.ALL;
 
     async invoke(request?: ChatRequestModelImpl): Promise<void> {
         const requestUuid = generateUuid();
