@@ -138,6 +138,7 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
     get isLocked(): boolean {
         return !!this.state.locked;
     }
+
     get isExtractable(): boolean {
         return true;
     }
