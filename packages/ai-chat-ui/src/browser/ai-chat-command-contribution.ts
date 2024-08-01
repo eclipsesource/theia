@@ -20,6 +20,7 @@ import { inject, injectable } from '@theia/core/shared/inversify';
 import { codicon, WidgetManager } from '@theia/core/lib/browser';
 import { SecondaryWindowHandler } from '@theia/core/lib/browser/secondary-window-handler';
 import { ChatViewWidget } from './chat-view-widget';
+import { ChatCommands } from './chat-view-commands';
 
 export interface AIChatCommandArguments {
     command: Command;
@@ -30,12 +31,6 @@ export interface AIChatCommandArguments {
 const COMMAND_DEMO_SAY_HELLO: Command = {
     id: 'theia-ai:greet-command',
     label: 'Say Hello'
-};
-
-export const COMMAND_EXTRACT_CHAT_VIEW: Command = {
-    id: 'theia-ai:extract-chat-view',
-    label: 'Move Chat view into a separate window',
-    iconClass: codicon('window')
 };
 
 @injectable()
@@ -65,7 +60,7 @@ export class AIChatCommandContribution implements CommandContribution {
                 this.messageService.info(`Hello ${arg}!`);
             }
         });
-        commands.registerCommand(COMMAND_EXTRACT_CHAT_VIEW, {
+        commands.registerCommand(ChatCommands.EXTRACT_CHAT_VIEW, {
             execute: () => this.extractChatView(),
             isEnabled: () => this.canExtractChatView,
             isVisible: () => this.canExtractChatView

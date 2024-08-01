@@ -64,14 +64,6 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
 
     @postConstruct()
     protected init(): void {
-        this.toDispose.pushAll([
-            this.treeWidget,
-            this.inputWidget,
-            this.onStateChanged(newState => {
-                this.treeWidget.shouldScrollToEnd = !newState.locked;
-                this.update();
-            })
-        ]);
         const layout = this.layout = new PanelLayout();
         this.treeWidget.node.classList.add('chat-tree-view-widget');
         layout.addWidget(this.treeWidget);
@@ -110,6 +102,12 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
 
     protected override onAfterAttach(msg: Message): void {
         super.onAfterAttach(msg);
+        this.toDisposeOnDetach.pushAll([
+            this.onStateChanged(newState => {
+                this.treeWidget.shouldScrollToEnd = !newState.locked;
+                this.update();
+            })
+        ]);
     }
 
     private async onQuery(query: string): Promise<void> {
