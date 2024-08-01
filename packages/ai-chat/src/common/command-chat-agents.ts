@@ -280,7 +280,7 @@ export class CommandChatAgent implements ChatAgent {
         purpose: 'command',
         identifier: 'openai/gpt-4o',
     }];
-    locations: ChatAgentLocation[] = [];
+    locations: ChatAgentLocation[] = ChatAgentLocation.ALL;
 
     async invoke(request: ChatRequestModelImpl): Promise<void> {
         this.recordingService.recordRequest({
