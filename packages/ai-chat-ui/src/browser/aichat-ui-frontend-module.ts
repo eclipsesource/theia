@@ -39,13 +39,13 @@ export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
     bindViewContribution(bind, AIChatContribution);
     bindContributionProvider(bind, ChatResponsePartRenderer);
 
-    bind(ChatViewWidget).toSelf().inSingletonScope();
+    bind(ChatViewWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(context => ({
         id: ChatViewWidget.ID,
         createWidget: () => context.container.get<ChatViewWidget>(ChatViewWidget)
     })).inSingletonScope();
 
-    bind(ChatInputWidget).toSelf().inSingletonScope();
+    bind(ChatInputWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(context => ({
         id: ChatInputWidget.ID,
         createWidget: () => context.container.get<ChatInputWidget>(ChatInputWidget)
