@@ -58,6 +58,8 @@ export interface ChatModel {
     readonly id: string;
     readonly location: ChatAgentLocation;
     getRequests(): ChatRequestModel[];
+    addRequest(parsedChatRequest: ParsedChatRequest, agentId?: string): ChatRequestModel;
+    isEmpty(): boolean;
 }
 
 export interface ChatRequest {
@@ -201,7 +203,6 @@ export const isToolCallChatResponseContent = (
     isBaseChatResponseContent(obj) &&
     obj.kind === 'toolCall';
 
-
 export type ChatResponseContent =
     | BaseChatResponseContent
     | TextChatResponseContent
@@ -260,6 +261,10 @@ export class ChatModelImpl implements ChatModel {
             request: requestModel,
         });
         return requestModel;
+    }
+
+    isEmpty(): boolean {
+        return this._requests.length === 0;
     }
 }
 
