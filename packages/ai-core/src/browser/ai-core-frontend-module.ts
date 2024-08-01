@@ -45,21 +45,22 @@ import {
 import { bindViewContribution, FrontendApplicationContribution, WidgetFactory } from '@theia/core/lib/browser';
 import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate';
+import { TomorrowVariableContribution } from '../tomorrow-variable-contribution';
 import { AIAgentConfigurationWidget } from './ai-configuration/agent-configuration-widget';
+import { AIConfigurationSelectionService } from './ai-configuration/ai-configuration-service';
 import { AIAgentConfigurationViewContribution } from './ai-configuration/ai-configuration-view-contribution';
 import { AIConfigurationContainerWidget } from './ai-configuration/ai-configuration-widget';
 import { AIVariableConfigurationWidget } from './ai-configuration/variable-configuration-widget';
 import { AICoreFrontendApplicationContribution } from './ai-core-frontend-application-contribution';
+import { bindAICorePreferences } from './ai-core-preferences';
 import { AISettingsService } from './ai-settings-service';
 import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-customization-service';
 import { FrontendVariableService } from './frontend-variable-service';
-import { bindPromptPreferences } from './prompt-preferences';
 import { PromptTemplateContribution } from './prompttemplate-contribution';
-import { TomorrowVariableContribution } from '../tomorrow-variable-contribution';
-import { AIConfigurationSelectionService } from './ai-configuration/ai-configuration-service';
 import { TheiaVariableContribution } from './theia-variable-contribution';
 import { TodayVariableContribution } from '../common/today-variable-contribution';
 import { AgentsVariableContribution } from '../common/agents-variable-contribution';
+import { AIViewFrontendApplicationContribution } from './ai-view-contribution';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, LanguageModelProvider);
@@ -87,7 +88,7 @@ export default new ContainerModule(bind => {
         })
         .inSingletonScope();
 
-    bindPromptPreferences(bind);
+    bindAICorePreferences(bind);
 
     bind(FrontendPromptCustomizationServiceImpl).toSelf().inSingletonScope();
     bind(PromptCustomizationService).toService(FrontendPromptCustomizationServiceImpl);

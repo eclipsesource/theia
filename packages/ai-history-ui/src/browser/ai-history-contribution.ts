@@ -14,14 +14,14 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { FrontendApplication } from '@theia/core/lib/browser';
-import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-contribution';
+import { AIViewContribution } from '@theia/ai-core/lib/browser';
 import { injectable } from '@theia/core/shared/inversify';
 import { AIHistoryView } from './ai-history-widget';
 
 export const AI_HISTORY_TOGGLE_COMMAND_ID = 'aiHistory:toggle';
 
 @injectable()
-export class AIHistoryViewContribution extends AbstractViewContribution<AIHistoryView> {
+export class AIHistoryViewContribution extends AIViewContribution<AIHistoryView> {
     constructor() {
         super({
             widgetId: AIHistoryView.ID,

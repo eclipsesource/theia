@@ -12,18 +12,5 @@
 // https://www.gnu.org/software/classpath/license.html.
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
-// *****************************************************************************
-import { bindViewContribution, WidgetFactory } from '@theia/core/lib/browser';
-import { ContainerModule } from '@theia/core/shared/inversify';
-import { AIHistoryViewContribution } from './ai-history-contribution';
-import { AIHistoryView } from './ai-history-widget';
 
-export default new ContainerModule(bind => {
-    bindViewContribution(bind, AIHistoryViewContribution);
-
-    bind(AIHistoryView).toSelf();
-    bind(WidgetFactory).toDynamicValue(context => ({
-        id: AIHistoryView.ID,
-        createWidget: () => context.container.get<AIHistoryView>(AIHistoryView)
-    })).inSingletonScope();
-});
+export * from './ai-view-contribution';

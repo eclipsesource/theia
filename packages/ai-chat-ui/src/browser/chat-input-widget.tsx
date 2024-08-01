@@ -14,14 +14,16 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { Message, ReactWidget } from '@theia/core/lib/browser';
-import * as React from '@theia/core/shared/react';
 import { injectable, postConstruct } from '@theia/core/shared/inversify';
+import * as React from '@theia/core/shared/react';
 
 type Query = (query: string) => Promise<void>;
 
 @injectable()
 export class ChatInputWidget extends ReactWidget {
     public static ID = 'chat-input-widget';
+
+    protected isEnabled = false;
 
     private _onQuery: Query;
     set onQuery(query: Query) {
@@ -39,13 +41,19 @@ export class ChatInputWidget extends ReactWidget {
         this.node.focus({ preventScroll: true });
     }
     protected render(): React.ReactNode {
-        return <ChatInput onQuery={this._onQuery.bind(this)} />;
+        return <ChatInput onQuery={this._onQuery.bind(this)} isEnabled={this.isEnabled} />;
+    }
+
+    public setEnabled(enabled: boolean): void {
+        this.isEnabled = enabled;
+        this.update();
     }
 
 }
 
 interface ChatInputProperties {
     onQuery: (query: string) => void;
+    isEnabled?: boolean;
 }
 const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInputProperties) => {
 
@@ -74,6 +82,7 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
             ref={inputRef}
             className='theia-input theia-ChatInput'
             placeholder='Ask the AI...'
+            disabled={!props.isEnabled}
             onChange={e => {
                 adjustHeight(e.target);
                 setQuery(e.target.value);
@@ -93,7 +102,8 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
             <span
                 className="codicon codicon-send option"
                 title="Send (Enter)"
-                onClick={() => submit(inputRef.current?.value || '')}
+                onClick={!props.isEnabled ? () => submit(inputRef.current?.value || '') : undefined}
+                style={{ cursor: !props.isEnabled ? 'default' : 'pointer', opacity: !props.isEnabled ? 0.5 : 1 }}
             />
         </div>
     </div>;

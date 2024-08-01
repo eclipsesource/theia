@@ -32,4 +32,10 @@ export namespace ChatCommands {
         category: CHAT_CATEGORY,
         iconClass: codicon('lock')
     }, '', CHAT_CATEGORY_KEY);
+
+    export const OPEN_AICHAT_VIEW = Command.toLocalizedCommand({
+        id: 'ai-chat:open',
+        category: CHAT_CATEGORY,
+        label: 'Open AI Chat view (UI)',
+    }, '', CHAT_CATEGORY_KEY);
 }

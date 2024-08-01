@@ -21,9 +21,10 @@ import {
     ChatResponseContent,
     ChatResponseModel,
 } from '@theia/ai-chat';
-import { ContributionProvider } from '@theia/core';
+import { CommandRegistry, ContributionProvider } from '@theia/core';
 import {
     codicon,
+    CommonCommands,
     CompositeTreeNode,
     ContextMenuRenderer,
     NodeProps,
@@ -42,8 +43,8 @@ import {
 import * as React from '@theia/core/shared/react';
 
 import { MarkdownRenderer } from '@theia/core/lib/browser/markdown-rendering/markdown-renderer';
-import { ChatResponsePartRenderer } from '../types';
 import { MarkdownWrapper } from '../chat-response-renderer/markdown-part-renderer';
+import { ChatResponsePartRenderer } from '../types';
 
 // TODO Instead of directly operating on the ChatRequestModel we could use an intermediate view model
 interface RequestNode extends TreeNode {
@@ -70,7 +71,12 @@ export class ChatViewTreeWidget extends TreeWidget {
     @inject(ChatAgentService)
     protected chatAgentService: ChatAgentService;
 
+    @inject(CommandRegistry)
+    private commandRegistry: CommandRegistry;
+
     protected _shouldScrollToEnd = true;
+
+    protected isEnabled = false;
 
     set shouldScrollToEnd(shouldScrollToEnd: boolean) {
         this._shouldScrollToEnd = shouldScrollToEnd;
@@ -98,6 +104,11 @@ export class ChatViewTreeWidget extends TreeWidget {
             visible: false,
             children: [],
         } as CompositeTreeNode;
+
+        // Experimental features are disabled
+        if (!this.isEnabled) {
+            // this.node
+        }
     }
 
     @postConstruct()
@@ -107,6 +118,47 @@ export class ChatViewTreeWidget extends TreeWidget {
         this.id = ChatViewTreeWidget.ID + '-treeContainer';
         this.addClass('treeContainer');
     }
+
+    public setEnabled(enabled: boolean): void {
+        this.isEnabled = enabled;
+        this.update();
+    }
+
+    protected override renderTree(model: TreeModel): React.ReactNode {
+        if (this.isEnabled) {
+            return super.renderTree(model);
+        }
+        return this.renderDisabledMessage();
+    }
+
+    private renderDisabledMessage(): React.ReactNode {
+        return <div className={'theia-ResponseNode'}>
+            <div className='theia-ResponseNode-Content' key={'disabled-message'}>
+                <div className="disable-message">
+                    <span className="section-header">🚧 Experimental AI Feature Available! 🚀</span>
+                    <div className="section-title">
+                        <p>Currently, all AI Features are disabled!</p>
+                    </div>
+                    <span className="section-title">How to Enable Experimental AI Features:</span>
+                    <div className="section-content">
+                        <p>To enable the experimental AI features, please go to
+                            <a
+                                role={'button'}
+                                tabIndex={0}
+                                onClick={this.doOpenPreferences}>
+                                {' the settings menu '}
+                            </a>
+                            and locate the <strong>'Ai-core - Experimental: Enable'</strong> section.</p>
+                        <p>Toggle the switch for <strong>'Experimental: Enable'</strong>.</p>
+                        <p>TBD: Mention how to set the Open API Key here as well</p>
+                        <p>This will activate the new AI capabilities in the app. Remember, these features are still in development, so they may change or be unstable.</p>
+                    </div>
+                </div>
+            </div>
+        </div>;
+    }
+
+    protected doOpenPreferences = () => this.commandRegistry.executeCommand(CommonCommands.OPEN_PREFERENCES.id);
 
     private mapRequestToNode(request: ChatRequestModel): RequestNode {
         return {

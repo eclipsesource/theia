@@ -107,3 +107,14 @@ body {
   display: flex;
   align-items: center;
 }
+
+.gs-float {
+  float: right;
+  width: 50%;
+  padding-top: 100px;
+}
+
+.gs-container.gs-experimental-container {
+  border: 1px solid var(--theia-focusBorder);
+  padding: 15px;
+}

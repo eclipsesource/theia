@@ -14,10 +14,10 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-contribution';
-import { injectable } from '@theia/core/shared/inversify';
 import { CommandRegistry } from '@theia/core';
 import { Widget } from '@theia/core/lib/browser';
+import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-contribution';
+import { injectable } from '@theia/core/shared/inversify';
 import { ChatCommands } from './chat-view-commands';
 import { ChatViewWidget } from './chat-view-widget';
 
@@ -56,6 +56,9 @@ export class AIChatContribution extends AbstractViewContribution<ChatViewWidget>
                 chatWidget.unlock();
                 return true;
             })
+        });
+        registry.registerCommand(ChatCommands.OPEN_AICHAT_VIEW, {
+            execute: () => this.openView({ activate: true }),
         });
     }
 

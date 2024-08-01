@@ -13,13 +13,14 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { BaseWidget, codicon, Message, PanelLayout, StatefulWidget } from '@theia/core/lib/browser';
-import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
-import { nls } from '@theia/core/lib/common/nls';
-import { ChatViewTreeWidget } from './chat-tree-view/chat-view-tree-widget';
-import { ChatInputWidget } from './chat-input-widget';
 import { ChatModel, ChatRequest, ChatService } from '@theia/ai-chat';
-import { deepClone, Event, Emitter, MessageService } from '@theia/core';
+import { PREFERENCE_NAME_ENABLE_EXPERIMENTAL } from '@theia/ai-core/lib/browser/ai-core-preferences';
+import { CommandService, deepClone, Emitter, Event, MessageService } from '@theia/core';
+import { BaseWidget, codicon, Message, PanelLayout, PreferenceService, StatefulWidget } from '@theia/core/lib/browser';
+import { nls } from '@theia/core/lib/common/nls';
+import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
+import { ChatInputWidget } from './chat-input-widget';
+import { ChatViewTreeWidget } from './chat-tree-view/chat-view-tree-widget';
 
 export namespace ChatViewWidget {
     export interface State {
@@ -38,6 +39,12 @@ export class ChatViewWidget extends BaseWidget implements StatefulWidget {
 
     @inject(MessageService)
     private messageService: MessageService;
+
+    @inject(PreferenceService)
+    protected readonly preferenceService: PreferenceService;
+
+    @inject(CommandService)
+    protected readonly commandService: CommandService;
 
     // TODO: handle multiple sessions
     private chatModel: ChatModel;
@@ -58,6 +65,7 @@ export class ChatViewWidget extends BaseWidget implements StatefulWidget {
         this.title.iconClass = codicon('comment-discussion');
         this.title.closable = true;
         this.node.classList.add('chat-view-widget');
+        this.update();
     }
 
     @postConstruct()
@@ -71,14 +79,25 @@ export class ChatViewWidget extends BaseWidget implements StatefulWidget {
             })
         ]);
         const layout = this.layout = new PanelLayout();
+
+        // Experimental features are enabled
         this.treeWidget.node.classList.add('chat-tree-view-widget');
         layout.addWidget(this.treeWidget);
         this.inputWidget.node.classList.add('chat-input-widget');
         layout.addWidget(this.inputWidget);
         this.inputWidget.onQuery = this.onQuery.bind(this);
+        this.inputWidget.setEnabled(false);
         // TODO restore sessions if needed
         this.chatModel = this.chatService.createSession();
         this.treeWidget.trackChatModel(this.chatModel);
+
+        this.preferenceService.onPreferenceChanged(change => {
+            if (change.preferenceName === PREFERENCE_NAME_ENABLE_EXPERIMENTAL) {
+                this.treeWidget.setEnabled(change.newValue);
+                this.inputWidget.setEnabled(change.newValue);
+                this.update();
+            }
+        });
     }
 
     storeState(): object {

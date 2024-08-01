@@ -16,38 +16,37 @@
 
 import { bindContributionProvider, CommandContribution } from '@theia/core';
 import { bindViewContribution, WidgetFactory, } from '@theia/core/lib/browser';
+import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { ContainerModule } from '@theia/core/shared/inversify';
+import { EditorManager } from '@theia/editor/lib/browser';
+import { MonacoEditorProvider } from '@theia/monaco/lib/browser/monaco-editor-provider';
+import '../../src/browser/style/index.css';
 import { AIChatCommandContribution } from './ai-chat-command-contribution';
 import { AIChatContribution } from './aichat-ui-contribution';
 import { ChatInputWidget } from './chat-input-widget';
 import { CodePartRenderer, CommandPartRenderer, HorizontalLayoutPartRenderer, MarkdownPartRenderer, TextPartRenderer, ToolCallPartRenderer } from './chat-response-renderer';
-import { createChatViewTreeWidget } from './chat-tree-view';
-import { ChatViewTreeWidget } from './chat-tree-view/chat-view-tree-widget';
-import { ChatViewWidget } from './chat-view-widget';
-import { ChatResponsePartRenderer } from './types';
-
-import { EditorManager } from '@theia/editor/lib/browser';
-import '../../src/browser/style/index.css';
 import {
     AIEditorManager, AIEditorSelectionResolver,
     GitHubSelectionResolver, TextFragmentSelectionResolver, TypeDocSymbolSelectionResolver
 } from './chat-response-renderer/ai-editor-manager';
-import { ChatViewWidgetToolbarContribution } from './chat-view-widget-toolbar-contribution';
-import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
-import { MonacoEditorProvider } from '@theia/monaco/lib/browser/monaco-editor-provider';
 import { AIMonacoEditorProvider } from './chat-response-renderer/ai-monaco-editor-provider';
+import { createChatViewTreeWidget } from './chat-tree-view';
+import { ChatViewTreeWidget } from './chat-tree-view/chat-view-tree-widget';
+import { ChatViewWidget } from './chat-view-widget';
+import { ChatViewWidgetToolbarContribution } from './chat-view-widget-toolbar-contribution';
+import { ChatResponsePartRenderer } from './types';
 
 export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
     bindViewContribution(bind, AIChatContribution);
     bindContributionProvider(bind, ChatResponsePartRenderer);
 
-    bind(ChatViewWidget).toSelf().inSingletonScope();
+    bind(ChatViewWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(context => ({
         id: ChatViewWidget.ID,
         createWidget: () => context.container.get<ChatViewWidget>(ChatViewWidget)
     })).inSingletonScope();
 
-    bind(ChatInputWidget).toSelf().inSingletonScope();
+    bind(ChatInputWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(context => ({
         id: ChatInputWidget.ID,
         createWidget: () => context.container.get<ChatInputWidget>(ChatInputWidget)
