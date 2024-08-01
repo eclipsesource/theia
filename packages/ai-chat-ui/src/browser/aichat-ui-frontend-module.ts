@@ -39,7 +39,7 @@ import { ChatResponsePartRenderer } from './types';
 export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
     bindViewContribution(bind, AIChatContribution);
     bindContributionProvider(bind, ChatResponsePartRenderer);
-
+    
     bind(ChatViewWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(context => ({
         id: ChatViewWidget.ID,

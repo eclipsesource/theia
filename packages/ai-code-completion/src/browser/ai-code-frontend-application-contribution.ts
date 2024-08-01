@@ -43,6 +43,15 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
             this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
         }
 
+        this.activationService.onDidChangeActiveStatus(status => {
+            this.handlePreferenceChange(this.isCodeCompletionEnabled, status);
+        });
+        this.preferenceService.onPreferenceChanged(event => {
+            if (event.preferenceName === 'ai-code-completion.enable') {
+                this.handlePreferenceChange(event.newValue, this.activationService.isActive);
+            }
+        });
+
     }
 
     protected handlePreferenceChange(isCodeCompletionEnabled: boolean, isActive: boolean): void {
