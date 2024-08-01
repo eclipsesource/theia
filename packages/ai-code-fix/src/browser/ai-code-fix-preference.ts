@@ -15,15 +15,17 @@
 // *****************************************************************************
 
 import { PreferenceSchema } from '@theia/core/lib/browser/preferences/preference-contribution';
+import { AI_CORE_PREFERENCES_TITLE } from '@theia/ai-core/lib/browser/ai-core-preferences';
 
 export namespace AICodeFixPrefs {
-    export const ENABLED = 'AI Code Fixing';
+    export const ENABLED = 'ai-features.code-fix.enable';
 }
 
 export const AICodeFixPreferencesSchema: PreferenceSchema = {
     type: 'object',
     properties: {
         [AICodeFixPrefs.ENABLED]: {
+            title: AI_CORE_PREFERENCES_TITLE,
             type: 'boolean',
             description: 'Enable AI code fixing',
             default: false

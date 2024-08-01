@@ -20,21 +20,29 @@ import { PreferenceProxyFactory } from '@theia/core/lib/browser/preferences/inje
 import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
 import { inject, injectable, interfaces } from '@theia/core/shared/inversify';
 
-export const PREFERENCE_NAME_ENABLE_EXPERIMENTAL = 'ai-core.experimental.enable';
-export const PREFERENCE_NAME_PROMPT_TEMPLATES = 'ai-core.templates-folder';
+export const AI_CORE_PREFERENCES_TITLE = '✨ AI Features [Experimental]';
+export const PREFERENCE_NAME_ENABLE_EXPERIMENTAL = 'ai-features.ai-features.enable';
+export const PREFERENCE_NAME_PROMPT_TEMPLATES = 'ai-features.templates.templates-folder';
 
 export const aiCorePreferenceSchema: PreferenceSchema = {
     type: 'object',
     properties: {
         [PREFERENCE_NAME_ENABLE_EXPERIMENTAL]: {
-            description: '❗ This setting allows you to access and experiment with our latest AI capabilities.\
+            title: AI_CORE_PREFERENCES_TITLE,
+            markdownDescription: '❗ This setting allows you to access and experiment with our latest AI capabilities.\
+            \n\
             Please note that these features are in an experimental phase, which means they may be unstable,\
-            undergo significant changes, or incur additional costs. By enabling this option, you acknowledge\
-            these risks and agree to provide feedback to help us improve.',
+            undergo significant changes, or incur additional costs.\
+            \n\
+            By enabling this option, you acknowledge these risks and agree to provide feedback to help us improve.\
+            &nbsp;\n\
+            **Please note! The settings below in this section will only take effect\n\
+            once the main feature setting is enabled.**',
             type: 'boolean',
-            default: false
+            default: false,
         },
         [PREFERENCE_NAME_PROMPT_TEMPLATES]: {
+            title: AI_CORE_PREFERENCES_TITLE,
             description: 'Path of the folder containing custom prompt templates',
             type: 'string',
             default: '',
@@ -46,7 +54,8 @@ export const aiCorePreferenceSchema: PreferenceSchema = {
                     canSelectFolders: true,
                     canSelectMany: false
                 }
-            }
+            },
+
         }
     }
 };

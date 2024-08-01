@@ -15,16 +15,19 @@
 // *****************************************************************************
 
 import { PreferenceSchema } from '@theia/core/lib/browser/preferences/preference-contribution';
+import { AI_CORE_PREFERENCES_TITLE } from '@theia/ai-core/lib/browser/ai-core-preferences';
 
 export const AICodeCompletionPreferencesSchema: PreferenceSchema = {
     type: 'object',
     properties: {
-        'ai-code-completion.enable': {
+        'ai-features.code-completion.enable': {
+            title: AI_CORE_PREFERENCES_TITLE,
             type: 'boolean',
             description: 'Enable AI code completion',
             default: false
         },
-        'ai-code-completion.precompute': {
+        'ai-features.code-completion.precompute': {
+            title: AI_CORE_PREFERENCES_TITLE,
             type: 'boolean',
             description: 'Precompute completion before it is triggered',
             default: false

@@ -78,6 +78,8 @@ export class GettingStartedWidget extends ReactWidget {
     protected readonly compatibilityUrl = 'https://eclipse-theia.github.io/vscode-theia-comparator/status.html';
     protected readonly extensionUrl = 'https://www.theia-ide.org/docs/authoring_extensions';
     protected readonly pluginUrl = 'https://www.theia-ide.org/docs/authoring_plugins';
+    protected readonly theiaAIDocUrl = 'https://theia-ide.org/docs/user_ai/';
+    protected readonly ghProjectUrl = 'https://github.com/eclipse-theia/theia/issues/new/choose';
 
     @inject(ApplicationServer)
     protected readonly appServer: ApplicationServer;
@@ -131,7 +133,7 @@ export class GettingStartedWidget extends ReactWidget {
     protected render(): React.ReactNode {
         return <div className='gs-container'>
             <div className='gs-content-container'>
-                <div className='gs-float'>
+                <div className='gs-float shadow-pulse'>
                     {this.renderAIBanner()}
                 </div>
                 {this.renderHeader()}
@@ -394,21 +396,53 @@ export class GettingStartedWidget extends ReactWidget {
         return <div className='gs-container gs-experimental-container'>
             <div className='flex-grid'>
                 <div className='col'>
-                    <h3 className='gs-section-header'>🚧 Experimental AI Feature Available! 🚀</h3>
+                    <h3 className='gs-section-header'> 🚀 Theia AI (experimental) is available! ✨</h3>
+                    <br />
                     <div className='gs-action-container'>
-                        We are excited to introduce our new AI feature, currently in the experimental phase.
-                        Please note that this feature is still under development and may change frequently.
-                    </div>
-                    <div className='gs-action-container'>
+                        Theia IDE now contains the experimental "Theia AI" feature, which offers early access to cutting-edge AI capabilities within your IDE.
+                        <br />
+                        <br />
+                        Please note that these features are disabled by default, ensuring that users can opt-in at their discretion without any concerns.
+                        For those who choose to enable Theia AI, it is important to be aware that these experimental features may generate continuous
+                        requests to the language models (LLMs) you provide access to, potentially incurring additional costs.
+                        <br />
+                        For more details, please visit &nbsp;
                         <a
                             role={'button'}
                             tabIndex={0}
+                            onClick={() => this.doOpenExternalLink(this.theiaAIDocUrl)}
+                            onKeyDown={(e: React.KeyboardEvent) => this.doOpenExternalLinkEnter(e, this.theiaAIDocUrl)}>
+                            {'Theia AI Documentation'}
+                        </a>.
+                        <br />
+                        <br />
+                        We encourage feedback, contributions, and sponsorship to support the ongoing development of the Theia AI initiative use our&nbsp;
+                        <a
+                            role={'button'}
+                            tabIndex={0}
+                            onClick={() => this.doOpenExternalLink(this.ghProjectUrl)}
+                            onKeyDown={(e: React.KeyboardEvent) => this.doOpenExternalLinkEnter(e, this.ghProjectUrl)}>
+                            {'Github Project'}
+                        </a>.
+                        &nbsp;Thank you for being part of our community!
+                        <br />
+                        <br />
+                        Please note that this feature is currently in development and may undergo frequent changes. 🚧
+                    </div>
+                    <br />
+                    <div className='gs-action-container'>
+                        Let's dive in!<br /><br />
+                        <a
+                            role={'button'}
+                            style={{ fontSize: 'var(--theia-ui-font-size2)' }}
+                            tabIndex={0}
                             onClick={() => this.doOpenAIChatView()}
                             onKeyDown={(e: React.KeyboardEvent) => this.doOpenAIChatViewEnter(e)}>
-                            {'Open the AI Chat View to get a first glimpse! ✨'}
+                            {'Open the Theia AI Chat View now to catch a first glimpse and learn how to begin! ✨'}
                         </a>
                     </div>
-                    <p>Your feedback is invaluable. Please share your thoughts and experiences with us!</p>
+                    <br />
+                    <br />
                 </div>
             </div>
         </div>;

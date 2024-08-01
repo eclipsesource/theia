@@ -27,6 +27,8 @@ import {
     CommonCommands,
     CompositeTreeNode,
     ContextMenuRenderer,
+    Key,
+    KeyCode,
     NodeProps,
     TreeModel,
     TreeNode,
@@ -135,30 +137,77 @@ export class ChatViewTreeWidget extends TreeWidget {
         return <div className={'theia-ResponseNode'}>
             <div className='theia-ResponseNode-Content' key={'disabled-message'}>
                 <div className="disable-message">
-                    <span className="section-header">🚧 Experimental AI Feature Available! 🚀</span>
+                    <span className="section-header"> 🚀 Experimental AI Feature Available!</span>
                     <div className="section-title">
-                        <p>Currently, all AI Features are disabled!</p>
+                        <p><code>Currently, all AI Features are disabled!</code></p>
                     </div>
-                    <span className="section-title">How to Enable Experimental AI Features:</span>
+                    <div className="section-title">
+                        <p>How to Enable Experimental AI Features:</p>
+                    </div>
                     <div className="section-content">
-                        <p>To enable the experimental AI features, please go to
-                            <a
-                                role={'button'}
-                                tabIndex={0}
-                                onClick={this.doOpenPreferences}>
-                                {' the settings menu '}
-                            </a>
-                            and locate the <strong>'Ai-core - Experimental: Enable'</strong> section.</p>
-                        <p>Toggle the switch for <strong>'Experimental: Enable'</strong>.</p>
-                        <p>TBD: Mention how to set the Open API Key here as well</p>
-                        <p>This will activate the new AI capabilities in the app. Remember, these features are still in development, so they may change or be unstable.</p>
+                        <p>To enable the experimental AI features, please go to &nbsp;
+                            {this.renderLinkButton('the settings menu', this.doOpenPreferences, this.doOpenPreferencesEnter)}
+                            &nbsp;and locate the <strong>Extensions &gt; ✨ AI Features [Experimental]</strong> section.</p>
+                        <ol>
+                            <li>Toggle the switch for <strong>'Ai-features: Enable'</strong>.</li>
+                            <li>Provide an OpenAI API Key through the <strong>'OpenAI: API Key'</strong> setting or by
+                                setting the <strong>OPENAI_API_KEY</strong> environment variable.</li>
+                        </ol>
+                        <p>This will activate the new AI capabilities in the app. Please remember, these features are still in development, so they may change or be unstable. 🚧</p>
+                    </div>
+
+                    <div className="section-title">
+                        <p>Currently Supported Views and Features:</p>
+                    </div>
+                    <div className="section-content">
+                        <p>Once the experimental AI features are enabled, you can access the following views and features:</p>
+                        <ul>
+                            <li>Code Completion</li>
+                            <li>Quick Fixes</li>
+                            <li>Terminal Assistance</li>
+                            <li>{this.renderLinkButton('AI History View', this.doOpenAIHistory, this.doOpenAIHistoryEnter)}</li>
+                            <li>{this.renderLinkButton('AI Configuration View', this.doOpenAIConfiguration, this.doOpenAIConfigurationEnter)}</li>
+                        </ul>
                     </div>
                 </div>
             </div>
-        </div>;
+        </div >;
     }
 
     protected doOpenPreferences = () => this.commandRegistry.executeCommand(CommonCommands.OPEN_PREFERENCES.id);
+    protected doOpenPreferencesEnter = (e: React.KeyboardEvent) => {
+        if (this.isEnterKey(e)) {
+            this.doOpenPreferences();
+        }
+    };
+
+    protected doOpenAIHistory = () => this.commandRegistry.executeCommand('aiHistory:open');
+    protected doOpenAIHistoryEnter = (e: React.KeyboardEvent) => {
+        if (this.isEnterKey(e)) {
+            this.doOpenAIHistory();
+        }
+    };
+
+    protected doOpenAIConfiguration = () => this.commandRegistry.executeCommand('aiConfiguration:open');
+    protected doOpenAIConfigurationEnter = (e: React.KeyboardEvent) => {
+        if (this.isEnterKey(e)) {
+            this.doOpenAIConfiguration();
+        }
+    };
+
+    private renderLinkButton(title: string, onClickHandler: () => Promise<unknown>, onKeyDownHandler: (e: React.KeyboardEvent) => void): React.ReactNode {
+        return <a
+            role={'button'}
+            tabIndex={0}
+            onClick={onClickHandler}
+            onKeyDown={e => onKeyDownHandler(e)}>
+            {title}
+        </a>;
+    }
+
+    protected isEnterKey(e: React.KeyboardEvent): boolean {
+        return Key.ENTER.keyCode === KeyCode.createKeyCode(e.nativeEvent).key?.keyCode;
+    }
 
     private mapRequestToNode(request: ChatRequestModel): RequestNode {
         return {

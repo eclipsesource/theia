@@ -17,8 +17,13 @@ import { FrontendApplication } from '@theia/core/lib/browser';
 import { AIViewContribution } from '@theia/ai-core/lib/browser';
 import { injectable } from '@theia/core/shared/inversify';
 import { AIHistoryView } from './ai-history-widget';
+import { Command, CommandRegistry } from '@theia/core';
 
 export const AI_HISTORY_TOGGLE_COMMAND_ID = 'aiHistory:toggle';
+export const OPEN_AI_HISTORY_VIEW = Command.toLocalizedCommand({
+    id: 'aiHistory:open',
+    label: 'Open AI History view',
+});
 
 @injectable()
 export class AIHistoryViewContribution extends AIViewContribution<AIHistoryView> {
@@ -37,5 +42,12 @@ export class AIHistoryViewContribution extends AIViewContribution<AIHistoryView>
 
     async initializeLayout(_app: FrontendApplication): Promise<void> {
         await this.openView();
+    }
+
+    override registerCommands(commands: CommandRegistry): void {
+        super.registerCommands(commands);
+        commands.registerCommand(OPEN_AI_HISTORY_VIEW, {
+            execute: () => this.openView({ activate: true }),
+        });
     }
 }
