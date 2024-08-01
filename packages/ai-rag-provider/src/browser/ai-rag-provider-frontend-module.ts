@@ -19,8 +19,6 @@ import { ContainerModule } from '@theia/core/shared/inversify';
 import { RAG_SERVICE_PATH, RagService } from '../common';
 import { RemoteConnectionProvider, ServiceConnectionProvider } from '@theia/core/lib/browser/messaging/service-connection-provider';
 import { GLSPVariableContribution } from './glsp-variable-provider';
-import { CommandContribution } from '@theia/core';
-import { TriggerRagCommandContribution } from './ai-rag-provider-command';
 
 export default new ContainerModule(bind => {
     bind(RagService).toDynamicValue(ctx => {
@@ -28,6 +26,4 @@ export default new ContainerModule(bind => {
         return provider.createProxy<RagService>(RAG_SERVICE_PATH);
     }).inSingletonScope();
     bind(AIVariableContribution).to(GLSPVariableContribution).inSingletonScope();
-    bind(CommandContribution).to(TriggerRagCommandContribution);
-
 });
