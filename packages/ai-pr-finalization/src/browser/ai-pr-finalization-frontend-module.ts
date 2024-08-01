@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { AIVariableContribution } from '@theia/ai-core/lib/common';
+import { AIVariableContribution, Agent } from '@theia/ai-core/lib/common';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { AiPRFinalizationAgent } from './ai-pr-finalization-agent';
 import {
@@ -30,6 +30,7 @@ import { ChatAgent } from '@theia/ai-chat';
 
 export default new ContainerModule(bind => {
     bind(AiPRFinalizationAgent).toSelf().inSingletonScope();
+    bind(Agent).toService(AiPRFinalizationAgent);
     bind(ChatAgent).toService(AiPRFinalizationAgent);
 
     bind(GitCommandContribution).toSelf().inSingletonScope();

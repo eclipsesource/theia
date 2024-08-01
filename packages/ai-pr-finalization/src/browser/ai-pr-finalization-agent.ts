@@ -21,7 +21,7 @@ import { injectable } from '@theia/core/shared/inversify';
 export class AiPRFinalizationAgent extends DefaultChatAgent {
 
     override id = 'PrFinalization';
-    override name = 'PR Finalization';
+    override name = 'PRFinalization';
     override description = `
         This agent helps users to finish up commits for PRs.`;
     override variables = [];
@@ -63,7 +63,7 @@ Pull Request Guidance:
             name: 'AI PR Finalization User Prompt',
             description: 'User Prompt for the AI PR Finalization Assistant',
             template: `
-Please help me with creating a PR.
+@${this.name} Please help me with creating a PR.
 Here is my git status: #git-status.
 And here is my git-diff: #git-diff.
 `
