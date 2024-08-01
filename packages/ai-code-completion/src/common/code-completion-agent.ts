@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import {
-    Agent, CommunicationHistoryEntry, CommunicationRecordingService, getTextOfResponse,
+    Agent, CommunicationHistoryEntry, CommunicationRecordingService, getTextResponse,
     LanguageModelRegistry, LanguageModelRequest, LanguageModelRequirement, PromptService, PromptTemplate
 } from '@theia/ai-core/lib/common';
 import { generateUuid } from '@theia/core';
@@ -96,7 +96,7 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         };
         this.recordingService.recordRequest(requestEntry);
         const response = await languageModel.request(request);
-        const completionText = await getTextOfResponse(response);
+        const completionText = await getTextResponse(response);
         console.log('Code completion suggests', completionText);
         this.recordingService.recordResponse({
             agentId: this.id,

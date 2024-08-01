@@ -24,6 +24,8 @@ import {
     PromptService,
     LanguageModelRequestMessage,
     isLanguageModelStreamResponse,
+    getTextOfResponse as getTextResponse,
+    LanguageModelResponse,
 } from '@theia/ai-core';
 import {
     ChatModel,
@@ -285,6 +287,7 @@ export class CommandChatAgent implements ChatAgent {
     locations: ChatAgentLocation[] = ChatAgentLocation.ALL;
 
     async invoke(request: ChatRequestModelImpl): Promise<void> {
+        // record
         this.recordingService.recordRequest({
             agentId: this.id,
             sessionId: request.session.id,
@@ -292,17 +295,41 @@ export class CommandChatAgent implements ChatAgent {
             requestId: request.id,
             request: request.request.text
         });
+
+        // select model
         const selector = this.languageModelRequirements.find(req => req.purpose === 'chat')!;
         const languageModels = await this.languageModelRegistry.selectLanguageModels({ agent: this.id, ...selector });
         if (languageModels.length === 0) {
             throw new Error('Couldn\'t find a language model. Please check your setup!');
         }
 
+        // system prompt -> get messages -> request -> response to text -> parse text to model -> model to response content
+        const systemPrompt = await this.getSystemPrompt();
+        const messages = this.getMessages(request.session, systemPrompt);
+        const languageModelResponse = await languageModels[0].request({ messages });
+        const responseAsText = await getTextResponse(languageModelResponse);
+        const parsedCommand = await this.parseTextResponse(responseAsText);
+        const content = this.createResponseContent(parsedCommand, request);
+
+        // add content
+        request.response.response.addContent(content);
+        request.response.complete();
+
+        // record
+        this.recordingService.recordResponse({
+            agentId: this.id,
+            sessionId: request.session.id,
+            timestamp: Date.now(),
+            requestId: request.response.requestId,
+            response: request.response.response.asString()
+        });
+    }
+
+    protected async getSystemPrompt(): Promise<string> {
         const knownCommands: string[] = [];
         for (const command of this.commandRegistry.getAllCommands()) {
             knownCommands.push(`${command.id}: ${command.label}`);
         }
-
         // eslint-disable-next-line @typescript-eslint/await-thenable
         const systemPrompt = await this.promptService.getPrompt('command-chat-agent-system-prompt-template', {
             'command-ids': knownCommands.join('\n')
@@ -310,59 +337,64 @@ export class CommandChatAgent implements ChatAgent {
         if (systemPrompt === undefined) {
             throw new Error('Couldn\'t get system prompt ');
         }
+        return systemPrompt;
+    }
 
-        const prevMessages: LanguageModelRequestMessage[] = this.getMessages(request.session);
+    protected getMessages(model: ChatModel, systemPrompt: string): ChatMessage[] {
+        const prevMessages = model.getRequests().flatMap(req => {
+            const msgs: ChatMessage[] = [];
+            const query = req.message.parts.map(part => part.promptText).join('');
+            msgs.push({
+                actor: 'user',
+                type: 'text',
+                query,
+            });
+            if (req.response.isComplete) {
+                msgs.push({
+                    actor: 'ai',
+                    type: 'text',
+                    query: req.response.response.asString(),
+                });
+            }
+            return msgs;
+        });
         const messages = [...prevMessages];
         messages.unshift({
             actor: 'ai',
             type: 'text',
             query: systemPrompt
         });
+        return messages;
+    }
 
-        const languageModelResponse = await languageModels[0].request({ messages });
-
-        let parsedCommand: ParsedCommand | undefined = undefined;
-
-        if (isLanguageModelStreamResponse(languageModelResponse)) {
-            const tokens: string[] = [];
-            for await (const token of languageModelResponse.stream) {
-                const tokenContent = token.content ?? '';
-                tokens.push(tokenContent);
-
-            }
-            const maybeJsonString = tokens.join('');
-
-            const jsonMatch = maybeJsonString.match(/(\{[\s\S]*\})/);
-            const jsonString = jsonMatch ? jsonMatch[1] : `{
+    /**
+     * @param text the text received from the language model
+     * @returns the parsed command if the text contained a valid command.
+     * If there was no json in the text, return a no-command response.
+     */
+    protected async parseTextResponse(text: string): Promise<ParsedCommand> {
+        const jsonMatch = text.match(/(\{[\s\S]*\})/);
+        const jsonString = jsonMatch ? jsonMatch[1] : `{
     "type": "no-command",
-    "message": "Sorry, I'm having problems at the moment. Please try again."
+    "message": "Please try again."
 }`;
+        const parsedCommand = JSON.parse(jsonString) as ParsedCommand;
+        return parsedCommand;
+    }
 
-            parsedCommand = JSON.parse(jsonString) as ParsedCommand;
-
-        } else {
-            console.error('Unknown response type');
-        }
-
-        if (parsedCommand === undefined) {
-            console.error('Could not parse response from Language Model');
-            return;
-        }
-
-        let content: ChatResponseContent;
+    protected createResponseContent(parsedCommand: ParsedCommand, request: ChatRequestModelImpl): ChatResponseContent {
         if (parsedCommand.type === 'theia-command') {
             const theiaCommand = this.commandRegistry.getCommand(parsedCommand.commandId);
             if (theiaCommand === undefined) {
                 console.error(`No Theia Command with id ${parsedCommand.commandId}`);
                 request.response.cancel();
             }
-            const args =
-                parsedCommand.arguments !== undefined &&
-                    parsedCommand.arguments.length > 0
-                    ? parsedCommand.arguments
-                    : undefined;
+            const args = parsedCommand.arguments !== undefined &&
+                parsedCommand.arguments.length > 0
+                ? parsedCommand.arguments
+                : undefined;
 
-            content = new HorizontalLayoutChatResponseContentImpl([
+            return new HorizontalLayoutChatResponseContentImpl([
                 new MarkdownChatResponseContentImpl(
                     'I found this command that might help you:'
                 ),
@@ -385,51 +417,19 @@ export class CommandChatAgent implements ChatAgent {
                     this.commandCallback(fullArgs);
                 }
             });
-            content = new HorizontalLayoutChatResponseContentImpl([
+            return new HorizontalLayoutChatResponseContentImpl([
                 new MarkdownChatResponseContentImpl(
                     'Try executing this:'
                 ),
                 new CommandChatResponseContentImpl(command, args, this.commandCallback),
             ]);
         } else {
-            content = new MarkdownChatResponseContentImpl(parsedCommand.message ?? 'Sorry, I can\'t find such a command');
+            return new MarkdownChatResponseContentImpl(parsedCommand.message ?? 'Sorry, I can\'t find such a command');
         }
-
-        request.response.response.addContent(content);
-        request.response.complete();
-        this.recordingService.recordResponse({
-            agentId: this.id,
-            sessionId: request.session.id,
-            timestamp: Date.now(),
-            requestId: request.response.requestId,
-            response: request.response.response.asString()
-        });
     }
 
     protected async commandCallback(...commandArgs: unknown[]): Promise<void> {
         this.messageService.info(`Executing callback with args ${commandArgs.join(', ')}. The first arg is the command id registered for the dynamically registered command. 
         The other args are the actual args for the handler.`, 'Got it');
     }
-
-    protected getMessages(model: ChatModel): ChatMessage[] {
-        return model.getRequests().flatMap(request => {
-            const messages: ChatMessage[] = [];
-            const query = request.message.parts.map(part => part.promptText).join('');
-            messages.push({
-                actor: 'user',
-                type: 'text',
-                query,
-            });
-            if (request.response.isComplete) {
-                messages.push({
-                    actor: 'ai',
-                    type: 'text',
-                    query: request.response.response.asString(),
-                });
-            }
-            return messages;
-        });
-
-    }
-
 }
