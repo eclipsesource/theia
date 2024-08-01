@@ -20,6 +20,7 @@ import { FrontendApplicationContribution, PreferenceService } from '@theia/core/
 import { AICodeCompletionProvider } from './ai-code-completion-provider';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { AIActivationService } from '@theia/ai-core/lib/browser';
+import { PREF_CODE_COMPLETION_ENABLE } from './ai-code-completion-preference';
 
 @injectable()
 export class AIFrontendApplicationContribution implements FrontendApplicationContribution {
@@ -35,7 +36,7 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
     private disposable: monaco.IDisposable | undefined;
 
     protected get isCodeCompletionEnabled(): boolean {
-        return this.preferenceService.get<boolean>('ai-code-completion.enable', false);
+        return this.preferenceService.get<boolean>(PREF_CODE_COMPLETION_ENABLE, false);
     }
 
     onDidInitializeLayout(): void {
@@ -47,7 +48,7 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
             this.handlePreferenceChange(this.isCodeCompletionEnabled, status);
         });
         this.preferenceService.onPreferenceChanged(event => {
-            if (event.preferenceName === 'ai-code-completion.enable') {
+            if (event.preferenceName === PREF_CODE_COMPLETION_ENABLE) {
                 this.handlePreferenceChange(event.newValue, this.activationService.isActive);
             }
         });
