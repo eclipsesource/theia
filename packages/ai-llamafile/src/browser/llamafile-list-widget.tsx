@@ -42,7 +42,7 @@ export class LlamafileListWidget extends ReactWidget {
     @inject(CommandService) private commandService: CommandService;
 
     static readonly ID = 'llamafile:list-view';
-    static readonly LABEL = 'Llamafile list view';
+    static readonly LABEL = '✨ Llamafile list view [Experimental';
 
     private items: LlamafileListItem[] = [];
 
