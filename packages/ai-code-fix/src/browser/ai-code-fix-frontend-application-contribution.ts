@@ -33,8 +33,8 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
     private disposable: monaco.IDisposable | undefined;
 
     onDidInitializeLayout(): void {
-        const enableCodeCompletion = this.preferenceService.get<boolean>(AICodeFixPrefs.ENABLED, false);
-        if (enableCodeCompletion) {
+        const enableCodeFixing = this.preferenceService.get<boolean>(AICodeFixPrefs.ENABLED, false);
+        if (enableCodeFixing) {
             const disposeCommand = monaco.editor.registerCommand(AI_CODE_FIX_COMMAND_ID, (_accessor, ...args) => {
                 const arg = args[0];
                 const newText: string = arg.newText;

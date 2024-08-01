@@ -17,7 +17,7 @@
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { CodeFixAgent, CodeFixAgentImpl } from './code-fix-agent';
 import { AICodeFixProvider } from './ai-code-fix-provider';
-import { AIFrontendApplicationContribution } from './ai-code-frontend-application-contribution';
+import { AIFrontendApplicationContribution } from './ai-code-fix-frontend-application-contribution';
 import { FrontendApplicationContribution, PreferenceContribution } from '@theia/core/lib/browser';
 import { Agent } from '@theia/ai-core';
 import { AICodeFixPreferencesSchema } from './ai-code-fix-preference';
