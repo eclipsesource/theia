@@ -272,7 +272,7 @@ export class CommandChatAgent implements ChatAgent {
     protected languageModelRegistry: LanguageModelRegistry;
 
     id: string = 'CommandChatAgent';
-    name: string = 'Command Chat Agent';
+    name: string = 'CommandChatAgent';
     description: string = 'The default chat agent provided by Theia responsible for providing commands.';
     variables: string[] = [];
     promptTemplates: PromptTemplate[] = [new CommandChatAgentSystemPromptTemplate()];
