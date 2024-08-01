@@ -23,7 +23,6 @@ import { CommunicationRecordingService, LanguageModel, LanguageModelResponse, La
 import {
     Agent,
     isLanguageModelStreamResponse,
-    isLanguageModelTextResponse,
     LanguageModelRegistry, LanguageModelStreamResponsePart,
     PromptTemplate
 } from '@theia/ai-core/lib/common';
@@ -104,7 +103,13 @@ export abstract class AbstractChatAgent implements ChatAgent {
             request: request.request.text,
             messages
         });
-        const languageModelResponse = await this.callLlm(languageModel, messages);
+        const cancellationToken = new CancellationTokenSource();
+        request.response.onDidChange(() => {
+            if (request.response.isCanceled) {
+                cancellationToken.cancel();
+            }
+        });
+        const languageModelResponse = await this.callLlm(languageModel, messages, cancellationToken.token);
         await this.addContentsToResponse(languageModelResponse, request);
         request.response.complete();
         this.recordingService.recordResponse({
@@ -156,9 +161,9 @@ export abstract class AbstractChatAgent implements ChatAgent {
         return undefined;
     }
 
-    protected async callLlm(languageModel: LanguageModel, messages: ChatMessage[]): Promise<LanguageModelResponse> {
+    protected async callLlm(languageModel: LanguageModel, messages: ChatMessage[], token: CancellationToken): Promise<LanguageModelResponse> {
         const tools = this.getTools();
-        const languageModelResponse = languageModel.request({ messages, tools });
+        const languageModelResponse = languageModel.request({ messages, tools, cancellationToken: token });
         return languageModelResponse;
     }
 
@@ -200,28 +205,6 @@ export class DefaultChatAgent extends AbstractChatAgent {
     locations: ChatAgentLocation[] = ChatAgentLocation.ALL;
 
     protected override async addContentsToResponse(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
-        const cancellationToken = new CancellationTokenSource();
-        request.response.onDidChange(() => {
-            if (request.response.isCanceled) {
-                cancellationToken.cancel();
-            }
-        });
-        const languageModelResponse = await this.callLlm(languageModels[0], messages, cancellationToken.token);
-        if (isLanguageModelTextResponse(languageModelResponse)) {
-            request.response.response.addContent(
-                new MarkdownChatResponseContentImpl(languageModelResponse.text)
-            );
-            request.response.complete();
-            this.recordingService.recordResponse({
-                agentId: this.id,
-                sessionId: request.session.id,
-                timestamp: Date.now(),
-                requestId: request.response.requestId,
-                response: request.response.response.asString()
-            });
-            return;
-        }
-
         if (isLanguageModelStreamResponse(languageModelResponse)) {
             for await (const token of languageModelResponse.stream) {
                 const newContents = this.parse(token, request.response.response.content);

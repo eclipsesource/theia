@@ -14,8 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { CancellationToken, ContributionProvider, ILogger, isFunction, isObject } from '@theia/core';
-import { ContributionProvider, ILogger, isFunction, isObject, Event, Emitter } from '@theia/core';
+import { CancellationToken, ContributionProvider, ILogger, isFunction, isObject, Event, Emitter } from '@theia/core';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 
 export type MessageActor = 'user' | 'ai' | 'system';
