@@ -204,3 +204,9 @@ div:last-child>.theia-ChatNode {
         transform: rotate(360deg);
     }
 }
+
+.theia-ChatPart-Error {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}

@@ -65,7 +65,7 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
 
     React.useEffect(() => {
         const listener = lastRequest?.response.onDidChange(() => {
-            if (lastRequest.response.isCanceled || lastRequest.response.isComplete) {
+            if (lastRequest.response.isCanceled || lastRequest.response.isComplete || lastRequest.response.isError) {
                 setInProgress(false);
             }
         });
