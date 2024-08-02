@@ -17,7 +17,7 @@ import { DisposableCollection, Emitter, Event } from '@theia/core';
 import { PreferenceScope, PreferenceService } from '@theia/core/lib/browser';
 import { JSONObject } from '@theia/core/shared/@phosphor/coreutils';
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { LanguageModelRequirement } from '../common/language-model';
+import { LanguageModelRequirement } from '../common';
 
 @injectable()
 export class AISettingsService {
