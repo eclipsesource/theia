@@ -16,6 +16,8 @@
 import { Message, ReactWidget } from '@theia/core/lib/browser';
 import * as React from '@theia/core/shared/react';
 import { injectable, postConstruct } from '@theia/core/shared/inversify';
+import { ChatModel } from '@theia/ai-chat';
+import { Disposable } from '@theia/core';
 
 type Query = (query: string) => Promise<void>;
 
@@ -26,6 +28,10 @@ export class ChatInputWidget extends ReactWidget {
     private _onQuery: Query;
     set onQuery(query: Query) {
         this._onQuery = query;
+    }
+    private _chatModel: ChatModel;
+    set chatModel(chatModel: ChatModel) {
+        this._chatModel = chatModel;
     }
 
     @postConstruct()
@@ -39,21 +45,35 @@ export class ChatInputWidget extends ReactWidget {
         this.node.focus({ preventScroll: true });
     }
     protected render(): React.ReactNode {
-        return <ChatInput onQuery={this._onQuery.bind(this)} />;
+        return <ChatInput onQuery={this._onQuery.bind(this)} chatModel={this._chatModel} />;
     }
 
 }
 
 interface ChatInputProperties {
     onQuery: (query: string) => void;
+    chatModel: ChatModel;
 }
 const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInputProperties) => {
 
     const [query, setQuery] = React.useState('');
+    const [inProgress, setInProgress] = React.useState(false);
+    const ref = React.useRef<Disposable | undefined>(undefined);
     // eslint-disable-next-line no-null/no-null
     const inputRef = React.useRef<HTMLTextAreaElement>(null);
+    const allRequests = props.chatModel.getRequests();
+    const lastRequest = allRequests.length === 0 ? undefined : allRequests[allRequests.length - 1];
+    const lastResponse = lastRequest?.response;
+    ref.current?.dispose();
+    const listener = lastRequest?.response.onDidChange(() => {
+        if (lastRequest.response.isCanceled || lastRequest.response.isComplete) {
+            setInProgress(false);
+        }
+    });
+    ref.current = listener;
 
     function submit(value: string): void {
+        setInProgress(true);
         props.onQuery(value);
         setQuery('');
         if (inputRef.current) {
@@ -90,11 +110,20 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
         >
         </textarea>
         <div className="theia-ChatInputOptions">
-            <span
-                className="codicon codicon-send option"
-                title="Send (Enter)"
-                onClick={() => submit(inputRef.current?.value || '')}
-            />
+            {
+                inProgress ? <span
+                    className="codicon codicon-close option"
+                    title="Cancel (Esc)"
+                    onClick={() => {
+                        lastResponse?.cancel();
+                        setInProgress(false);
+                    }} /> :
+                    <span
+                        className="codicon codicon-send option"
+                        title="Send (Enter)"
+                        onClick={() => submit(inputRef.current?.value || '')}
+                    />
+            }
         </div>
     </div>;
 };
