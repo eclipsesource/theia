@@ -22,16 +22,20 @@ import { ContainerModule } from '@theia/core/shared/inversify';
 import {
     AIVariableContribution,
     AIVariableService,
+    FunctionCallRegistry,
+    FunctionCallRegistryImpl,
     LanguageModelDelegateClient,
     languageModelDelegatePath,
     LanguageModelFrontendDelegate,
     LanguageModelProvider,
     LanguageModelRegistry,
+    LanguageModelRegistryClient,
     languageModelRegistryDelegatePath,
     LanguageModelRegistryFrontendDelegate,
     PromptCustomizationService,
     PromptService,
     PromptServiceImpl,
+    ToolProvider
 } from '../common';
 import {
     FrontendLanguageModelRegistryImpl,
@@ -51,7 +55,7 @@ import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-custom
 import { FrontendVariableService } from './frontend-variable-service';
 import { bindPromptPreferences } from './prompt-preferences';
 import { PromptTemplateContribution } from './prompttemplate-contribution';
-import { TomorrowVariableContribution } from '../tomorrow-variable-contribution';
+import { TomorrowVariableContribution } from '../common/tomorrow-variable-contribution';
 import { AIConfigurationSelectionService } from './ai-configuration/ai-configuration-service';
 import { TheiaVariableContribution } from './theia-variable-contribution';
 import { TodayVariableContribution } from '../common/today-variable-contribution';
@@ -65,11 +69,13 @@ export default new ContainerModule(bind => {
 
     bind(LanguageModelDelegateClientImpl).toSelf().inSingletonScope();
     bind(LanguageModelDelegateClient).toService(LanguageModelDelegateClientImpl);
+    bind(LanguageModelRegistryClient).toService(LanguageModelDelegateClient);
 
     bind(LanguageModelRegistryFrontendDelegate).toDynamicValue(
         ctx => {
             const connection = ctx.container.get<ServiceConnectionProvider>(RemoteConnectionProvider);
-            return connection.createProxy<LanguageModelRegistryFrontendDelegate>(languageModelRegistryDelegatePath);
+            const client = ctx.container.get<LanguageModelRegistryClient>(LanguageModelRegistryClient);
+            return connection.createProxy<LanguageModelRegistryFrontendDelegate>(languageModelRegistryDelegatePath, client);
         }
     );
 
@@ -130,4 +136,7 @@ export default new ContainerModule(bind => {
             createWidget: () => ctx.container.get(AIAgentConfigurationWidget)
         }))
         .inSingletonScope();
+
+    bind(FunctionCallRegistry).to(FunctionCallRegistryImpl).inSingletonScope();
+    bindContributionProvider(bind, ToolProvider);
 });

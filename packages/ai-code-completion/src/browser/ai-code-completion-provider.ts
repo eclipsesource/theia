@@ -19,6 +19,8 @@ import * as monaco from '@theia/monaco-editor-core';
 import { CodeCompletionAgent } from '../common/code-completion-agent';
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { PreferenceService } from '@theia/core/lib/browser';
+import { CancellationTokenSource } from '@theia/core';
+import { PREF_AI_CODE_COMPLETION_PRECOMPUTE } from './ai-code-completion-preference';
 
 @injectable()
 export class AICodeCompletionProvider implements monaco.languages.CompletionItemProvider {
@@ -29,12 +31,9 @@ export class AICodeCompletionProvider implements monaco.languages.CompletionItem
     @inject(PreferenceService)
     protected readonly preferenceService: PreferenceService;
 
-    constructor() {
-    }
-
     async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
         context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
-        if (!this.preferenceService.get('ai-code-completion.precompute', false)) {
+        if (!this.preferenceService.get(PREF_AI_CODE_COMPLETION_PRECOMPUTE, false)) {
             const result = {
                 suggestions: [{
                     label: 'AI Code Completion',
@@ -53,7 +52,9 @@ export class AICodeCompletionProvider implements monaco.languages.CompletionItem
             (result as any).suggestions[0].args = [...arguments];
             return result;
         }
-        return this.agent.provideCompletionItems(model, position, context, token);
+        const cancellationTokenSource = new CancellationTokenSource();
+        token.onCancellationRequested(() => { cancellationTokenSource.cancel(); });
+        return this.agent.provideCompletionItems(model, position, context, cancellationTokenSource.token);
     }
 
     async resolveCompletionItem(item: monaco.languages.CompletionItem, token: monaco.CancellationToken): Promise<monaco.languages.CompletionItem> {
@@ -63,7 +64,9 @@ export class AICodeCompletionProvider implements monaco.languages.CompletionItem
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const args: Parameters<CodeCompletionAgent['provideCompletionItems']> = (item as any).args;
-        const resolvedItems = await this.agent.provideCompletionItems(args[0], args[1], args[2], token);
+        const cancellationTokenSource = new CancellationTokenSource();
+        token.onCancellationRequested(() => { cancellationTokenSource.cancel(); });
+        const resolvedItems = await this.agent.provideCompletionItems(args[0], args[1], args[2], cancellationTokenSource.token);
         item.insertText = resolvedItems?.suggestions[0].insertText ?? '';
         item.additionalTextEdits = [{
             range: {

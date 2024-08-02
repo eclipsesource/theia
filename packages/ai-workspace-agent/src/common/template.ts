@@ -13,17 +13,16 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { bindViewContribution, WidgetFactory } from '@theia/core/lib/browser';
-import { ContainerModule } from '@theia/core/shared/inversify';
-import { AIHistoryViewContribution } from './ai-history-contribution';
-import { AIHistoryView } from './ai-history-widget';
+import { PromptTemplate } from '@theia/ai-core/lib/common';
 
-export default new ContainerModule(bind => {
-    bindViewContribution(bind, AIHistoryViewContribution);
+export const template = <PromptTemplate>{
+    id: 'workspace-prompt',
+    template: `You are an AI Agent to help developers with coding inside of the IDE.
+    The user has the workspace open.
+    If needed, you can ask for more information.
+    The following functions are available to you:
+    - getWorkspaceFileList(): return the list of files available in the workspace
+    - getFileContent(filePath: string): return the content of the file
 
-    bind(AIHistoryView).toSelf().inSingletonScope();
-    bind(WidgetFactory).toDynamicValue(context => ({
-        id: AIHistoryView.ID,
-        createWidget: () => context.container.get<AIHistoryView>(AIHistoryView)
-    })).inSingletonScope();
-});
+Never shorten the file paths when using getFileContent.`
+};

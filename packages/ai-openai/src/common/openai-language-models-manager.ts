@@ -13,13 +13,11 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { ContainerModule } from '@theia/core/shared/inversify';
-import { ChatAgent } from '@theia/ai-chat/lib/common';
-import { Agent } from '@theia/ai-core/lib/common';
-import { TheiaWorkspaceAgent } from './workspace-agent';
-
-export default new ContainerModule(bind => {
-    bind(TheiaWorkspaceAgent).toSelf().inSingletonScope();
-    bind(Agent).toService(TheiaWorkspaceAgent);
-    bind(ChatAgent).toService(TheiaWorkspaceAgent);
-});
+export const OPENAI_LANGUAGE_MODELS_MANAGER_PATH = '/services/open-ai/language-model-manager';
+export const OpenAiLanguageModelsManager = Symbol('OpenAiLanguageModelsManager');
+export interface OpenAiLanguageModelsManager {
+    apiKey: string | undefined;
+    setApiKey(key: string | undefined): void;
+    createLanguageModels(...modelIds: string[]): Promise<void>;
+    removeLanguageModels(...modelIds: string[]): void
+}

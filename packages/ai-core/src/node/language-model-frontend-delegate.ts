@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { ILogger, generateUuid } from '@theia/core';
+import { CancellationTokenSource, ILogger, generateUuid } from '@theia/core';
 import {
     LanguageModelMetaData,
     LanguageModelRegistry,
@@ -27,25 +27,22 @@ import {
     LanguageModelFrontendDelegate,
     LanguageModelRegistryFrontendDelegate,
     LanguageModelResponseDelegate,
+    LanguageModelRegistryClient,
 } from '../common';
+import { BackendLanguageModelRegistry } from './backend-language-model-registry';
 
 @injectable()
 export class LanguageModelRegistryFrontendDelegateImpl implements LanguageModelRegistryFrontendDelegate {
 
     @inject(LanguageModelRegistry)
-    private registry: LanguageModelRegistry;
+    private registry: BackendLanguageModelRegistry;
+
+    setClient(client: LanguageModelRegistryClient): void {
+        this.registry.setClient(client);
+    }
 
     async getLanguageModelDescriptions(): Promise<LanguageModelMetaData[]> {
-        return (await this.registry.getLanguageModels()).map(model => ({
-            id: model.id,
-            providerId: model.providerId,
-            name: model.name,
-            vendor: model.vendor,
-            version: model.version,
-            family: model.family,
-            maxInputTokens: model.maxInputTokens,
-            maxOutputTokens: model.maxOutputTokens,
-        }));
+        return (await this.registry.getLanguageModels()).map(model => this.registry.mapToMetaData(model));
     }
 }
 
@@ -59,9 +56,14 @@ export class LanguageModelFrontendDelegateImpl implements LanguageModelFrontendD
     private logger: ILogger;
 
     private frontendDelegateClient: LanguageModelDelegateClient;
+    private requestCancellationTokenMap: Map<string, CancellationTokenSource> = new Map();
 
     setClient(client: LanguageModelDelegateClient): void {
         this.frontendDelegateClient = client;
+    }
+
+    cancel(requestId: string): void {
+        this.requestCancellationTokenMap.get(requestId)?.cancel();
     }
 
     async request(
@@ -78,6 +80,11 @@ export class LanguageModelFrontendDelegateImpl implements LanguageModelFrontendD
         request.tools?.forEach(tool => {
             tool.handler = async args_string => this.frontendDelegateClient.toolCall(requestId, tool.id, args_string);
         });
+        if (request.cancellationToken) {
+            const tokenSource = new CancellationTokenSource();
+            request.cancellationToken = tokenSource.token;
+            this.requestCancellationTokenMap.set(requestId, tokenSource);
+        }
         const response = await model.request(request);
         if (isLanguageModelTextResponse(response)) {
             return response;

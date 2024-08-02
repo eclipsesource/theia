@@ -13,7 +13,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { ILogger } from '@theia/core';
+import { CancellationToken, ILogger } from '@theia/core';
 import {
     inject,
     injectable,
@@ -34,6 +34,7 @@ import {
     LanguageModelDelegateClient,
     LanguageModelFrontendDelegate,
     LanguageModelMetaData,
+    LanguageModelRegistryClient,
     LanguageModelRegistryFrontendDelegate,
     LanguageModelRequest,
     LanguageModelResponse,
@@ -48,21 +49,34 @@ export interface TokenReceiver {
 export interface ToolReceiver {
     toolCall(id: string, toolId: string, arg_string: string): Promise<unknown>;
 }
+export interface ModelReceiver {
+    languageModelAdded(metadata: LanguageModelMetaData): void;
+    languageModelRemoved(id: string): void;
+}
 
 @injectable()
 export class LanguageModelDelegateClientImpl
-    implements LanguageModelDelegateClient {
-    protected receiver: TokenReceiver & ToolReceiver;
+    implements LanguageModelDelegateClient, LanguageModelRegistryClient {
+    protected receiver: TokenReceiver & ToolReceiver & ModelReceiver;
 
-    setReceiver(receiver: TokenReceiver & ToolReceiver): void {
+    setReceiver(receiver: TokenReceiver & ToolReceiver & ModelReceiver): void {
         this.receiver = receiver;
     }
 
     send(id: string, token: LanguageModelStreamResponsePart | undefined): void {
         this.receiver.send(id, token);
     }
+
     toolCall(requestId: string, toolId: string, args_string: string): Promise<unknown> {
         return this.receiver.toolCall(requestId, toolId, args_string);
+    }
+
+    languageModelAdded(metadata: LanguageModelMetaData): void {
+        this.receiver.languageModelAdded(metadata);
+    }
+
+    languageModelRemoved(id: string): void {
+        this.receiver.languageModelRemoved(id);
     }
 }
 
@@ -75,7 +89,16 @@ interface StreamState {
 @injectable()
 export class FrontendLanguageModelRegistryImpl
     extends DefaultLanguageModelRegistryImpl
-    implements TokenReceiver, ToolReceiver {
+    implements TokenReceiver, ToolReceiver, ModelReceiver {
+
+    // called by backend
+    languageModelAdded(metadata: LanguageModelMetaData): void {
+        this.addLanguageModels([metadata]);
+    }
+    // called by backend
+    languageModelRemoved(id: string): void {
+        this.removeLanguageModels([id]);
+    }
     @inject(LanguageModelRegistryFrontendDelegate)
     protected registryDelegate: LanguageModelRegistryFrontendDelegate;
 
@@ -97,7 +120,12 @@ export class FrontendLanguageModelRegistryImpl
     private static requestCounter: number = 0;
 
     override addLanguageModels(models: LanguageModelMetaData[] | LanguageModel[]): void {
-        models.map(model => {
+        let modelAdded = false;
+        for (const model of models) {
+            if (this.languageModels.find(m => m.id === model.id)) {
+                console.warn(`Tried to add an existing model ${model.id}`);
+                continue;
+            }
             if (LanguageModel.is(model)) {
                 this.languageModels.push(
                     new Proxy(
@@ -109,6 +137,7 @@ export class FrontendLanguageModelRegistryImpl
                         )
                     )
                 );
+                modelAdded = true;
             } else {
                 this.languageModels.push(
                     new Proxy(
@@ -122,8 +151,12 @@ export class FrontendLanguageModelRegistryImpl
                         )
                     )
                 );
+                modelAdded = true;
             }
-        });
+        }
+        if (modelAdded) {
+            this.changeEmitter.fire({ models: this.languageModels });
+        }
     }
 
     @postConstruct()
@@ -174,6 +207,9 @@ export class FrontendLanguageModelRegistryImpl
             request: async (request: LanguageModelRequest) => {
                 const requestId = `${FrontendLanguageModelRegistryImpl.requestCounter++}`;
                 this.requests.set(requestId, request);
+                request.cancellationToken?.onCancellationRequested(() => {
+                    this.providerDelegate.cancel(requestId);
+                });
                 const response = await this.providerDelegate.request(
                     description.id,
                     request,
@@ -268,17 +304,47 @@ export class FrontendLanguageModelRegistryImpl
                 return [model];
             }
         }
-
         return this.languageModels.filter(model => isModelMatching(request, model));
     }
+
+    override async selectLanguageModel(request: LanguageModelSelector): Promise<LanguageModel | undefined> {
+        return (await this.selectLanguageModels(request))[0];
+    }
 }
+
+const formatJsonWithIndentation = (obj: unknown): string[] => {
+    // eslint-disable-next-line no-null/no-null
+    const jsonString = JSON.stringify(obj, null, 2);
+    const lines = jsonString.split('\n');
+    const formattedLines: string[] = [];
+
+    lines.forEach(line => {
+        const subLines = line.split('\\n');
+        const index = indexOfValue(subLines[0]) + 1;
+        formattedLines.push(subLines[0]);
+        const prefix = index > 0 ? ' '.repeat(index) : '';
+        if (index !== -1) {
+            for (let i = 1; i < subLines.length; i++) {
+                formattedLines.push(prefix + subLines[i]);
+            }
+        }
+    });
+
+    return formattedLines;
+};
+
+const indexOfValue = (jsonLine: string): number => {
+    const pattern = /"([^"]+)"\s*:\s*/g;
+    const match = pattern.exec(jsonLine);
+    return match ? match.index + match[0].length : -1;
+};
 
 const languageModelOutputHandler = (
     outputChannel: OutputChannel
 ): ProxyHandler<LanguageModel> => ({
     get<K extends keyof LanguageModel>(
         target: LanguageModel,
-        prop: K
+        prop: K,
     ): LanguageModel[K] | LanguageModel['request'] {
         const original = target[prop];
         if (prop === 'request' && typeof original === 'function') {
@@ -286,8 +352,26 @@ const languageModelOutputHandler = (
                 ...args: Parameters<LanguageModel['request']>
             ): Promise<LanguageModelResponse> {
                 outputChannel.appendLine(
-                    `Sending request: ${JSON.stringify(args)}`
+                    'Sending request:'
                 );
+                const formattedRequest = formatJsonWithIndentation(args[0]);
+                formattedRequest.forEach(line => outputChannel.appendLine(line));
+                if (args[0].cancellationToken) {
+                    args[0].cancellationToken = new Proxy(args[0].cancellationToken, {
+                        get<CK extends keyof CancellationToken>(
+                            cTarget: CancellationToken,
+                            cProp: CK
+                        ): CancellationToken[CK] | CancellationToken['onCancellationRequested'] {
+                            if (cProp === 'onCancellationRequested') {
+                                return (...cargs: Parameters<CancellationToken['onCancellationRequested']>) => cTarget.onCancellationRequested(() => {
+                                    outputChannel.appendLine('\nCancel requested', OutputChannelSeverity.Warning);
+                                    cargs[0]();
+                                }, cargs[1], cargs[2]);
+                            }
+                            return cTarget[cProp];
+                        }
+                    });
+                }
                 try {
                     const result = await original.apply(target, args);
                     if (isLanguageModelStreamResponse(result)) {

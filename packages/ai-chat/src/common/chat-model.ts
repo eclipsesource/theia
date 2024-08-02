@@ -58,10 +58,13 @@ export interface ChatModel {
     readonly id: string;
     readonly location: ChatAgentLocation;
     getRequests(): ChatRequestModel[];
+    addRequest(parsedChatRequest: ParsedChatRequest, agentId?: string): ChatRequestModel;
+    isEmpty(): boolean;
 }
 
 export interface ChatRequest {
     readonly text: string;
+    readonly displayText?: string;
 }
 
 export interface ChatRequestModel {
@@ -124,7 +127,7 @@ export interface CodeChatResponseContent
     location?: Location;
 }
 
-export interface HorizontalLayoutChatResponseContent extends BaseChatResponseContent {
+export interface HorizontalLayoutChatResponseContent extends Required<BaseChatResponseContent> {
     kind: 'horizontal';
     content: BaseChatResponseContent[];
 }
@@ -200,7 +203,6 @@ export const isToolCallChatResponseContent = (
     isBaseChatResponseContent(obj) &&
     obj.kind === 'toolCall';
 
-
 export type ChatResponseContent =
     | BaseChatResponseContent
     | TextChatResponseContent
@@ -223,7 +225,8 @@ export interface ChatResponseModel {
     readonly response: ChatResponse;
     readonly isComplete: boolean;
     readonly isCanceled: boolean;
-    readonly agentId?: string
+    readonly agentId?: string;
+    cancel(): void;
 }
 
 /**********************
@@ -259,6 +262,10 @@ export class ChatModelImpl implements ChatModel {
             request: requestModel,
         });
         return requestModel;
+    }
+
+    isEmpty(): boolean {
+        return this._requests.length === 0;
     }
 }
 
@@ -342,7 +349,6 @@ export class MarkdownChatResponseContentImpl implements MarkdownChatResponseCont
         this._content.appendMarkdown(nextChatResponseContent.content.value);
         return true;
     }
-    // TODO add codeblock? add link?
 }
 
 export class CodeChatResponseContentImpl implements CodeChatResponseContent {

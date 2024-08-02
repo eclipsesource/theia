@@ -14,25 +14,17 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
-import { OpenAiModel, OpenAiModelIdentifier } from './openai-model-provider';
-import { LanguageModelProvider } from '@theia/ai-core';
+import { ContainerModule } from '@theia/core/shared/inversify';
+import { OPENAI_LANGUAGE_MODELS_MANAGER_PATH, OpenAiLanguageModelsManager } from '../common/openai-language-models-manager';
+import { ConnectionHandler, RpcConnectionHandler } from '@theia/core';
+import { OpenAiLanguageModelsManagerImpl } from './openai-language-models-manager-impl';
 
 export const OpenAiModelFactory = Symbol('OpenAiModelFactory');
 
 export default new ContainerModule(bind => {
-    bind(OpenAiModel).toSelf();
-    bind(LanguageModelProvider).toDynamicValue(context => () => ([
-        createOpenAiModel(context, 'gpt-4o'),
-        createOpenAiModel(context, 'gpt-4o-mini'),
-        createOpenAiModel(context, 'gpt-4-turbo'),
-        createOpenAiModel(context, 'gpt-4'),
-        createOpenAiModel(context, 'gpt-3.5-turbo')
-    ]));
+    bind(OpenAiLanguageModelsManagerImpl).toSelf().inSingletonScope();
+    bind(OpenAiLanguageModelsManager).toService(OpenAiLanguageModelsManagerImpl);
+    bind(ConnectionHandler).toDynamicValue(ctx =>
+        new RpcConnectionHandler(OPENAI_LANGUAGE_MODELS_MANAGER_PATH, () => ctx.container.get(OpenAiLanguageModelsManager))
+    ).inSingletonScope();
 });
-
-function createOpenAiModel(context: interfaces.Context, model: string): OpenAiModel {
-    const child = context.container.createChild();
-    child.bind(OpenAiModelIdentifier).toConstantValue(model);
-    return child.get<OpenAiModel>(OpenAiModel);
-}

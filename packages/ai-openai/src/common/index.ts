@@ -13,9 +13,4 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { PromptTemplate } from '@theia/ai-core';
-
-export const defaultTemplate: PromptTemplate = {
-    id: 'default-template',
-    template: 'You are an AI Assistant for software developers, running inside of Eclipse Theia'
-};
+export * from './openai-language-models-manager';

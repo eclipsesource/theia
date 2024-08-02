@@ -13,10 +13,11 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { MessageActor } from '@theia/ai-core';
 
-export interface ChatMessage {
-    actor: MessageActor;
-    type: 'text';
-    query: string;
+import { LanguageModelMetaData } from './language-model';
+
+export const LanguageModelRegistryClient = Symbol('LanguageModelRegistryClient');
+export interface LanguageModelRegistryClient {
+    languageModelAdded(metadata: LanguageModelMetaData): void;
+    languageModelRemoved(id: string): void;
 }

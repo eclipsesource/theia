@@ -13,16 +13,25 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { PromptTemplate } from '@theia/ai-core/lib/common';
 
-export const template = <PromptTemplate>{
-    id: 'theia-workspace-prompt',
-    template: `You are an AI Agent to help developers with coding inside of the Theia IDE.
-    The user has the workspace open.
-    If needed, you can ask for more information.
-    The following functions are available to you:
-    - getProjectFileList(): return the list of files available in the project
-    - getFileContent(filePath: string): return the content of the file
+import { PreferenceSchema } from '@theia/core/lib/browser/preferences/preference-contribution';
 
-Never shorten the file paths when using getFileContent.`
+export const API_KEY_PREF = 'AI - Open AI.api-key';
+export const MODELS_PREF = 'AI - Open AI.models';
+
+export const OpenAiPreferencesSchema: PreferenceSchema = {
+    type: 'object',
+    properties: {
+        [API_KEY_PREF]: {
+            type: 'string',
+            description: 'OpenAI API Key',
+        },
+        [MODELS_PREF]: {
+            type: 'array',
+            default: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
+            items: {
+                type: 'string'
+            }
+        }
+    }
 };

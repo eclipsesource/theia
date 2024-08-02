@@ -27,9 +27,6 @@
       "path": "../../packages/ai-history"
     },
     {
-      "path": "../../packages/ai-history-ui"
-    },
-    {
       "path": "../../packages/ai-llamafile"
     },
     {
@@ -45,7 +42,7 @@
       "path": "../../packages/ai-terminal"
     },
     {
-      "path": "../../packages/ai-theia-agents"
+      "path": "../../packages/ai-workspace-agent"
     },
     {
       "path": "../../packages/bulk-edit"

@@ -40,3 +40,13 @@ export namespace ChatCommands {
     };
 
 }
+
+export const AI_CHAT_NEW_CHAT_WINDOW_COMMAND: Command = {
+    id: 'ai-chat-ui.new-chat',
+    iconClass: codicon('add')
+};
+
+export const AI_CHAT_SHOW_CHATS_COMMAND: Command = {
+    id: 'ai-chat-ui.show-chats',
+    iconClass: codicon('history')
+};

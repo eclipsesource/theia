@@ -51,6 +51,12 @@ div:last-child>.theia-ChatNode {
     color: var(--theia-disabledForeground);
 }
 
+.theia-ChatNodeHeader .theia-ChatContentInProgress-Cancel {
+    position: absolute;
+    z-index: 999;
+    right: 20px;
+}
+
 @keyframes dots {
 
     0%,
