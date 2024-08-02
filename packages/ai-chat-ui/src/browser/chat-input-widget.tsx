@@ -17,7 +17,6 @@ import { Message, ReactWidget } from '@theia/core/lib/browser';
 import * as React from '@theia/core/shared/react';
 import { injectable, postConstruct } from '@theia/core/shared/inversify';
 import { ChatModel } from '@theia/ai-chat';
-import { Disposable } from '@theia/core';
 
 type Query = (query: string) => Promise<void>;
 
@@ -58,19 +57,20 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
 
     const [query, setQuery] = React.useState('');
     const [inProgress, setInProgress] = React.useState(false);
-    const ref = React.useRef<Disposable | undefined>(undefined);
     // eslint-disable-next-line no-null/no-null
     const inputRef = React.useRef<HTMLTextAreaElement>(null);
     const allRequests = props.chatModel.getRequests();
     const lastRequest = allRequests.length === 0 ? undefined : allRequests[allRequests.length - 1];
     const lastResponse = lastRequest?.response;
-    ref.current?.dispose();
-    const listener = lastRequest?.response.onDidChange(() => {
-        if (lastRequest.response.isCanceled || lastRequest.response.isComplete) {
-            setInProgress(false);
-        }
-    });
-    ref.current = listener;
+
+    React.useEffect(() => {
+        const listener = lastRequest?.response.onDidChange(() => {
+            if (lastRequest.response.isCanceled || lastRequest.response.isComplete) {
+                setInProgress(false);
+            }
+        });
+        return () => listener?.dispose();
+    }, [lastRequest]);
 
     function submit(value: string): void {
         setInProgress(true);
@@ -112,7 +112,7 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
         <div className="theia-ChatInputOptions">
             {
                 inProgress ? <span
-                    className="codicon codicon-close option"
+                    className="codicon codicon-stop-circle option"
                     title="Cancel (Esc)"
                     onClick={() => {
                         lastResponse?.cancel();
