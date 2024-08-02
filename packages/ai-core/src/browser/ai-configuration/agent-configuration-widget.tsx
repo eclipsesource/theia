@@ -23,7 +23,7 @@ import { LanguageModelRenderer } from './language-model-renderer';
 import { TemplateRenderer } from './template-settings-renderer';
 import { AIConfigurationSelectionService } from './ai-configuration-service';
 import { AIVariableConfigurationWidget } from './variable-configuration-widget';
-import { AgentService, DisabledAgentsService } from '../../common/agent-service';
+import { AgentService } from '../../common/agent-service';
 
 @injectable()
 export class AIAgentConfigurationWidget extends ReactWidget {
@@ -45,9 +45,6 @@ export class AIAgentConfigurationWidget extends ReactWidget {
 
     @inject(AIConfigurationSelectionService)
     protected readonly aiConfigurationSelectionService: AIConfigurationSelectionService;
-
-    @inject(DisabledAgentsService)
-    protected disabledAgentsService: DisabledAgentsService;
 
     protected languageModels: LanguageModel[] | undefined;
 
@@ -92,7 +89,7 @@ export class AIAgentConfigurationWidget extends ReactWidget {
             return <div>Please select an Agent first!</div>;
         }
 
-        const enabled = this.disabledAgentsService.isEnabled(agent.id);
+        const enabled = this.agentService.isEnabled(agent.id);
 
         return <div key={agent.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <div className='settings-section-title settings-section-category-title' style={{ paddingLeft: 0, paddingBottom: 10 }}>{agent.name}</div>
@@ -145,11 +142,11 @@ export class AIAgentConfigurationWidget extends ReactWidget {
         if (!agent) {
             return false;
         }
-        const enabled = this.disabledAgentsService.isEnabled(agent.id);
+        const enabled = this.agentService.isEnabled(agent.id);
         if (enabled) {
-            this.disabledAgentsService.disableAgent(agent.id);
+            this.agentService.disableAgent(agent.id);
         } else {
-            this.disabledAgentsService.enableAgent(agent.id);
+            this.agentService.enableAgent(agent.id);
         }
         this.update();
     };

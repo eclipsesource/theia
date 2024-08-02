@@ -23,7 +23,7 @@ import { ContributionProvider, ILogger } from '@theia/core';
 import { inject, injectable, named } from '@theia/core/shared/inversify';
 import { ChatAgent } from './chat-agents';
 import { ChatRequestModel, ChatRequestModelImpl } from './chat-model';
-import { DisabledAgentsService } from '@theia/ai-core';
+import { AgentService } from '@theia/ai-core';
 
 export const ChatAgentService = Symbol('ChatAgentService');
 /**
@@ -44,8 +44,8 @@ export class ChatAgentServiceImpl implements ChatAgentService {
     @inject(ILogger)
     protected logger: ILogger;
 
-    @inject(DisabledAgentsService)
-    protected disabledAgentsService: DisabledAgentsService;
+    @inject(AgentService)
+    protected agentService: AgentService;
 
     getAgent(id: string, includeDisabledAgent = false): ChatAgent | undefined {
         if (!includeDisabledAgent && !this._agentIsEnabled(id)) {
@@ -62,7 +62,7 @@ export class ChatAgentServiceImpl implements ChatAgentService {
     }
 
     private _agentIsEnabled(id: string): boolean {
-        return this.disabledAgentsService.isEnabled(id);
+        return this.agentService.isEnabled(id);
     }
     invokeAgent(agentId: string, request: ChatRequestModelImpl): Promise<void> {
         const agent = this.getAgent(agentId);

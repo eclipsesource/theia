@@ -31,15 +31,6 @@ export interface AgentService {
      * @returns An array of Agent objects.
      */
     getAgents(includeDisabledAgents?: boolean): Agent[];
-}
-
-export const DisabledAgentsService = Symbol('DisabledAgentsService');
-/**
- * Service to enable or disable agents, and to obtain their current
- * status.
- */
-export interface DisabledAgentsService {
-
     /**
      * Enable the agent with the specified id.
      * @param agentId the agent id.
@@ -64,8 +55,7 @@ export class AgentServiceImpl implements AgentService {
     @inject(ContributionProvider) @named(Agent)
     protected readonly agentsProvider: ContributionProvider<Agent>;
 
-    @inject(DisabledAgentsService)
-    protected disabledAgentsService: DisabledAgentsService;
+    protected disabledAgents = new Set<string>();
 
     private get agents(): Agent[] {
         return this.agentsProvider.getContributions();
@@ -75,15 +65,9 @@ export class AgentServiceImpl implements AgentService {
         if (includeDisabledAgents) {
             return this.agents;
         } else {
-            return this.agents.filter(agent => this.disabledAgentsService.isEnabled(agent.id));
+            return this.agents.filter(agent => this.isEnabled(agent.id));
         }
     }
-}
-
-@injectable()
-export class DisabledAgentsServiceImpl implements DisabledAgentsService {
-
-    protected disabledAgents = new Set<string>();
 
     enableAgent(agentId: string): void {
         this.disabledAgents.delete(agentId);
