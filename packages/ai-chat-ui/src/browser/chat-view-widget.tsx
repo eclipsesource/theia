@@ -76,9 +76,10 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
         layout.addWidget(this.treeWidget);
         this.inputWidget.node.classList.add('chat-input-widget');
         layout.addWidget(this.inputWidget);
-        this.inputWidget.onQuery = this.onQuery.bind(this);
-
         this.chatSession = this.chatService.createSession();
+
+        this.inputWidget.onQuery = this.onQuery.bind(this);
+        this.inputWidget.chatModel = this.chatSession.model;
         this.treeWidget.trackChatModel(this.chatSession.model);
 
         this.initListeners();

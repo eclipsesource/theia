@@ -183,21 +183,11 @@ export class ChatViewTreeWidget extends TreeWidget {
     }
     private renderAgent(node: RequestNode | ResponseNode): React.ReactNode {
         const inProgress = isResponseNode(node) && !node.response.isComplete && !node.response.isCanceled;
-        const cancel = () => {
-            if (isResponseNode(node)) {
-                node.response.cancel();
-            }
-        };
         return <React.Fragment>
             <div className='theia-ChatNodeHeader'>
                 <div className={`theia-AgentAvatar ${this.getAgentIconClassName(node)}`}></div>
                 <h3 className='theia-AgentLabel'>{this.getAgentLabel(node)}</h3>
-                {inProgress &&
-                    (<>
-                        <span className='theia-ChatContentInProgress'>Generating</span>
-                        <span className='theia-ChatContentInProgress-Cancel codicon codicon-close' onClick={() => cancel()} />
-                    </>)
-                }
+                {inProgress && <span className='theia-ChatContentInProgress'>Generating</span>}
             </div>
         </React.Fragment>;
     }
@@ -208,7 +198,16 @@ export class ChatViewTreeWidget extends TreeWidget {
         }
 
         const agent = node.response.agentId ? this.chatAgentService.getAgent(node.response.agentId) : undefined;
-        return agent?.name ?? 'AI';
+        const initialAgentlabel = agent?.name ?? 'AI';
+        const labelParts = [initialAgentlabel];
+
+        for (const delegateAgentId of node.response.delegateAgentIds) {
+            const delegateAgent = this.chatAgentService.getAgent(delegateAgentId);
+            const delegateAgentlabel = delegateAgent?.name ?? 'AI';
+            labelParts.push(delegateAgentlabel);
+        }
+
+        return labelParts.join(' > ');
     }
     private getAgentIconClassName(node: RequestNode | ResponseNode): string | undefined {
         if (isRequestNode(node)) {
