@@ -16,7 +16,7 @@
 
 import { bindContributionProvider, CommandContribution } from '@theia/core';
 import { bindViewContribution, WidgetFactory, } from '@theia/core/lib/browser';
-import { ContainerModule } from '@theia/core/shared/inversify';
+import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
 import { AIChatCommandContribution } from './ai-chat-command-contribution';
 import { AIChatContribution } from './aichat-ui-contribution';
 import { ChatInputWidget } from './chat-input-widget';
@@ -39,13 +39,9 @@ export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
     bindViewContribution(bind, AIChatContribution);
     bindContributionProvider(bind, ChatResponsePartRenderer);
 
-    bind(ChatViewWidget).toSelf().inSingletonScope();
-    bind(WidgetFactory).toDynamicValue(context => ({
-        id: ChatViewWidget.ID,
-        createWidget: () => context.container.get<ChatViewWidget>(ChatViewWidget)
-    })).inSingletonScope();
+    bindChatViewWidget(bind);
 
-    bind(ChatInputWidget).toSelf().inSingletonScope();
+    bind(ChatInputWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(context => ({
         id: ChatInputWidget.ID,
         createWidget: () => context.container.get<ChatInputWidget>(ChatInputWidget)
@@ -78,3 +74,18 @@ export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
     bind(ChatViewWidgetToolbarContribution).toSelf().inSingletonScope();
     bind(TabBarToolbarContribution).toService(ChatViewWidgetToolbarContribution);
 });
+
+function bindChatViewWidget(bind: interfaces.Bind): void {
+    let chatViewWidget: ChatViewWidget | undefined;
+    bind(ChatViewWidget).toSelf();
+
+    bind(WidgetFactory).toDynamicValue(context => ({
+        id: ChatViewWidget.ID,
+        createWidget: () => {
+            if (chatViewWidget?.isDisposed !== false) {
+                chatViewWidget = context.container.get<ChatViewWidget>(ChatViewWidget);
+            }
+            return chatViewWidget;
+        }
+    })).inSingletonScope();
+}

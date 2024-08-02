@@ -33,8 +33,6 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
     public static ID = 'chat-view-widget';
     static LABEL = nls.localizeByDefault('Chat');
 
-    public secondaryWindow: Window | undefined;
-
     @inject(ChatService)
     private chatService: ChatService;
 
@@ -46,6 +44,8 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
 
     protected _state: ChatViewWidget.State = { locked: false };
     protected readonly onStateChangedEmitter = new Emitter<ChatViewWidget.State>();
+
+    secondaryWindow: Window | undefined;
 
     constructor(
         @inject(ChatViewTreeWidget)
@@ -64,6 +64,14 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
 
     @postConstruct()
     protected init(): void {
+        this.toDispose.pushAll([
+            this.treeWidget,
+            this.inputWidget,
+            this.onStateChanged(newState => {
+                this.treeWidget.shouldScrollToEnd = !newState.locked;
+                this.update();
+            })
+        ]);
         const layout = this.layout = new PanelLayout();
         this.treeWidget.node.classList.add('chat-tree-view-widget');
         layout.addWidget(this.treeWidget);
@@ -102,12 +110,6 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
 
     protected override onAfterAttach(msg: Message): void {
         super.onAfterAttach(msg);
-        this.toDisposeOnDetach.pushAll([
-            this.onStateChanged(newState => {
-                this.treeWidget.shouldScrollToEnd = !newState.locked;
-                this.update();
-            })
-        ]);
     }
 
     private async onQuery(query: string): Promise<void> {

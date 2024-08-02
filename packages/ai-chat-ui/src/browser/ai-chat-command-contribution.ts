@@ -17,10 +17,6 @@
 import { COMMAND_CHAT_RESPONSE_COMMAND } from '@theia/ai-chat/lib/common';
 import { Command, CommandContribution, CommandRegistry, MessageService } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { codicon, WidgetManager } from '@theia/core/lib/browser';
-import { SecondaryWindowHandler } from '@theia/core/lib/browser/secondary-window-handler';
-import { ChatViewWidget } from './chat-view-widget';
-import { ChatCommands } from './chat-view-commands';
 
 export interface AIChatCommandArguments {
     command: Command;
@@ -39,12 +35,6 @@ export class AIChatCommandContribution implements CommandContribution {
     @inject(MessageService)
     private readonly messageService: MessageService;
 
-    @inject(SecondaryWindowHandler)
-    protected readonly secondaryWindowHandler: SecondaryWindowHandler;
-
-    @inject(WidgetManager)
-    protected readonly widgetManager: WidgetManager;
-
     registerCommands(commands: CommandRegistry): void {
         commands.registerCommand(COMMAND_CHAT_RESPONSE_COMMAND, {
             execute: async (arg: AIChatCommandArguments) => {
@@ -60,26 +50,5 @@ export class AIChatCommandContribution implements CommandContribution {
                 this.messageService.info(`Hello ${arg}!`);
             }
         });
-        commands.registerCommand(ChatCommands.EXTRACT_CHAT_VIEW, {
-            execute: () => this.extractChatView(),
-            isEnabled: () => this.canExtractChatView,
-            isVisible: () => this.canExtractChatView
-        });
-    }
-
-    get chatView(): ChatViewWidget | undefined {
-        return this.widgetManager.getWidgets(ChatViewWidget.ID).find(w => w instanceof ChatViewWidget) as ChatViewWidget | undefined;
-    }
-
-    protected extractChatView(): void {
-        const chatView = this.chatView;
-        if (chatView) {
-            this.secondaryWindowHandler.moveWidgetToSecondaryWindow(chatView);
-        }
-    }
-
-    get canExtractChatView(): boolean {
-        const chatView = this.chatView;
-        return !!chatView && !chatView.secondaryWindow;
     }
 }

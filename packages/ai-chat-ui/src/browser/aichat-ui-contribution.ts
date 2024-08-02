@@ -15,16 +15,20 @@
 // *****************************************************************************
 
 import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-contribution';
-import { injectable } from '@theia/core/shared/inversify';
+import { inject, injectable } from '@theia/core/shared/inversify';
 import { CommandRegistry } from '@theia/core';
 import { Widget } from '@theia/core/lib/browser';
 import { ChatCommands } from './chat-view-commands';
 import { ChatViewWidget } from './chat-view-widget';
+import { SecondaryWindowHandler } from '@theia/core/lib/browser/secondary-window-handler';
 
 export const AI_CHAT_TOGGLE_COMMAND_ID = 'aiChat:toggle';
 
 @injectable()
 export class AIChatContribution extends AbstractViewContribution<ChatViewWidget> {
+
+    @inject(SecondaryWindowHandler)
+    protected readonly secondaryWindowHandler: SecondaryWindowHandler;
 
     constructor() {
         super({
@@ -57,6 +61,14 @@ export class AIChatContribution extends AbstractViewContribution<ChatViewWidget>
                 return true;
             })
         });
+        registry.registerCommand(ChatCommands.EXTRACT_CHAT_VIEW, {
+            isEnabled: widget => this.withWidget(widget, this.canExtractChatView.bind(this)),
+            isVisible: widget => this.withWidget(widget, this.canExtractChatView.bind(this)),
+            execute: widget => this.withWidget(widget, chatWidget => {
+                this.extractChatView(chatWidget);
+                return true;
+            })
+        });
     }
 
     protected withWidget(
@@ -64,5 +76,13 @@ export class AIChatContribution extends AbstractViewContribution<ChatViewWidget>
         predicate: (output: ChatViewWidget) => boolean = () => true
     ): boolean | false {
         return widget instanceof ChatViewWidget ? predicate(widget) : false;
+    }
+
+    protected extractChatView(chatView: ChatViewWidget): void {
+        this.secondaryWindowHandler.moveWidgetToSecondaryWindow(chatView);
+    }
+
+    canExtractChatView(chatView: ChatViewWidget): boolean {
+        return !chatView.secondaryWindow;
     }
 }
