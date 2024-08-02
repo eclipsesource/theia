@@ -19,8 +19,9 @@ import * as monaco from '@theia/monaco-editor-core';
 import { FrontendApplicationContribution, PreferenceService } from '@theia/core/lib/browser';
 import { AICodeCompletionProvider } from './ai-code-completion-provider';
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { DisposableCollection } from '@theia/core';
+import { Disposable } from '@theia/core';
 import { AICodeInlineCompletionsProvider } from './ai-code-inline-completion-provider';
+import { PREF_AI_CODE_COMPLETION_ENABLE, PREF_AI_INLINE_COMPLETION_ENABLE } from './ai-code-completion-preference';
 
 @injectable()
 export class AIFrontendApplicationContribution implements FrontendApplicationContribution {
@@ -33,26 +34,30 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
     @inject(PreferenceService)
     private readonly preferenceService: PreferenceService;
 
-    private toDispose = new DisposableCollection();
+    private toDispose = new Map<string, Disposable>();
 
     onDidInitializeLayout(): void {
-        const enableCodeCompletion = this.preferenceService.get<boolean>('ai-code-completion.enable', false);
-        this.enable(enableCodeCompletion);
+        this.handlePreference(PREF_AI_CODE_COMPLETION_ENABLE, enable => this.handleCodeCompletions(enable));
+        this.handlePreference(PREF_AI_INLINE_COMPLETION_ENABLE, enable => this.handleInlineCompletions(enable));
+    }
+
+    protected handlePreference(name: string, handler: (enable: boolean) => Disposable): void {
+        const enable = this.preferenceService.get<boolean>(name, false);
+        this.toDispose.set(name, handler(enable));
+
         this.preferenceService.onPreferenceChanged(event => {
-            if (event.preferenceName === 'ai-code-completion.enable') {
-                this.enable(event.newValue);
+            if (event.preferenceName === name) {
+                this.toDispose.get(name)?.dispose();
+                this.toDispose.set(name, handler(event.newValue));
             }
         });
     }
 
-    protected enable(enable: boolean): void {
-        this.toDispose.dispose();
-        if (enable) {
-            this.toDispose.push(monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider));
-            this.toDispose.push(monaco.languages.registerInlineCompletionsProvider({ scheme: 'file' }, this.inlineCodeCompletionProvider));
-        }
+    protected handleCodeCompletions(enable: boolean): Disposable {
+        return enable ? monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider) : Disposable.NULL;
     }
 
-    onStop(): void {
+    protected handleInlineCompletions(enable: boolean): Disposable {
+        return enable ? monaco.languages.registerInlineCompletionsProvider({ scheme: 'file' }, this.inlineCodeCompletionProvider) : Disposable.NULL;
     }
 }
