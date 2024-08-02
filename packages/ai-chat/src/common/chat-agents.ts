@@ -32,7 +32,15 @@ import {
 import { CancellationToken, CancellationTokenSource, ILogger, isArray } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgentService } from './chat-agent-service';
-import { ChatModel, ChatRequestModelImpl, ChatResponseContent, CodeChatResponseContentImpl, MarkdownChatResponseContentImpl, ToolCallResponseContentImpl } from './chat-model';
+import {
+    ChatModel,
+    ChatRequestModel,
+    ChatRequestModelImpl,
+    ChatResponseContent,
+    CodeChatResponseContentImpl,
+    MarkdownChatResponseContentImpl,
+    ToolCallResponseContentImpl,
+} from './chat-model';
 
 export interface ChatMessage {
     actor: MessageActor;
@@ -117,7 +125,9 @@ export abstract class AbstractChatAgent implements ChatAgent {
                 cancellationToken.cancel();
             }
         });
-        const languageModelResponse = await this.callLlm(languageModel, messages, cancellationToken.token);
+
+        const tools = this.getTools(request);
+        const languageModelResponse = await this.callLlm(languageModel, messages, tools, cancellationToken.token);
         await this.addContentsToResponse(languageModelResponse, request);
         request.response.complete();
         this.recordingService.recordResponse({
@@ -184,13 +194,23 @@ export abstract class AbstractChatAgent implements ChatAgent {
     /**
      * @returns the list of tools used by this agent, or undefined if none is needed.
      */
-    protected getTools(): ToolRequest<object>[] | undefined {
-        return undefined;
+    protected getTools(request: ChatRequestModel): ToolRequest<object>[] | undefined {
+        return request.message.toolRequests.size > 0
+            ? [...request.message.toolRequests.values()]
+            : undefined;
     }
 
-    protected async callLlm(languageModel: LanguageModel, messages: ChatMessage[], token: CancellationToken): Promise<LanguageModelResponse> {
-        const tools = this.getTools();
-        const languageModelResponse = languageModel.request({ messages, tools, cancellationToken: token });
+    protected async callLlm(
+        languageModel: LanguageModel,
+        messages: ChatMessage[],
+        tools: ToolRequest<object>[] | undefined,
+        token: CancellationToken
+    ): Promise<LanguageModelResponse> {
+        const languageModelResponse = languageModel.request({
+            messages,
+            tools,
+            cancellationToken: token,
+        });
         return languageModelResponse;
     }
 
