@@ -208,5 +208,6 @@ div:last-child>.theia-ChatNode {
 .theia-ChatPart-Error {
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
+    gap: 0.5em;
+    color: var(--theia-errorForeground);
 }
