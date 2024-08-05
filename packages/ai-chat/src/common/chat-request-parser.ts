@@ -38,7 +38,7 @@ import {
 import { AIVariable, AIVariableService, FunctionCallRegistry, ToolRequest } from '@theia/ai-core';
 
 const agentReg = /^@([\w_\-\.]+)(?=(\s|$|\b))/i; // An @-agent
-const functionReg = /^~([\w_\-\.]+)(?=(\s|$|\b))/i; // An #! tool function
+const functionReg = /^~([\w_\-\.]+)(?=(\s|$|\b))/i; // A ~ tool function
 const variableReg = /^#([\w_\-]+)(?::([\w_\-_\/\\.:]+))?(?=(\s|$|\b))/i; // A #-variable with an optional : arg (#file:workspace/path/name.ext)
 // const slashReg = /\/([\w_\-]+)(?=(\s|$|\b))/i; // A / command
 
@@ -203,9 +203,9 @@ export class ChatRequestParserImpl {
             return;
         }
 
-        const [full, name] = nextFunctionMatch;
+        const [full, id] = nextFunctionMatch;
 
-        const maybeToolRequest = this.functionCallRegistry.getFunction(name);
+        const maybeToolRequest = this.functionCallRegistry.getFunction(id);
         if (!maybeToolRequest) {
             return;
         }
