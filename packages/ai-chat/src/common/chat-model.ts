@@ -65,6 +65,7 @@ export interface ChatModel {
 export interface ChatRequest {
     readonly text: string;
     readonly displayText?: string;
+    readonly isHidden?: boolean;
 }
 
 export interface ChatRequestModel {
@@ -74,8 +75,6 @@ export interface ChatRequestModel {
     readonly response: ChatResponseModel;
     readonly message: ParsedChatRequest;
     readonly agentId?: string;
-    readonly delegateAgentIds: string[];
-    addDelegate(delegateAgentid: string): void;
 }
 
 export interface ChatProgressMessage {
@@ -240,8 +239,6 @@ export interface ChatResponseModel {
     readonly isCanceled: boolean;
     readonly isError: boolean;
     readonly agentId?: string
-    readonly delegateAgentIds: string[];
-    addDelegate(delegateAgentid: string): void;
     cancel(): void;
     error(error: Error): void;
     readonly errorObject?: Error;
@@ -294,7 +291,6 @@ export class ChatRequestModelImpl implements ChatRequestModel {
     protected _request: ChatRequest;
     protected _response: ChatResponseModelImpl;
     protected _agentId?: string;
-    protected _delegateAgentIds: string[];
 
     constructor(session: ChatModel, public readonly message: ParsedChatRequest, agentId?: string) {
         // TODO accept serialized data as a parameter to restore a previously saved ChatRequestModel
@@ -303,7 +299,6 @@ export class ChatRequestModelImpl implements ChatRequestModel {
         this._session = session;
         this._response = new ChatResponseModelImpl(this._id, agentId);
         this._agentId = agentId;
-        this._delegateAgentIds = [];
     }
 
     get id(): string {
@@ -325,17 +320,8 @@ export class ChatRequestModelImpl implements ChatRequestModel {
     get agentId(): string | undefined {
         return this._agentId;
     }
-
-    get delegateAgentIds(): string[] {
-        return this._delegateAgentIds;
-    }
-
-    addDelegate(delegateAgentid: string): void {
-        this._delegateAgentIds.push(delegateAgentid);
-        this._response.addDelegate(delegateAgentid);
-    }
-
 }
+
 export class ErrorResponseContentImpl implements ErrorResponseContent {
     kind: 'error' = 'error';
     protected _error: Error;
@@ -615,8 +601,7 @@ class ChatResponseModelImpl implements ChatResponseModel {
     protected _isComplete: boolean;
     protected _isCanceled: boolean;
     protected _agentId?: string;
-    protected _delegateAgentIds: string[];
-    protected _isErrror: boolean;
+    protected _isError: boolean;
     protected _errorObject: Error | undefined;
 
     constructor(requestId: string, agentId?: string) {
@@ -630,7 +615,6 @@ class ChatResponseModelImpl implements ChatResponseModel {
         this._isComplete = false;
         this._isCanceled = false;
         this._agentId = agentId;
-        this._delegateAgentIds = [];
     }
 
     get id(): string {
@@ -661,14 +645,6 @@ class ChatResponseModelImpl implements ChatResponseModel {
         return this._agentId;
     }
 
-    get delegateAgentIds(): string[] {
-        return this._delegateAgentIds;
-    }
-
-    addDelegate(delegateAgentid: string): void {
-        this._delegateAgentIds.push(delegateAgentid);
-    }
-
     complete(): void {
         this._isComplete = true;
         this._onDidChangeEmitter.fire();
@@ -682,7 +658,7 @@ class ChatResponseModelImpl implements ChatResponseModel {
     error(error: Error): void {
         this._isComplete = true;
         this._isCanceled = false;
-        this._isErrror = true;
+        this._isError = true;
         this._errorObject = error;
         this._onDidChangeEmitter.fire();
     }
@@ -690,6 +666,6 @@ class ChatResponseModelImpl implements ChatResponseModel {
         return this._errorObject;
     }
     get isError(): boolean {
-        return this._isErrror;
+        return this._isError;
     }
 }
