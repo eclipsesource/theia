@@ -13,28 +13,23 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { FrontendApplication } from '@theia/core/lib/browser';
-import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-contribution';
-import { injectable } from '@theia/core/shared/inversify';
-import { AIHistoryView } from './ai-history-widget';
 
-export const AI_HISTORY_TOGGLE_COMMAND_ID = 'aiHistory:toggle';
+import { ChatResponsePartRenderer } from '../types';
+import { injectable } from '@theia/core/shared/inversify';
+import { ChatResponseContent, ErrorResponseContent, isErrorChatResponseContent } from '@theia/ai-chat/lib/common';
+import { ReactNode } from '@theia/core/shared/react';
+import * as React from '@theia/core/shared/react';
 
 @injectable()
-export class AIHistoryViewContribution extends AbstractViewContribution<AIHistoryView> {
-    constructor() {
-        super({
-            widgetId: AIHistoryView.ID,
-            widgetName: AIHistoryView.LABEL,
-            defaultWidgetOptions: {
-                area: 'bottom',
-                rank: 100
-            },
-            toggleCommandId: AI_HISTORY_TOGGLE_COMMAND_ID,
-        });
+export class ErrorPartRenderer implements ChatResponsePartRenderer<ErrorResponseContent> {
+    canHandle(response: ChatResponseContent): number {
+        if (isErrorChatResponseContent(response)) {
+            return 10;
+        }
+        return -1;
+    }
+    render(response: ErrorResponseContent): ReactNode {
+        return <div className='theia-ChatPart-Error'><span className='codicon codicon-error' /><span>{response.error.message}</span></div>;
     }
 
-    async initializeLayout(_app: FrontendApplication): Promise<void> {
-        await this.openView();
-    }
 }
