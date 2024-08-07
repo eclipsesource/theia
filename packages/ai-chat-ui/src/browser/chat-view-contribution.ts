@@ -13,20 +13,28 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { Command, CommandContribution, CommandRegistry, MenuContribution, MenuModelRegistry } from '@theia/core';
-import { CommonCommands } from '@theia/core/lib/browser';
+import { Command, CommandContribution, CommandRegistry, CommandService, isObject, MenuContribution, MenuModelRegistry } from '@theia/core';
+import { CommonCommands, TreeNode } from '@theia/core/lib/browser';
 import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatViewTreeWidget, isRequestNode, isResponseNode, RequestNode, ResponseNode } from './chat-tree-view/chat-view-tree-widget';
 import { ChatInputWidget } from './chat-input-widget';
 
 export namespace ChatViewCommands {
+    export const COPY = Command.toDefaultLocalizedCommand({
+        id: 'chat.copy',
+        label: 'Copy'
+    });
+    export const COPY_MESSAGE = Command.toDefaultLocalizedCommand({
+        id: 'chat.copy.message',
+        label: 'Copy Message'
+    });
     export const COPY_ALL = Command.toDefaultLocalizedCommand({
-        id: 'core.copy.all',
+        id: 'chat.copy.all',
         label: 'Copy All'
     });
     export const COPY_CODE = Command.toDefaultLocalizedCommand({
-        id: 'core.copy.code',
+        id: 'chat.copy.code',
         label: 'Copy Code Block'
     });
 }
@@ -37,36 +45,81 @@ export class ChatViewMenuContribution implements MenuContribution, CommandContri
     @inject(ClipboardService)
     protected readonly clipboardService: ClipboardService;
 
+    @inject(CommandService)
+    protected readonly commandService: CommandService;
+
     registerCommands(commands: CommandRegistry): void {
-        commands.registerCommand(ChatViewCommands.COPY_ALL, {
+        commands.registerCommand(ChatViewCommands.COPY, {
             execute: (...args) => {
-                if (isRequestOrResponseNode(args)) {
-                    const text = args.map(arg => {
-                        if (isRequestNode(arg)) {
-                            return arg.request.request.text;
-                        } else if (isResponseNode(arg)) {
-                            return arg.response.response.asString();
-                        }
-                    }).join();
-                    this.clipboardService.writeText(text);
+                if (window.getSelection()?.type !== 'Range' && containsRequestOrResponseNode(args)) {
+                    this.copyMessage(args);
+                } else {
+                    this.commandService.executeCommand(CommonCommands.COPY.id);
                 }
             },
-            isEnabled: (...args) => isRequestOrResponseNode(args)
+            isEnabled: (...args) => containsRequestOrResponseNode(args)
+        });
+        commands.registerCommand(ChatViewCommands.COPY_MESSAGE, {
+            execute: (...args) => {
+                if (containsRequestOrResponseNode(args)) {
+                    this.copyMessage(args);
+                }
+            },
+            isEnabled: (...args) => containsRequestOrResponseNode(args)
+        });
+        commands.registerCommand(ChatViewCommands.COPY_ALL, {
+            execute: (...args) => {
+                if (containsRequestOrResponseNode(args)) {
+                    const parent = args.find(arg => arg.parent)?.parent;
+                    const text = parent?.children
+                        .filter(isRequestOrResponseNode)
+                        .map(child => this.getText(child))
+                        .join('\n\n---\n\n');
+                    if (text) {
+                        this.clipboardService.writeText(text);
+                    }
+                }
+            },
+            isEnabled: (...args) => containsRequestOrResponseNode(args)
         });
         commands.registerCommand(ChatViewCommands.COPY_CODE, {
             execute: (...args) => {
                 if (containsCode(args)) {
-                    const code = args.filter(arg => 'code' in arg).map(arg => arg.code).join();
+                    const code = args
+                        .filter(isCodeArg)
+                        .map(arg => arg.code)
+                        .join();
                     this.clipboardService.writeText(code);
                 }
             },
-            isEnabled: (...args) => isRequestOrResponseNode(args) && containsCode(args)
+            isEnabled: (...args) => containsRequestOrResponseNode(args) && containsCode(args)
         });
+    }
+
+    protected copyMessage(args: (RequestNode | ResponseNode)[]): void {
+        const text = this.getTextAndJoin(args);
+        this.clipboardService.writeText(text);
+    }
+
+    protected getTextAndJoin(args: (RequestNode | ResponseNode)[] | undefined): string {
+        return args !== undefined ? args.map(arg => this.getText(arg)).join() : '';
+    }
+
+    protected getText(arg: RequestNode | ResponseNode): string {
+        if (isRequestNode(arg)) {
+            return arg.request.request.text;
+        } else if (isResponseNode(arg)) {
+            return arg.response.response.asString();
+        }
+        return '';
     }
 
     registerMenus(menus: MenuModelRegistry): void {
         menus.registerMenuAction([...ChatViewTreeWidget.CONTEXT_MENU, '_1'], {
-            commandId: CommonCommands.COPY.id
+            commandId: ChatViewCommands.COPY.id
+        });
+        menus.registerMenuAction([...ChatViewTreeWidget.CONTEXT_MENU, '_1'], {
+            commandId: ChatViewCommands.COPY_MESSAGE.id
         });
         menus.registerMenuAction([...ChatViewTreeWidget.CONTEXT_MENU, '_1'], {
             commandId: ChatViewCommands.COPY_ALL.id
@@ -84,13 +137,19 @@ export class ChatViewMenuContribution implements MenuContribution, CommandContri
 
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function isRequestOrResponseNode(args: any[]): args is (RequestNode | ResponseNode)[] {
-    return args.filter(arg => isRequestNode(arg) || isResponseNode(arg)).length > 0;
+function containsRequestOrResponseNode(args: unknown[]): args is (RequestNode | ResponseNode)[] {
+    return args.filter(arg => isRequestOrResponseNode(arg)).length > 0;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function containsCode(args: any[]): args is (any | { code: string })[] {
-    return args.filter(arg => 'code' in arg).length > 0;
+function isRequestOrResponseNode(arg: unknown): arg is RequestNode | ResponseNode {
+    return TreeNode.is(arg) && (isRequestNode(arg) || isResponseNode(arg));
+}
+
+function containsCode(args: unknown[]): args is (unknown | { code: string })[] {
+    return args.filter(arg => isCodeArg(arg)).length > 0;
+}
+
+function isCodeArg(arg: unknown): arg is { code: string } {
+    return isObject(arg) && 'code' in arg;
 }
 

@@ -79,11 +79,10 @@ export class ChatInputWidget extends ReactWidget {
         );
     }
 
-    protected handleContextMenu(event: IMouseEvent, runAction: (action: string) => void): void {
+    protected handleContextMenu(event: IMouseEvent): void {
         this.contextMenuRenderer.render({
             menuPath: ChatInputWidget.CONTEXT_MENU,
             anchor: { x: event.posx, y: event.posy },
-            args: [{ runAction }]
         });
         event.preventDefault();
     }
