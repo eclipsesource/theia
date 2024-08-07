@@ -79,8 +79,7 @@ export interface ChatService {
 
     sendRequest(
         sessionId: string,
-        request: ChatRequest,
-        errorHandler?: (e: unknown) => void
+        request: ChatRequest
     ): Promise<ChatSendRequestData | undefined>;
 }
 
@@ -130,11 +129,13 @@ export class ChatServiceImpl implements ChatService {
     }
 
     removeSession(sessionId: string): void {
+        // If the removed session is the active one, set the newest one as active
+        if (this.getSession(sessionId)?.isActive) {
+            this.setActiveSession(this._sessions[this._sessions.length - 1].id);
+        }
         this._sessions = this._sessions.filter(item => item.id !== sessionId);
         if (this._sessions.length === 0) {
             this.createSession();
-        } else {
-            this.setActiveSession(this._sessions[this._sessions.length - 1].id);
         }
     }
 
@@ -158,8 +159,7 @@ export class ChatServiceImpl implements ChatService {
 
     async sendRequest(
         sessionId: string,
-        request: ChatRequest,
-        errorHandler?: (e: unknown) => void
+        request: ChatRequest
     ): Promise<ChatSendRequestData | undefined> {
         const session = this.getSession(sessionId);
         if (!session) {
@@ -206,15 +206,14 @@ export class ChatServiceImpl implements ChatService {
             if (requestModel.response.isComplete) {
                 resolveResponseCompleted!(requestModel.response);
             }
+            if (requestModel.response.isError) {
+                resolveResponseCompleted!(requestModel.response);
+            }
         });
 
         if (agent) {
             this.chatAgentService.invokeAgent(agent.id, requestModel).catch(e => {
-                if (errorHandler) {
-                    errorHandler(e);
-                } else {
-                    throw e;
-                }
+                requestModel.response.error(e);
             });
         } else {
             this.logger.error('No ChatAgents available to handle request!');

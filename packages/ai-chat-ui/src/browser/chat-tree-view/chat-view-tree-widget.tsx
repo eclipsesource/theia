@@ -182,7 +182,7 @@ export class ChatViewTreeWidget extends TreeWidget {
         </React.Fragment>;
     }
     private renderAgent(node: RequestNode | ResponseNode): React.ReactNode {
-        const inProgress = isResponseNode(node) && !node.response.isComplete && !node.response.isCanceled;
+        const inProgress = isResponseNode(node) && !node.response.isComplete && !node.response.isCanceled && !node.response.isError;
         return <React.Fragment>
             <div className='theia-ChatNodeHeader'>
                 <div className={`theia-AgentAvatar ${this.getAgentIconClassName(node)}`}></div>
@@ -198,7 +198,16 @@ export class ChatViewTreeWidget extends TreeWidget {
         }
 
         const agent = node.response.agentId ? this.chatAgentService.getAgent(node.response.agentId) : undefined;
-        return agent?.name ?? 'AI';
+        const initialAgentlabel = agent?.name ?? 'AI';
+        const labelParts = [initialAgentlabel];
+
+        for (const delegateAgentId of node.response.delegateAgentIds) {
+            const delegateAgent = this.chatAgentService.getAgent(delegateAgentId);
+            const delegateAgentlabel = delegateAgent?.name ?? 'AI';
+            labelParts.push(delegateAgentlabel);
+        }
+
+        return labelParts.join(' > ');
     }
     private getAgentIconClassName(node: RequestNode | ResponseNode): string | undefined {
         if (isRequestNode(node)) {

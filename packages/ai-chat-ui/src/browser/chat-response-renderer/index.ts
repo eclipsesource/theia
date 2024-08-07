@@ -19,3 +19,4 @@ export * from './markdown-part-renderer';
 export * from './command-part-renderer';
 export * from './toolcall-part-renderer';
 export * from './horizontal-layout-part-renderer';
+export * from './error-part-renderer';
