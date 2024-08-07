@@ -111,7 +111,7 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
             fontSize: 13,
             cursorWidth: 1,
             maxHeight: -1,
-            scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
+            scrollbar: { horizontal: 'hidden' },
             automaticLayout: true,
             lineNumbers: 'off',
             lineHeight: 20,
@@ -131,6 +131,7 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
         editor.getControl().onDidChangeModelContent(() => {
             layout();
         });
+
         editorRef.current = editor;
     };
 
@@ -171,9 +172,6 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
         } else {
             placeholderRef.current?.classList.remove(hiddenClass);
         }
-
-        const contentHeight = editor.getControl().getContentHeight();
-        editorContainerRef.current!.style.height = `${contentHeight + 8}px`;
     }
 
     const onKeyDown = React.useCallback((event: React.KeyboardEvent) => {
