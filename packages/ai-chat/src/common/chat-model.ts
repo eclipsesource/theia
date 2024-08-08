@@ -65,7 +65,6 @@ export interface ChatModel {
 export interface ChatRequest {
     readonly text: string;
     readonly displayText?: string;
-    readonly isHidden?: boolean;
 }
 
 export interface ChatRequestModel {
@@ -84,7 +83,12 @@ export interface ChatProgressMessage {
 
 export interface BaseChatResponseContent {
     kind: string;
-    asString?(): string;
+    /**
+     * Represents the content as a string. Returns `undefined` if the content
+     * is purely informational and/or visual and should not be included in the overall
+     * representation of the response.
+     */
+    asString?(): string | undefined;
     merge?(nextChatResponseContent: BaseChatResponseContent): boolean;
 }
 
@@ -163,6 +167,11 @@ export interface CommandChatResponseContent extends BaseChatResponseContent {
     arguments?: unknown[];
 }
 
+export interface InformationalChatResponseContent extends BaseChatResponseContent {
+    kind: 'informational';
+    content: MarkdownString;
+}
+
 export const isTextChatResponseContent = (
     obj: unknown
 ): obj is TextChatResponseContent =>
@@ -176,6 +185,14 @@ export const isMarkdownChatResponseContent = (
 ): obj is MarkdownChatResponseContent =>
     isBaseChatResponseContent(obj) &&
     obj.kind === 'markdownContent' &&
+    'content' in obj &&
+    MarkdownString.is((obj as { content: unknown }).content);
+
+export const isInformationalChatResponseContent = (
+    obj: unknown
+): obj is InformationalChatResponseContent =>
+    isBaseChatResponseContent(obj) &&
+    obj.kind === 'informational' &&
     'content' in obj &&
     MarkdownString.is((obj as { content: unknown }).content);
 
@@ -222,7 +239,8 @@ export type ChatResponseContent =
     | CodeChatResponseContent
     | HorizontalLayoutChatResponseContent
     | ToolCallResponseContent
-    | ErrorResponseContent;
+    | ErrorResponseContent
+    | InformationalChatResponseContent;
 
 export interface ChatResponse {
     readonly content: ChatResponseContent[];
@@ -331,6 +349,9 @@ export class ErrorResponseContentImpl implements ErrorResponseContent {
     get error(): Error {
         return this._error;
     }
+    asString(): string | undefined {
+        return undefined;
+    }
 }
 
 export class TextChatResponseContentImpl implements TextChatResponseContent {
@@ -372,6 +393,28 @@ export class MarkdownChatResponseContentImpl implements MarkdownChatResponseCont
     }
 
     merge(nextChatResponseContent: MarkdownChatResponseContent): boolean {
+        this._content.appendMarkdown(nextChatResponseContent.content.value);
+        return true;
+    }
+}
+
+export class InformationalChatResponseContentImpl implements InformationalChatResponseContent {
+    kind: 'informational' = 'informational';
+    protected _content: MarkdownStringImpl;
+
+    constructor(content: string) {
+        this._content = new MarkdownStringImpl(content);
+    }
+
+    get content(): MarkdownString {
+        return this._content;
+    }
+
+    asString(): string | undefined {
+        return undefined;
+    }
+
+    merge(nextChatResponseContent: InformationalChatResponseContent): boolean {
         this._content.appendMarkdown(nextChatResponseContent.content.value);
         return true;
     }
@@ -643,6 +686,10 @@ class ChatResponseModelImpl implements ChatResponseModel {
 
     get agentId(): string | undefined {
         return this._agentId;
+    }
+
+    overrideAgentId(agentId: string): void {
+        this._agentId = agentId;
     }
 
     complete(): void {

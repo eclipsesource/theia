@@ -177,9 +177,6 @@ export class ChatViewTreeWidget extends TreeWidget {
         if (!(isRequestNode(node) || isResponseNode(node))) {
             return super.renderNode(node, props);
         }
-        if (isRequestNode(node) && node.request.request.isHidden) {
-            return undefined;
-        }
         return <React.Fragment key={node.id}>
             <div className='theia-ChatNode' onContextMenu={e => this.handleContextMenu(node, e)}>
                 {this.renderAgent(node)}

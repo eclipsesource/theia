@@ -21,7 +21,7 @@ import {
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgentService } from './chat-agent-service';
 import { AbstractStreamParsingChatAgent } from './chat-agents';
-import { ChatRequestModelImpl, MarkdownChatResponseContentImpl } from './chat-model';
+import { ChatRequestModelImpl, InformationalChatResponseContentImpl } from './chat-model';
 
 export const delegateTemplate: PromptTemplate = {
     id: 'default-delegate-template',
@@ -92,29 +92,17 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
             this.logger.error('No agent was selected, delegating to default chat agent');
             agentIds = ['DefaultChatAgent'];
         }
-        request.response.response.addContent(new MarkdownChatResponseContentImpl(
-            `I'll delegate this to ${agentIds.map((id: string) => `**@${id}**`).join(' and ')}`
+        // TODO support delegating to more than one agent
+        const delegatedToAgent = agentIds[0];
+        // TODO offer configuration to hide these informational messages
+        request.response.response.addContent(new InformationalChatResponseContentImpl(
+            `*DelegatingChatAgent*: Delegating to \`@${delegatedToAgent}\`
+            
+            ---
+
+            `
         ));
-        request.response.complete();
-        this.recordingService.recordResponse({
-            agentId: this.id,
-            sessionId: request.session.id,
-            timestamp: Date.now(),
-            requestId: request.response.requestId,
-            response: request.response.response.asString()
-        });
-        const lastRequest = request.session.getRequests()[request.session.getRequests().length - 1];
-        for (const agentId of agentIds) {
-            const message = lastRequest.message;
-            const newRequest = request.session.addRequest({
-                ...message,
-                request: {
-                    ...message.request,
-                    displayText: `@${agentId} ${message.request.text}`,
-                    isHidden: true
-                }
-            }, agentId);
-            await this.chatAgentService.invokeAgent(agentId, newRequest);
-        }
+        request.response.overrideAgentId(delegatedToAgent);
+        await this.chatAgentService.invokeAgent(delegatedToAgent, request);
     }
 }
