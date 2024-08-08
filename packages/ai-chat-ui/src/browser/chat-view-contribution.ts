@@ -50,27 +50,27 @@ export class ChatViewMenuContribution implements MenuContribution, CommandContri
 
     registerCommands(commands: CommandRegistry): void {
         commands.registerCommand(ChatViewCommands.COPY, {
-            execute: (...args) => {
+            execute: (...args: unknown[]) => {
                 if (window.getSelection()?.type !== 'Range' && containsRequestOrResponseNode(args)) {
-                    this.copyMessage(args);
+                    this.copyMessage(extractRequestOrResponseNodes(args));
                 } else {
                     this.commandService.executeCommand(CommonCommands.COPY.id);
                 }
             },
-            isEnabled: (...args) => containsRequestOrResponseNode(args)
+            isEnabled: (...args: unknown[]) => containsRequestOrResponseNode(args)
         });
         commands.registerCommand(ChatViewCommands.COPY_MESSAGE, {
-            execute: (...args) => {
+            execute: (...args: unknown[]) => {
                 if (containsRequestOrResponseNode(args)) {
-                    this.copyMessage(args);
+                    this.copyMessage(extractRequestOrResponseNodes(args));
                 }
             },
-            isEnabled: (...args) => containsRequestOrResponseNode(args)
+            isEnabled: (...args: unknown[]) => containsRequestOrResponseNode(args)
         });
         commands.registerCommand(ChatViewCommands.COPY_ALL, {
-            execute: (...args) => {
+            execute: (...args: unknown[]) => {
                 if (containsRequestOrResponseNode(args)) {
-                    const parent = args.find(arg => arg.parent)?.parent;
+                    const parent = extractRequestOrResponseNodes(args).find(arg => arg.parent)?.parent;
                     const text = parent?.children
                         .filter(isRequestOrResponseNode)
                         .map(child => this.getText(child))
@@ -80,10 +80,10 @@ export class ChatViewMenuContribution implements MenuContribution, CommandContri
                     }
                 }
             },
-            isEnabled: (...args) => containsRequestOrResponseNode(args)
+            isEnabled: (...args: unknown[]) => containsRequestOrResponseNode(args)
         });
         commands.registerCommand(ChatViewCommands.COPY_CODE, {
-            execute: (...args) => {
+            execute: (...args: unknown[]) => {
                 if (containsCode(args)) {
                     const code = args
                         .filter(isCodeArg)
@@ -92,7 +92,7 @@ export class ChatViewMenuContribution implements MenuContribution, CommandContri
                     this.clipboardService.writeText(code);
                 }
             },
-            isEnabled: (...args) => containsRequestOrResponseNode(args) && containsCode(args)
+            isEnabled: (...args: unknown[]) => containsRequestOrResponseNode(args) && containsCode(args)
         });
     }
 
@@ -137,8 +137,12 @@ export class ChatViewMenuContribution implements MenuContribution, CommandContri
 
 }
 
-function containsRequestOrResponseNode(args: unknown[]): args is (RequestNode | ResponseNode)[] {
-    return args.filter(arg => isRequestOrResponseNode(arg)).length > 0;
+function extractRequestOrResponseNodes(args: unknown[]): (RequestNode | ResponseNode)[] {
+    return args.filter(arg => isRequestOrResponseNode(arg)) as (RequestNode | ResponseNode)[];
+}
+
+function containsRequestOrResponseNode(args: unknown[]): args is (unknown | RequestNode | ResponseNode)[] {
+    return extractRequestOrResponseNodes(args).length > 0;
 }
 
 function isRequestOrResponseNode(arg: unknown): arg is RequestNode | ResponseNode {
@@ -152,4 +156,3 @@ function containsCode(args: unknown[]): args is (unknown | { code: string })[] {
 function isCodeArg(arg: unknown): arg is { code: string } {
     return isObject(arg) && 'code' in arg;
 }
-
