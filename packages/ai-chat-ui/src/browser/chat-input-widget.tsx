@@ -13,21 +13,22 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { Message, ReactWidget } from '@theia/core/lib/browser';
-import * as React from '@theia/core/shared/react';
-import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
-import { ChatAgent, ChatAgentService } from '@theia/ai-chat';
-import { MonacoEditorProvider } from '@theia/monaco/lib/browser/monaco-editor-provider';
+import { ChatAgent, ChatAgentService, ChatModel } from '@theia/ai-chat';
 import { UntitledResourceResolver } from '@theia/core';
+import { ContextMenuRenderer, Message, ReactWidget } from '@theia/core/lib/browser';
+import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
+import * as React from '@theia/core/shared/react';
 import { MonacoEditor } from '@theia/monaco/lib/browser/monaco-editor';
-import { ChatModel } from '@theia/ai-chat';
+import { MonacoEditorProvider } from '@theia/monaco/lib/browser/monaco-editor-provider';
 import { CHAT_VIEW_LANGUAGE_EXTENSION } from './chat-view-language-contribution';
+import { IMouseEvent } from '@theia/monaco-editor-core';
 
 type Query = (query: string) => Promise<void>;
 
 @injectable()
 export class ChatInputWidget extends ReactWidget {
     public static ID = 'chat-input-widget';
+    static readonly CONTEXT_MENU = ['chat-input-context-menu'];
 
     @inject(ChatAgentService)
     protected readonly agentService: ChatAgentService;
@@ -37,6 +38,9 @@ export class ChatInputWidget extends ReactWidget {
 
     @inject(UntitledResourceResolver)
     protected readonly untitledResourceResolver: UntitledResourceResolver;
+
+    @inject(ContextMenuRenderer)
+    protected readonly contextMenuRenderer: ContextMenuRenderer;
 
     private _onQuery: Query;
     set onQuery(query: Query) {
@@ -70,8 +74,17 @@ export class ChatInputWidget extends ReactWidget {
                 getChatAgents={this.getChatAgents.bind(this)}
                 editorProvider={this.editorProvider}
                 untitledResourceResolver={this.untitledResourceResolver}
+                contextMenuCallback={this.handleContextMenu.bind(this)}
             />
         );
+    }
+
+    protected handleContextMenu(event: IMouseEvent): void {
+        this.contextMenuRenderer.render({
+            menuPath: ChatInputWidget.CONTEXT_MENU,
+            anchor: { x: event.posx, y: event.posy },
+        });
+        event.preventDefault();
     }
 
 }
@@ -82,12 +95,15 @@ interface ChatInputProperties {
     getChatAgents: () => ChatAgent[];
     editorProvider: MonacoEditorProvider;
     untitledResourceResolver: UntitledResourceResolver;
+    contextMenuCallback: (event: IMouseEvent) => void;
 }
 const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInputProperties) => {
 
     const [inProgress, setInProgress] = React.useState(false);
     // eslint-disable-next-line no-null/no-null
-    const ref = React.useRef<HTMLDivElement | null>(null);
+    const editorContainerRef = React.useRef<HTMLDivElement | null>(null);
+    // eslint-disable-next-line no-null/no-null
+    const placeholderRef = React.useRef<HTMLDivElement | null>(null);
     const editorRef = React.useRef<MonacoEditor | undefined>(undefined);
     const allRequests = props.chatModel.getRequests();
     const lastRequest = allRequests.length === 0 ? undefined : allRequests[allRequests.length - 1];
@@ -95,7 +111,7 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
 
     const createInputElement = async () => {
         const resource = await props.untitledResourceResolver.createUntitledResource('', CHAT_VIEW_LANGUAGE_EXTENSION);
-        const editor = await props.editorProvider.createInline(resource.uri, ref.current!, {
+        const editor = await props.editorProvider.createInline(resource.uri, editorContainerRef.current!, {
             language: CHAT_VIEW_LANGUAGE_EXTENSION,
             // Disable code lens, inlay hints and hover support to avoid console errors from other contributions
             codeLens: false,
@@ -105,16 +121,35 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
             scrollBeyondLastLine: false,
             scrollBeyondLastColumn: 0,
             minHeight: 1,
-            renderFinalNewline: 'on',
             fontFamily: 'var(--theia-ui-font-family)',
             fontSize: 13,
+            cursorWidth: 1,
             maxHeight: -1,
-            scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
+            scrollbar: { horizontal: 'hidden' },
             automaticLayout: true,
             lineNumbers: 'off',
-            lineHeight: 15,
-            padding: { top: 10, bottom: 5 },
+            lineHeight: 20,
+            padding: { top: 8 },
+            suggest: {
+                showIcons: true,
+                showSnippets: false,
+                showWords: false,
+                showStatusBar: false,
+                insertMode: 'replace',
+            },
+            bracketPairColorization: { enabled: false },
+            wrappingStrategy: 'advanced',
+            stickyScroll: { enabled: false },
         });
+
+        editor.getControl().onDidChangeModelContent(() => {
+            layout();
+        });
+
+        editor.getControl().onContextMenu(e =>
+            props.contextMenuCallback(e.event)
+        );
+
         editorRef.current = editor;
     };
 
@@ -144,6 +179,19 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
         }
     };
 
+    function layout(): void {
+        if (editorRef.current === undefined) {
+            return;
+        }
+        const hiddenClass = 'hidden';
+        const editor = editorRef.current;
+        if (editor.document.textEditorModel.getValue().length > 0) {
+            placeholderRef.current?.classList.add(hiddenClass);
+        } else {
+            placeholderRef.current?.classList.remove(hiddenClass);
+        }
+    }
+
     const onKeyDown = React.useCallback((event: React.KeyboardEvent) => {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
@@ -152,7 +200,11 @@ const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInpu
     }, []);
 
     return <div className='theia-ChatInput'>
-        <div className='theia-ChatInput-Editor' ref={ref} onKeyDown={onKeyDown}></div>
+        <div className='theia-ChatInput-Editor-Box'>
+            <div className='theia-ChatInput-Editor' ref={editorContainerRef} onKeyDown={onKeyDown}>
+                <div ref={placeholderRef} className='theia-ChatInput-Editor-Placeholder'>Enter your question</div>
+            </div>
+        </div>
         <div className="theia-ChatInputOptions">
             {
                 inProgress ? <span
