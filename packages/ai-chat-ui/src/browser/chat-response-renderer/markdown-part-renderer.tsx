@@ -44,6 +44,12 @@ export class MarkdownPartRenderer implements ChatResponsePartRenderer<MarkdownCh
         return this.renderer.render(md).element;
     }
     render(response: MarkdownChatResponseContent | InformationalChatResponseContent): ReactNode {
+        // TODO let the user configure whether they want to see informational content
+        if (isInformationalChatResponseContent(response)) {
+            // null is valid in React
+            // eslint-disable-next-line no-null/no-null
+            return null;
+        }
         return <MarkdownWrapper data={response.content} renderCallback={this.renderMarkdown.bind(this)}></MarkdownWrapper>;
     }
 

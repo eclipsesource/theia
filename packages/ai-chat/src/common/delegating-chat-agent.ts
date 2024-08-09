@@ -62,7 +62,6 @@ You must only use the \`id\` attribute of the agent, never the name.
 
 @injectable()
 export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
-
     id: string = 'DelegatingChatAgent';
     name: string = 'DelegatingChatAgent';
     description: string = 'A chat agent that analyzes the user request and the available chat agents' +
@@ -94,7 +93,6 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
         }
         // TODO support delegating to more than one agent
         const delegatedToAgent = agentIds[0];
-        // TODO offer configuration to hide these informational messages
         request.response.response.addContent(new InformationalChatResponseContentImpl(
             `*DelegatingChatAgent*: Delegating to \`@${delegatedToAgent}\`
             
