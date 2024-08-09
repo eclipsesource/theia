@@ -72,6 +72,11 @@ export class GettingStartedWidget extends ReactWidget {
     protected recentWorkspaces: string[] = [];
 
     /**
+     * Indicates whether the "ai-core" extension is available.
+     */
+    protected aiIsIncluded: boolean;
+
+    /**
      * Collection of useful links to display for end users.
      */
     protected readonly documentationUrl = 'https://www.theia-ide.org/docs/';
@@ -116,6 +121,9 @@ export class GettingStartedWidget extends ReactWidget {
         this.applicationInfo = await this.appServer.getApplicationInfo();
         this.recentWorkspaces = await this.workspaceService.recentWorkspaces();
         this.home = new URI(await this.environments.getHomeDirUri()).path.toString();
+
+        const extensions = await this.appServer.getExtensionsInfos();
+        this.aiIsIncluded = extensions.find(ext => ext.name === '@theia/ai-core') !== undefined;
         this.update();
     }
 
@@ -133,9 +141,11 @@ export class GettingStartedWidget extends ReactWidget {
     protected render(): React.ReactNode {
         return <div className='gs-container'>
             <div className='gs-content-container'>
-                <div className='gs-float shadow-pulse'>
-                    {this.renderAIBanner()}
-                </div>
+                {this.aiIsIncluded &&
+                    <div className='gs-float shadow-pulse'>
+                        {this.renderAIBanner()}
+                    </div>
+                }
                 {this.renderHeader()}
                 <hr className='gs-hr' />
                 <div className='flex-grid'>

@@ -13,7 +13,6 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { PREFERENCE_NAME_ENABLE_EXPERIMENTAL } from '@theia/ai-core/lib/browser/ai-core-preferences';
 import { CommandService, deepClone, Emitter, Event, MessageService } from '@theia/core';
 import { ChatRequest, ChatService, ChatSession } from '@theia/ai-chat';
 import { BaseWidget, codicon, ExtractableWidget, PanelLayout, PreferenceService, StatefulWidget } from '@theia/core/lib/browser';
@@ -21,6 +20,7 @@ import { nls } from '@theia/core/lib/common/nls';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import { ChatInputWidget } from './chat-input-widget';
 import { ChatViewTreeWidget } from './chat-tree-view/chat-view-tree-widget';
+import { AIActivationService } from '@theia/ai-core/lib/browser/ai-activation-service';
 
 export namespace ChatViewWidget {
     export interface State {
@@ -45,6 +45,9 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
 
     @inject(CommandService)
     protected readonly commandService: CommandService;
+
+    @inject(AIActivationService)
+    protected readonly activationService: AIActivationService;
 
     protected chatSession: ChatSession;
 
@@ -81,7 +84,6 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
         ]);
         const layout = this.layout = new PanelLayout();
 
-        // Experimental features are enabled
         this.treeWidget.node.classList.add('chat-tree-view-widget');
         layout.addWidget(this.treeWidget);
         this.inputWidget.node.classList.add('chat-input-widget');
@@ -89,18 +91,16 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
         this.chatSession = this.chatService.createSession();
 
         this.inputWidget.onQuery = this.onQuery.bind(this);
-        this.inputWidget.setEnabled(false);
         this.inputWidget.chatModel = this.chatSession.model;
         this.treeWidget.trackChatModel(this.chatSession.model);
 
         this.initListeners();
 
-        this.preferenceService.onPreferenceChanged(change => {
-            if (change.preferenceName === PREFERENCE_NAME_ENABLE_EXPERIMENTAL) {
-                this.treeWidget.setEnabled(change.newValue);
-                this.inputWidget.setEnabled(change.newValue);
-                this.update();
-            }
+        this.inputWidget.setEnabled(this.activationService.isActive);
+        this.activationService.onDidChangeActiveStatus(change => {
+            this.treeWidget.setEnabled(change);
+            this.inputWidget.setEnabled(change);
+            this.update();
         });
     }
 

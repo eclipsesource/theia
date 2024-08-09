@@ -107,11 +107,6 @@ export class ChatViewTreeWidget extends TreeWidget {
             visible: false,
             children: [],
         } as CompositeTreeNode;
-
-        // Experimental features are disabled
-        if (!this.isEnabled) {
-            // this.node
-        }
     }
 
     @postConstruct()
