@@ -43,7 +43,7 @@ export const aiCorePreferenceSchema: PreferenceSchema = {
         },
         [PREFERENCE_NAME_PROMPT_TEMPLATES]: {
             title: AI_CORE_PREFERENCES_TITLE,
-            description: 'Path of the folder containing custom prompt templates',
+            description: 'Folder for managing custom prompt templates',
             type: 'string',
             default: '',
             typeDetails: {

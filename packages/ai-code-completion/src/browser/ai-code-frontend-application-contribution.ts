@@ -41,8 +41,10 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
     private toDispose = new Map<string, Disposable>();
 
     onDidInitializeLayout(): void {
-        this.handlePreference(PREF_AI_CODE_COMPLETION_ENABLE, enable => this.handleCodeCompletions(enable));
-        this.handlePreference(PREF_AI_INLINE_COMPLETION_ENABLE, enable => this.handleInlineCompletions(enable));
+        this.preferenceService.ready.then(() => {
+            this.handlePreference(PREF_AI_CODE_COMPLETION_ENABLE, enable => this.handleCodeCompletions(enable));
+            this.handlePreference(PREF_AI_INLINE_COMPLETION_ENABLE, enable => this.handleInlineCompletions(enable));
+        });
     }
 
     protected handlePreference(name: string, handler: (enable: boolean) => Disposable): void {
@@ -51,8 +53,13 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
 
         this.preferenceService.onPreferenceChanged(event => {
             if (event.preferenceName === name) {
-                handler(event.newValue && this.activationService.isActive);
+                this.toDispose.get(name)?.dispose();
+                this.toDispose.set(name, handler(event.newValue && this.activationService.isActive));
             }
+        });
+        this.activationService.onDidChangeActiveStatus(change => {
+            this.toDispose.get(name)?.dispose();
+            this.toDispose.set(name, handler(this.preferenceService.get<boolean>(name, false) && change));
         });
     }
 
