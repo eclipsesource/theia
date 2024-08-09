@@ -22,14 +22,18 @@
 import { ContributionProvider, ILogger } from '@theia/core';
 import { inject, injectable, named } from '@theia/core/shared/inversify';
 import { ChatAgent } from './chat-agents';
-import { ChatRequestModelImpl } from './chat-model';
+import { ChatRequestModel, ChatRequestModelImpl } from './chat-model';
+import { AgentService } from '@theia/ai-core';
 
 export const ChatAgentService = Symbol('ChatAgentService');
+/**
+ * The ChatAgentService provides access to the available chat agents.
+ */
 export interface ChatAgentService {
-    getAgents(): ChatAgent[];
-    getAgent(id: string): ChatAgent | undefined;
-    getAgentsByName(name: string): ChatAgent[];
-    invokeAgent(agentId: string, request: ChatRequestModelImpl): Promise<void>;
+    getAgents(includeDisabledAgent?: boolean): ChatAgent[];
+    getAgent(id: string, includeDisabledAgent?: boolean): ChatAgent | undefined;
+    getAgentsByName(name: string, includeDisabledAgent?: boolean): ChatAgent[];
+    invokeAgent(agentId: string, request: ChatRequestModel): Promise<void>;
 }
 @injectable()
 export class ChatAgentServiceImpl implements ChatAgentService {
@@ -40,30 +44,31 @@ export class ChatAgentServiceImpl implements ChatAgentService {
     @inject(ILogger)
     protected logger: ILogger;
 
-    getAgent(id: string): ChatAgent | undefined {
-        if (!this._agentIsEnabled(id)) {
+    @inject(AgentService)
+    protected agentService: AgentService;
+
+    getAgent(id: string, includeDisabledAgent = false): ChatAgent | undefined {
+        if (!includeDisabledAgent && !this._agentIsEnabled(id)) {
             return;
         }
-
-        return this.agents.getContributions().find(agent => agent.id === id);
+        return this.getAgents(includeDisabledAgent).find(agent => agent.id === id);
     }
-    getAgents(): ChatAgent[] {
+    getAgents(includeDisabledAgent = false): ChatAgent[] {
         return this.agents.getContributions()
-            .filter(a => this._agentIsEnabled(a.id));
+            .filter(a => includeDisabledAgent || this._agentIsEnabled(a.id));
     }
-    getAgentsByName(name: string): ChatAgent[] {
-        return this.getAgents().filter(a => a.name === name);
+    getAgentsByName(name: string, includeDisabledAgent = false): ChatAgent[] {
+        return this.getAgents(includeDisabledAgent).filter(a => a.name === name);
     }
+
     private _agentIsEnabled(id: string): boolean {
-        // const entry = this.agents.getContributions().find(agent => agent.id === id);
-        // return !entry?.when || this.contextKeyService.contextMatchesRules(ContextKeyExpr.deserialize(entry.when));
-        return true;
+        return this.agentService.isEnabled(id);
     }
     invokeAgent(agentId: string, request: ChatRequestModelImpl): Promise<void> {
         const agent = this.getAgent(agentId);
         if (!agent) {
             throw new Error(`Agent ${agentId} not found`);
         }
-        return agent.invoke(request);
+        return agent.invoke(request, this);
     }
 }

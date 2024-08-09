@@ -45,7 +45,6 @@ import {
 import { bindViewContribution, FrontendApplicationContribution, WidgetFactory } from '@theia/core/lib/browser';
 import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate';
-import { TomorrowVariableContribution } from '../tomorrow-variable-contribution';
 import { AIAgentConfigurationWidget } from './ai-configuration/agent-configuration-widget';
 import { AIConfigurationSelectionService } from './ai-configuration/ai-configuration-service';
 import { AIAgentConfigurationViewContribution } from './ai-configuration/ai-configuration-view-contribution';
@@ -57,10 +56,12 @@ import { AISettingsService } from './ai-settings-service';
 import { FrontendPromptCustomizationServiceImpl } from './frontend-prompt-customization-service';
 import { FrontendVariableService } from './frontend-variable-service';
 import { PromptTemplateContribution } from './prompttemplate-contribution';
+import { TomorrowVariableContribution } from '../common/tomorrow-variable-contribution';
 import { TheiaVariableContribution } from './theia-variable-contribution';
 import { TodayVariableContribution } from '../common/today-variable-contribution';
 import { AgentsVariableContribution } from '../common/agents-variable-contribution';
 import { AIActivationService, AICommandHandlerFactory } from './ai-activation-service';
+import { AgentService, AgentServiceImpl } from '../common/agent-service';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, LanguageModelProvider);
@@ -143,6 +144,8 @@ export default new ContainerModule(bind => {
 
     bind(AIActivationService).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(AIActivationService);
+    bind(AgentServiceImpl).toSelf().inSingletonScope();
+    bind(AgentService).toService(AgentServiceImpl);
 
     bind(AICommandHandlerFactory).toFactory<CommandHandler>(context => (handler: CommandHandler) => {
         context.container.get(AIActivationService);

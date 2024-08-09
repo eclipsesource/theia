@@ -18,7 +18,7 @@ import {
     Agent, CommunicationHistoryEntry, CommunicationRecordingService, getTextOfResponse,
     LanguageModelRegistry, LanguageModelRequest, LanguageModelRequirement, PromptService, PromptTemplate
 } from '@theia/ai-core/lib/common';
-import { generateUuid } from '@theia/core';
+import { CancellationToken, generateUuid } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import * as monaco from '@theia/monaco-editor-core';
 
@@ -26,6 +26,8 @@ export const CodeCompletionAgent = Symbol('CodeCompletionAgent');
 export interface CodeCompletionAgent extends Agent {
     provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
         context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined>;
+    provideInlineCompletions?(model: monaco.editor.ITextModel, position: monaco.Position,
+        context: monaco.languages.InlineCompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.InlineCompletions | undefined>
 }
 
 @injectable()
@@ -42,18 +44,16 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
     protected recordingService: CommunicationRecordingService;
 
     async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position,
-        context: monaco.languages.CompletionContext, token: monaco.CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
+        context: monaco.languages.CompletionContext, token: CancellationToken): Promise<monaco.languages.CompletionList | undefined> {
 
-        const languageModels = await this.languageModelRegistry.selectLanguageModels({
-            agent: 'code-completion-agent',
-            purpose: 'code-completion',
-            identifier: 'openai/gpt-4o'
+        const languageModel = await this.languageModelRegistry.selectLanguageModel({
+            agent: this.id,
+            ...this.languageModelRequirements[0]
         });
-        if (languageModels.length === 0) {
+        if (!languageModel) {
             console.error('No language model found for code-completion-agent');
             return undefined;
         }
-        const languageModel = languageModels[0];
         console.log('Code completion agent is using language model:', languageModel.id);
 
         // Get text until the given position
@@ -76,6 +76,9 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         const file = model.uri.toString(false);
         const language = model.getLanguageId();
 
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
         const prompt = await this.promptService.getPrompt('code-completion-prompt', { snippet, file, language });
         if (!prompt) {
             console.error('No prompt found for code-completion-agent');
@@ -86,7 +89,7 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         // since we do not actually hold complete conversions, the request/response pair is considered a session
         const sessionId = generateUuid();
         const requestId = generateUuid();
-        const request: LanguageModelRequest = { messages: [{ type: 'text', actor: 'user', query: prompt }] };
+        const request: LanguageModelRequest = { messages: [{ type: 'text', actor: 'user', query: prompt }], cancellationToken: token };
         const requestEntry: CommunicationHistoryEntry = {
             agentId: this.id,
             sessionId,
@@ -94,9 +97,18 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
             requestId,
             request: prompt
         };
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
         this.recordingService.recordRequest(requestEntry);
         const response = await languageModel.request(request);
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
         const completionText = await getTextOfResponse(response);
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
         console.log('Code completion suggests', completionText);
         this.recordingService.recordResponse({
             agentId: this.id,

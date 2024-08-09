@@ -20,12 +20,17 @@ import { FrontendApplicationContribution, PreferenceService } from '@theia/core/
 import { AICodeCompletionProvider } from './ai-code-completion-provider';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { AIActivationService } from '@theia/ai-core/lib/browser';
-import { PREF_CODE_COMPLETION_ENABLE } from './ai-code-completion-preference';
+import { Disposable } from '@theia/core';
+import { AICodeInlineCompletionsProvider } from './ai-code-inline-completion-provider';
+import { PREF_AI_CODE_COMPLETION_ENABLE, PREF_AI_INLINE_COMPLETION_ENABLE } from './ai-code-completion-preference';
 
 @injectable()
 export class AIFrontendApplicationContribution implements FrontendApplicationContribution {
     @inject(AICodeCompletionProvider)
     protected codeCompletionProvider: AICodeCompletionProvider;
+
+    @inject(AICodeInlineCompletionsProvider)
+    private inlineCodeCompletionProvider: AICodeInlineCompletionsProvider;
 
     @inject(PreferenceService)
     protected readonly preferenceService: PreferenceService;
@@ -33,38 +38,29 @@ export class AIFrontendApplicationContribution implements FrontendApplicationCon
     @inject(AIActivationService)
     protected readonly activationService: AIActivationService;
 
-    private disposable: monaco.IDisposable | undefined;
-
-    protected get isCodeCompletionEnabled(): boolean {
-        return this.preferenceService.get<boolean>(PREF_CODE_COMPLETION_ENABLE, false);
-    }
+    private toDispose = new Map<string, Disposable>();
 
     onDidInitializeLayout(): void {
-        if (this.isCodeCompletionEnabled && this.activationService.isActive) {
-            this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
-        }
+        this.handlePreference(PREF_AI_CODE_COMPLETION_ENABLE, enable => this.handleCodeCompletions(enable));
+        this.handlePreference(PREF_AI_INLINE_COMPLETION_ENABLE, enable => this.handleInlineCompletions(enable));
+    }
 
-        this.activationService.onDidChangeActiveStatus(status => {
-            this.handlePreferenceChange(this.isCodeCompletionEnabled, status);
-        });
+    protected handlePreference(name: string, handler: (enable: boolean) => Disposable): void {
+        const enable = this.preferenceService.get<boolean>(name, false) && this.activationService.isActive;
+        this.toDispose.set(name, handler(enable));
+
         this.preferenceService.onPreferenceChanged(event => {
-            if (event.preferenceName === PREF_CODE_COMPLETION_ENABLE) {
-                this.handlePreferenceChange(event.newValue, this.activationService.isActive);
+            if (event.preferenceName === name) {
+                handler(event.newValue && this.activationService.isActive);
             }
         });
-
     }
 
-    protected handlePreferenceChange(isCodeCompletionEnabled: boolean, isActive: boolean): void {
-        if (this.disposable) {
-            this.disposable.dispose();
-            this.disposable = undefined;
-        }
-        if (isActive && isCodeCompletionEnabled) {
-            this.disposable = monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider);
-        }
+    protected handleCodeCompletions(enable: boolean): Disposable {
+        return enable ? monaco.languages.registerCompletionItemProvider({ scheme: 'file' }, this.codeCompletionProvider) : Disposable.NULL;
     }
 
-    onStop(): void {
+    protected handleInlineCompletions(enable: boolean): Disposable {
+        return enable ? monaco.languages.registerInlineCompletionsProvider({ scheme: 'file' }, this.inlineCodeCompletionProvider) : Disposable.NULL;
     }
 }

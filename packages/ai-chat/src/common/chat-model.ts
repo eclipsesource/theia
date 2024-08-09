@@ -58,6 +58,8 @@ export interface ChatModel {
     readonly id: string;
     readonly location: ChatAgentLocation;
     getRequests(): ChatRequestModel[];
+    addRequest(parsedChatRequest: ParsedChatRequest, agentId?: string): ChatRequestModel;
+    isEmpty(): boolean;
 }
 
 export interface ChatRequest {
@@ -81,7 +83,12 @@ export interface ChatProgressMessage {
 
 export interface BaseChatResponseContent {
     kind: string;
-    asString?(): string;
+    /**
+     * Represents the content as a string. Returns `undefined` if the content
+     * is purely informational and/or visual and should not be included in the overall
+     * representation of the response.
+     */
+    asString?(): string | undefined;
     merge?(nextChatResponseContent: BaseChatResponseContent): boolean;
 }
 
@@ -110,6 +117,10 @@ export interface TextChatResponseContent
     kind: 'text';
     content: string;
 }
+export interface ErrorResponseContent extends BaseChatResponseContent {
+    kind: 'error';
+    error: Error;
+}
 
 export interface MarkdownChatResponseContent
     extends Required<BaseChatResponseContent> {
@@ -125,7 +136,7 @@ export interface CodeChatResponseContent
     location?: Location;
 }
 
-export interface HorizontalLayoutChatResponseContent extends BaseChatResponseContent {
+export interface HorizontalLayoutChatResponseContent extends Required<BaseChatResponseContent> {
     kind: 'horizontal';
     content: BaseChatResponseContent[];
 }
@@ -156,6 +167,11 @@ export interface CommandChatResponseContent extends BaseChatResponseContent {
     arguments?: unknown[];
 }
 
+export interface InformationalChatResponseContent extends BaseChatResponseContent {
+    kind: 'informational';
+    content: MarkdownString;
+}
+
 export const isTextChatResponseContent = (
     obj: unknown
 ): obj is TextChatResponseContent =>
@@ -169,6 +185,14 @@ export const isMarkdownChatResponseContent = (
 ): obj is MarkdownChatResponseContent =>
     isBaseChatResponseContent(obj) &&
     obj.kind === 'markdownContent' &&
+    'content' in obj &&
+    MarkdownString.is((obj as { content: unknown }).content);
+
+export const isInformationalChatResponseContent = (
+    obj: unknown
+): obj is InformationalChatResponseContent =>
+    isBaseChatResponseContent(obj) &&
+    obj.kind === 'informational' &&
     'content' in obj &&
     MarkdownString.is((obj as { content: unknown }).content);
 
@@ -201,6 +225,11 @@ export const isToolCallChatResponseContent = (
     isBaseChatResponseContent(obj) &&
     obj.kind === 'toolCall';
 
+export const isErrorChatResponseContent = (
+    obj: unknown
+): obj is ErrorResponseContent =>
+    isBaseChatResponseContent(obj) &&
+    obj.kind === 'error' && 'error' in obj && obj.error instanceof Error;
 
 export type ChatResponseContent =
     | BaseChatResponseContent
@@ -209,7 +238,9 @@ export type ChatResponseContent =
     | CommandChatResponseContent
     | CodeChatResponseContent
     | HorizontalLayoutChatResponseContent
-    | ToolCallResponseContent;
+    | ToolCallResponseContent
+    | ErrorResponseContent
+    | InformationalChatResponseContent;
 
 export interface ChatResponse {
     readonly content: ChatResponseContent[];
@@ -224,7 +255,12 @@ export interface ChatResponseModel {
     readonly response: ChatResponse;
     readonly isComplete: boolean;
     readonly isCanceled: boolean;
+    readonly isError: boolean;
     readonly agentId?: string
+    cancel(): void;
+    error(error: Error): void;
+    readonly errorObject?: Error;
+
 }
 
 /**********************
@@ -260,6 +296,10 @@ export class ChatModelImpl implements ChatModel {
             request: requestModel,
         });
         return requestModel;
+    }
+
+    isEmpty(): boolean {
+        return this._requests.length === 0;
     }
 }
 
@@ -298,7 +338,20 @@ export class ChatRequestModelImpl implements ChatRequestModel {
     get agentId(): string | undefined {
         return this._agentId;
     }
+}
 
+export class ErrorResponseContentImpl implements ErrorResponseContent {
+    kind: 'error' = 'error';
+    protected _error: Error;
+    constructor(error: Error) {
+        this._error = error;
+    }
+    get error(): Error {
+        return this._error;
+    }
+    asString(): string | undefined {
+        return undefined;
+    }
 }
 
 export class TextChatResponseContentImpl implements TextChatResponseContent {
@@ -343,7 +396,28 @@ export class MarkdownChatResponseContentImpl implements MarkdownChatResponseCont
         this._content.appendMarkdown(nextChatResponseContent.content.value);
         return true;
     }
-    // TODO add codeblock? add link?
+}
+
+export class InformationalChatResponseContentImpl implements InformationalChatResponseContent {
+    kind: 'informational' = 'informational';
+    protected _content: MarkdownStringImpl;
+
+    constructor(content: string) {
+        this._content = new MarkdownStringImpl(content);
+    }
+
+    get content(): MarkdownString {
+        return this._content;
+    }
+
+    asString(): string | undefined {
+        return undefined;
+    }
+
+    merge(nextChatResponseContent: InformationalChatResponseContent): boolean {
+        this._content.appendMarkdown(nextChatResponseContent.content.value);
+        return true;
+    }
 }
 
 export class CodeChatResponseContentImpl implements CodeChatResponseContent {
@@ -570,6 +644,8 @@ class ChatResponseModelImpl implements ChatResponseModel {
     protected _isComplete: boolean;
     protected _isCanceled: boolean;
     protected _agentId?: string;
+    protected _isError: boolean;
+    protected _errorObject: Error | undefined;
 
     constructor(requestId: string, agentId?: string) {
         // TODO accept serialized data as a parameter to restore a previously saved ChatResponseModel
@@ -612,6 +688,10 @@ class ChatResponseModelImpl implements ChatResponseModel {
         return this._agentId;
     }
 
+    overrideAgentId(agentId: string): void {
+        this._agentId = agentId;
+    }
+
     complete(): void {
         this._isComplete = true;
         this._onDidChangeEmitter.fire();
@@ -621,5 +701,18 @@ class ChatResponseModelImpl implements ChatResponseModel {
         this._isComplete = true;
         this._isCanceled = true;
         this._onDidChangeEmitter.fire();
+    }
+    error(error: Error): void {
+        this._isComplete = true;
+        this._isCanceled = false;
+        this._isError = true;
+        this._errorObject = error;
+        this._onDidChangeEmitter.fire();
+    }
+    get errorObject(): Error | undefined {
+        return this._errorObject;
+    }
+    get isError(): boolean {
+        return this._isError;
     }
 }

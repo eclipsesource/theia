@@ -13,10 +13,10 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { ChatModel, ChatRequest, ChatService } from '@theia/ai-chat';
 import { PREFERENCE_NAME_ENABLE_EXPERIMENTAL } from '@theia/ai-core/lib/browser/ai-core-preferences';
 import { CommandService, deepClone, Emitter, Event, MessageService } from '@theia/core';
-import { BaseWidget, codicon, Message, PanelLayout, PreferenceService, StatefulWidget } from '@theia/core/lib/browser';
+import { ChatRequest, ChatService, ChatSession } from '@theia/ai-chat';
+import { BaseWidget, codicon, ExtractableWidget, PanelLayout, PreferenceService, StatefulWidget } from '@theia/core/lib/browser';
 import { nls } from '@theia/core/lib/common/nls';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import { ChatInputWidget } from './chat-input-widget';
@@ -29,16 +29,16 @@ export namespace ChatViewWidget {
 }
 
 @injectable()
-export class ChatViewWidget extends BaseWidget implements StatefulWidget {
+export class ChatViewWidget extends BaseWidget implements ExtractableWidget, StatefulWidget {
 
     public static ID = 'chat-view-widget';
     static LABEL = `✨ ${nls.localizeByDefault('Chat')} [Experimental]`;
 
     @inject(ChatService)
-    private chatService: ChatService;
+    protected chatService: ChatService;
 
     @inject(MessageService)
-    private messageService: MessageService;
+    protected messageService: MessageService;
 
     @inject(PreferenceService)
     protected readonly preferenceService: PreferenceService;
@@ -46,11 +46,12 @@ export class ChatViewWidget extends BaseWidget implements StatefulWidget {
     @inject(CommandService)
     protected readonly commandService: CommandService;
 
-    // TODO: handle multiple sessions
-    private chatModel: ChatModel;
+    protected chatSession: ChatSession;
 
     protected _state: ChatViewWidget.State = { locked: false };
     protected readonly onStateChangedEmitter = new Emitter<ChatViewWidget.State>();
+
+    secondaryWindow: Window | undefined;
 
     constructor(
         @inject(ChatViewTreeWidget)
@@ -85,11 +86,14 @@ export class ChatViewWidget extends BaseWidget implements StatefulWidget {
         layout.addWidget(this.treeWidget);
         this.inputWidget.node.classList.add('chat-input-widget');
         layout.addWidget(this.inputWidget);
+        this.chatSession = this.chatService.createSession();
+
         this.inputWidget.onQuery = this.onQuery.bind(this);
         this.inputWidget.setEnabled(false);
-        // TODO restore sessions if needed
-        this.chatModel = this.chatService.createSession();
-        this.treeWidget.trackChatModel(this.chatModel);
+        this.inputWidget.chatModel = this.chatSession.model;
+        this.treeWidget.trackChatModel(this.chatSession.model);
+
+        this.initListeners();
 
         this.preferenceService.onPreferenceChanged(change => {
             if (change.preferenceName === PREFERENCE_NAME_ENABLE_EXPERIMENTAL) {
@@ -98,6 +102,23 @@ export class ChatViewWidget extends BaseWidget implements StatefulWidget {
                 this.update();
             }
         });
+    }
+
+    protected initListeners(): void {
+        this.toDispose.push(
+            this.chatService.onActiveSessionChanged(event => {
+                const session = this.chatService.getSession(event.sessionId);
+                if (session) {
+                    this.chatSession = session;
+                    this.treeWidget.trackChatModel(this.chatSession.model);
+                    if (event.focus) {
+                        this.show();
+                    }
+                } else {
+                    console.warn(`Session with ${event.sessionId} not found.`);
+                }
+            })
+        );
     }
 
     storeState(): object {
@@ -125,23 +146,22 @@ export class ChatViewWidget extends BaseWidget implements StatefulWidget {
         return this.onStateChangedEmitter.event;
     }
 
-    protected override onAfterAttach(msg: Message): void {
-        super.onAfterAttach(msg);
-    }
-
-    private async onQuery(query: string): Promise<void> {
+    protected async onQuery(query: string): Promise<void> {
         if (query.length === 0) { return; }
-        // send query
 
         const chatRequest: ChatRequest = {
             text: query
         };
 
-        const requestProgress = await this.chatService.sendRequest(this.chatModel.id,
-            chatRequest,
-            e => { if (e instanceof Error) { this.messageService.error(e.message); } else { throw e; } });
+        const requestProgress = await this.chatService.sendRequest(this.chatSession.id, chatRequest);
+        requestProgress?.responseCompleted.then(responseModel => {
+            if (responseModel.isError) {
+                this.messageService.error(responseModel.errorObject?.message ?? 'An error occurred druring chat service invocation.');
+            }
+        });
         if (!requestProgress) {
-            this.messageService.error(`Was not able to send request "${chatRequest.text}" to session ${this.chatModel.id}`);
+            this.messageService.error(`Was not able to send request "${chatRequest.text}" to session ${this.chatSession.id}`);
+            return;
         }
         // Tree Widget currently tracks the ChatModel itself. Therefore no notification necessary.
     }
@@ -156,5 +176,9 @@ export class ChatViewWidget extends BaseWidget implements StatefulWidget {
 
     get isLocked(): boolean {
         return !!this.state.locked;
+    }
+
+    get isExtractable(): boolean {
+        return true;
     }
 }

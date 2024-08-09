@@ -13,21 +13,44 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { Message, ReactWidget } from '@theia/core/lib/browser';
-import { injectable, postConstruct } from '@theia/core/shared/inversify';
+import { ChatAgent, ChatAgentService, ChatModel } from '@theia/ai-chat';
+import { UntitledResourceResolver } from '@theia/core';
+import { ContextMenuRenderer, Message, ReactWidget } from '@theia/core/lib/browser';
+import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
+import { MonacoEditor } from '@theia/monaco/lib/browser/monaco-editor';
 import * as React from '@theia/core/shared/react';
+import { MonacoEditorProvider } from '@theia/monaco/lib/browser/monaco-editor-provider';
+import { CHAT_VIEW_LANGUAGE_EXTENSION } from './chat-view-language-contribution';
+import { IMouseEvent } from '@theia/monaco-editor-core';
 
 type Query = (query: string) => Promise<void>;
 
 @injectable()
 export class ChatInputWidget extends ReactWidget {
     public static ID = 'chat-input-widget';
+    static readonly CONTEXT_MENU = ['chat-input-context-menu'];
+
+    @inject(ChatAgentService)
+    protected readonly agentService: ChatAgentService;
+
+    @inject(MonacoEditorProvider)
+    protected readonly editorProvider: MonacoEditorProvider;
+
+    @inject(UntitledResourceResolver)
+    protected readonly untitledResourceResolver: UntitledResourceResolver;
+
+    @inject(ContextMenuRenderer)
+    protected readonly contextMenuRenderer: ContextMenuRenderer;
 
     protected isEnabled = false;
 
     private _onQuery: Query;
     set onQuery(query: Query) {
         this._onQuery = query;
+    }
+    private _chatModel: ChatModel;
+    set chatModel(chatModel: ChatModel) {
+        this._chatModel = chatModel;
     }
 
     @postConstruct()
@@ -40,8 +63,22 @@ export class ChatInputWidget extends ReactWidget {
         super.onActivateRequest(msg);
         this.node.focus({ preventScroll: true });
     }
+
+    protected getChatAgents(): ChatAgent[] {
+        return this.agentService.getAgents();
+    }
+
     protected render(): React.ReactNode {
-        return <ChatInput onQuery={this._onQuery.bind(this)} isEnabled={this.isEnabled} />;
+        return (
+            <ChatInput
+                onQuery={this._onQuery.bind(this)}
+                chatModel={this._chatModel}
+                getChatAgents={this.getChatAgents.bind(this)}
+                editorProvider={this.editorProvider}
+                untitledResourceResolver={this.untitledResourceResolver}
+                contextMenuCallback={this.handleContextMenu.bind(this)}
+            />
+        );
     }
 
     public setEnabled(enabled: boolean): void {
@@ -49,62 +86,149 @@ export class ChatInputWidget extends ReactWidget {
         this.update();
     }
 
+    protected handleContextMenu(event: IMouseEvent): void {
+        this.contextMenuRenderer.render({
+            menuPath: ChatInputWidget.CONTEXT_MENU,
+            anchor: { x: event.posx, y: event.posy },
+        });
+        event.preventDefault();
+    }
+
 }
 
 interface ChatInputProperties {
     onQuery: (query: string) => void;
     isEnabled?: boolean;
+    chatModel: ChatModel;
+    getChatAgents: () => ChatAgent[];
+    editorProvider: MonacoEditorProvider;
+    untitledResourceResolver: UntitledResourceResolver;
+    contextMenuCallback: (event: IMouseEvent) => void;
 }
 const ChatInput: React.FunctionComponent<ChatInputProperties> = (props: ChatInputProperties) => {
 
-    const [query, setQuery] = React.useState('');
+    const [inProgress, setInProgress] = React.useState(false);
     // eslint-disable-next-line no-null/no-null
-    const inputRef = React.useRef<HTMLTextAreaElement>(null);
+    const editorContainerRef = React.useRef<HTMLDivElement | null>(null);
+    // eslint-disable-next-line no-null/no-null
+    const placeholderRef = React.useRef<HTMLDivElement | null>(null);
+    const editorRef = React.useRef<MonacoEditor | undefined>(undefined);
+    const allRequests = props.chatModel.getRequests();
+    const lastRequest = allRequests.length === 0 ? undefined : allRequests[allRequests.length - 1];
+    const lastResponse = lastRequest?.response;
+
+    const createInputElement = async () => {
+        const resource = await props.untitledResourceResolver.createUntitledResource('', CHAT_VIEW_LANGUAGE_EXTENSION);
+        const editor = await props.editorProvider.createInline(resource.uri, editorContainerRef.current!, {
+            language: CHAT_VIEW_LANGUAGE_EXTENSION,
+            // Disable code lens, inlay hints and hover support to avoid console errors from other contributions
+            codeLens: false,
+            inlayHints: { enabled: 'off' },
+            hover: { enabled: false },
+            autoSizing: true,
+            scrollBeyondLastLine: false,
+            scrollBeyondLastColumn: 0,
+            minHeight: 1,
+            fontFamily: 'var(--theia-ui-font-family)',
+            fontSize: 13,
+            cursorWidth: 1,
+            maxHeight: -1,
+            scrollbar: { horizontal: 'hidden' },
+            automaticLayout: true,
+            lineNumbers: 'off',
+            lineHeight: 20,
+            padding: { top: 8 },
+            suggest: {
+                showIcons: true,
+                showSnippets: false,
+                showWords: false,
+                showStatusBar: false,
+                insertMode: 'replace',
+            },
+            bracketPairColorization: { enabled: false },
+            wrappingStrategy: 'advanced',
+            stickyScroll: { enabled: false },
+        });
+
+        editor.getControl().onDidChangeModelContent(() => {
+            layout();
+        });
+
+        editor.getControl().onContextMenu(e =>
+            props.contextMenuCallback(e.event)
+        );
+
+        editorRef.current = editor;
+    };
+
+    React.useEffect(() => {
+        createInputElement();
+        return () => {
+            if (editorRef.current) {
+                editorRef.current.dispose();
+            }
+        };
+    }, []);
+
+    React.useEffect(() => {
+        const listener = lastRequest?.response.onDidChange(() => {
+            if (lastRequest.response.isCanceled || lastRequest.response.isComplete || lastRequest.response.isError) {
+                setInProgress(false);
+            }
+        });
+        return () => listener?.dispose();
+    }, [lastRequest]);
 
     function submit(value: string): void {
+        setInProgress(true);
         props.onQuery(value);
-        setQuery('');
-        if (inputRef.current) {
-            inputRef.current.value = '';
-            adjustHeight(inputRef.current);
+        if (editorRef.current) {
+            editorRef.current.document.textEditorModel.setValue('');
+        }
+    };
+
+    function layout(): void {
+        if (editorRef.current === undefined) {
+            return;
+        }
+        const hiddenClass = 'hidden';
+        const editor = editorRef.current;
+        if (editor.document.textEditorModel.getValue().length > 0) {
+            placeholderRef.current?.classList.add(hiddenClass);
+        } else {
+            placeholderRef.current?.classList.remove(hiddenClass);
         }
     }
 
-    function adjustHeight(textarea: EventTarget & HTMLTextAreaElement): void {
-        textarea.style.height = '';
-        if (textarea.scrollHeight > 36) {
-            textarea.style.height = textarea.scrollHeight + 'px';
+    const onKeyDown = React.useCallback((event: React.KeyboardEvent) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            submit(editorRef.current?.document.textEditorModel.getValue() || '');
         }
-    }
+    }, []);
 
-    return <div>
-        <textarea
-            ref={inputRef}
-            className='theia-input theia-ChatInput'
-            placeholder='Ask the AI...'
-            disabled={!props.isEnabled}
-            onChange={e => {
-                adjustHeight(e.target);
-                setQuery(e.target.value);
-            }}
-            onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    submit(e.currentTarget.value);
-                    e.preventDefault();
-                } else if (e.key === 'Enter' && e.shiftKey) {
-                    adjustHeight(e.currentTarget);
-                }
-            }}
-            value={query}
-        >
-        </textarea>
+    return <div className='theia-ChatInput'>
+        <div className='theia-ChatInput-Editor-Box'>
+            <div className='theia-ChatInput-Editor' ref={editorContainerRef} onKeyDown={onKeyDown}>
+                <div ref={placeholderRef} className='theia-ChatInput-Editor-Placeholder'>Enter your question</div>
+            </div>
+        </div>
         <div className="theia-ChatInputOptions">
-            <span
-                className="codicon codicon-send option"
-                title="Send (Enter)"
-                onClick={!props.isEnabled ? () => submit(inputRef.current?.value || '') : undefined}
-                style={{ cursor: !props.isEnabled ? 'default' : 'pointer', opacity: !props.isEnabled ? 0.5 : 1 }}
-            />
+            {
+                inProgress ? <span
+                    className="codicon codicon-stop-circle option"
+                    title="Cancel (Esc)"
+                    onClick={() => {
+                        lastResponse?.cancel();
+                        setInProgress(false);
+                    }} /> :
+                    <span
+                        className="codicon codicon-send option"
+                        title="Send (Enter)"
+                        onClick={!props.isEnabled ? () => submit(editorRef.current?.document.textEditorModel.getValue() || '') : undefined}
+                        style={{ cursor: !props.isEnabled ? 'default' : 'pointer', opacity: !props.isEnabled ? 0.5 : 1 }}
+                    />
+            }
         </div>
     </div>;
 };

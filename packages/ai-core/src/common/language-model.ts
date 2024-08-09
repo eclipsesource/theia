@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ContributionProvider, ILogger, isFunction, isObject, Event, Emitter } from '@theia/core';
+import { CancellationToken, ContributionProvider, ILogger, isFunction, isObject, Event, Emitter } from '@theia/core';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 
 export type MessageActor = 'user' | 'ai' | 'system';
@@ -35,13 +35,14 @@ export const isLanguageModelRequestMessage = (obj: unknown): obj is LanguageMode
 export interface ToolRequest<T extends object> {
     id: string;
     name: string;
-    parameters?: { [key: string]: unknown };
+    parameters?: { type?: 'object', properties: Record<string, { type: string, [key: string]: unknown }> };
     description?: string;
     handler: (arg_string: string) => Promise<unknown>;
 }
 export interface LanguageModelRequest {
     messages: LanguageModelRequestMessage[],
     tools?: ToolRequest<object>[];
+    cancellationToken?: CancellationToken;
     settings?: { [key: string]: unknown };
 }
 
@@ -133,6 +134,7 @@ export interface LanguageModelRegistry {
     getLanguageModels(): Promise<LanguageModel[]>;
     getLanguageModel(id: string): Promise<LanguageModel | undefined>;
     removeLanguageModels(id: string[]): void;
+    selectLanguageModel(request: LanguageModelSelector): Promise<LanguageModel | undefined>;
     selectLanguageModels(request: LanguageModelSelector): Promise<LanguageModel[]>;
 }
 
@@ -204,6 +206,10 @@ export class DefaultLanguageModelRegistryImpl implements LanguageModelRegistry {
         await this.initialized;
         // TODO check for actor and purpose against settings
         return this.languageModels.filter(model => isModelMatching(request, model));
+    }
+
+    async selectLanguageModel(request: LanguageModelSelector): Promise<LanguageModel | undefined> {
+        return (await this.selectLanguageModels(request))[0];
     }
 }
 

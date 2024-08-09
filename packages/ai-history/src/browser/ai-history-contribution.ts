@@ -36,7 +36,6 @@ export class AIHistoryViewContribution extends AIViewContribution<AIHistoryView>
                 rank: 100
             },
             toggleCommandId: AI_HISTORY_TOGGLE_COMMAND_ID,
-            toggleKeybinding: 'ctrlcmd+shift+r'
         });
     }
 

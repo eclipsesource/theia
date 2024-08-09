@@ -14,17 +14,18 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ChatResponsePartRenderer } from "../types";
-import { inject, injectable, named } from "@theia/core/shared/inversify";
+import { ChatResponsePartRenderer } from '../types';
+import { inject, injectable, named } from '@theia/core/shared/inversify';
 import {
     BaseChatResponseContent,
     ChatResponseContent,
     HorizontalLayoutChatResponseContent,
     isHorizontalLayoutChatResponseContent,
-} from "@theia/ai-chat/lib/common";
-import { ReactNode } from "@theia/core/shared/react";
-import * as React from "@theia/core/shared/react";
-import { ContributionProvider } from "@theia/core";
+} from '@theia/ai-chat/lib/common';
+import { ReactNode } from '@theia/core/shared/react';
+import * as React from '@theia/core/shared/react';
+import { ContributionProvider } from '@theia/core';
+import { ResponseNode } from '../chat-tree-view/chat-view-tree-widget';
 
 @injectable()
 export class HorizontalLayoutPartRenderer
@@ -41,18 +42,18 @@ export class HorizontalLayoutPartRenderer
         }
         return -1;
     }
-    render(response: HorizontalLayoutChatResponseContent): ReactNode {
+    render(response: HorizontalLayoutChatResponseContent, parentNode: ResponseNode): ReactNode {
         const contributions = this.chatResponsePartRenderers.getContributions();
         return (
             <div className="ai-chat-horizontal-layout" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
-                {response.content.map((content) => {
+                {response.content.map(content => {
                     const renderer = contributions
-                        .map((c) => ({
+                        .map(c => ({
                             prio: c.canHandle(content),
                             renderer: c,
                         }))
                         .sort((a, b) => b.prio - a.prio)[0].renderer;
-                    return renderer.render(content);
+                    return renderer.render(content, parentNode);
                 })}
             </div>
         );

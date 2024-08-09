@@ -38,4 +38,20 @@ export namespace ChatCommands {
         category: CHAT_CATEGORY,
         label: 'Open AI Chat view (UI)',
     }, '', CHAT_CATEGORY_KEY);
+    export const EXTRACT_CHAT_VIEW: Command = {
+        id: 'theia-ai:extract-chat-view',
+        label: 'Move Chat view into a separate window',
+        iconClass: codicon('window')
+    };
+
 }
+
+export const AI_CHAT_NEW_CHAT_WINDOW_COMMAND: Command = {
+    id: 'ai-chat-ui.new-chat',
+    iconClass: codicon('add')
+};
+
+export const AI_CHAT_SHOW_CHATS_COMMAND: Command = {
+    id: 'ai-chat-ui.show-chats',
+    iconClass: codicon('history')
+};

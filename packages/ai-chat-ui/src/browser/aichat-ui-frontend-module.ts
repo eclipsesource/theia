@@ -14,17 +14,17 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { bindContributionProvider, CommandContribution } from '@theia/core';
-import { bindViewContribution, WidgetFactory, } from '@theia/core/lib/browser';
+import { bindContributionProvider, CommandContribution, MenuContribution } from '@theia/core';
+import { bindViewContribution, FrontendApplicationContribution, WidgetFactory, } from '@theia/core/lib/browser';
 import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
-import { ContainerModule } from '@theia/core/shared/inversify';
+import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
 import { EditorManager } from '@theia/editor/lib/browser';
 import { MonacoEditorProvider } from '@theia/monaco/lib/browser/monaco-editor-provider';
 import '../../src/browser/style/index.css';
 import { AIChatCommandContribution } from './ai-chat-command-contribution';
 import { AIChatContribution } from './aichat-ui-contribution';
 import { ChatInputWidget } from './chat-input-widget';
-import { CodePartRenderer, CommandPartRenderer, HorizontalLayoutPartRenderer, MarkdownPartRenderer, TextPartRenderer, ToolCallPartRenderer } from './chat-response-renderer';
+import { CodePartRenderer, CommandPartRenderer, HorizontalLayoutPartRenderer, MarkdownPartRenderer, ErrorPartRenderer, ToolCallPartRenderer } from './chat-response-renderer';
 import {
     AIEditorManager, AIEditorSelectionResolver,
     GitHubSelectionResolver, TextFragmentSelectionResolver, TypeDocSymbolSelectionResolver
@@ -32,19 +32,19 @@ import {
 import { AIMonacoEditorProvider } from './chat-response-renderer/ai-monaco-editor-provider';
 import { createChatViewTreeWidget } from './chat-tree-view';
 import { ChatViewTreeWidget } from './chat-tree-view/chat-view-tree-widget';
+import { ChatViewLanguageContribution } from './chat-view-language-contribution';
+import { ChatViewMenuContribution } from './chat-view-contribution';
 import { ChatViewWidget } from './chat-view-widget';
 import { ChatViewWidgetToolbarContribution } from './chat-view-widget-toolbar-contribution';
 import { ChatResponsePartRenderer } from './types';
 
 export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
     bindViewContribution(bind, AIChatContribution);
+    bind(TabBarToolbarContribution).toService(AIChatContribution);
+
     bindContributionProvider(bind, ChatResponsePartRenderer);
 
-    bind(ChatViewWidget).toSelf();
-    bind(WidgetFactory).toDynamicValue(context => ({
-        id: ChatViewWidget.ID,
-        createWidget: () => context.container.get<ChatViewWidget>(ChatViewWidget)
-    })).inSingletonScope();
+    bindChatViewWidget(bind);
 
     bind(ChatInputWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(context => ({
@@ -61,12 +61,16 @@ export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
         createWidget: () => container.get(ChatViewTreeWidget)
     })).inSingletonScope();
     bind(ChatResponsePartRenderer).to(HorizontalLayoutPartRenderer).inSingletonScope();
-    bind(ChatResponsePartRenderer).to(TextPartRenderer).inSingletonScope();
+    bind(ChatResponsePartRenderer).to(ErrorPartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(MarkdownPartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(CodePartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(CommandPartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(ToolCallPartRenderer).inSingletonScope();
+    bind(ChatResponsePartRenderer).to(ErrorPartRenderer).inSingletonScope();
     bind(CommandContribution).to(AIChatCommandContribution);
+    [CommandContribution, MenuContribution].forEach(serviceIdentifier =>
+        bind(serviceIdentifier).to(ChatViewMenuContribution).inSingletonScope()
+    );
 
     bind(AIEditorManager).toSelf().inSingletonScope();
     rebind(EditorManager).toService(AIEditorManager);
@@ -81,4 +85,22 @@ export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
 
     bind(AIMonacoEditorProvider).toSelf().inSingletonScope();
     rebind(MonacoEditorProvider).toService(AIMonacoEditorProvider);
+
+    bind(FrontendApplicationContribution).to(ChatViewLanguageContribution).inSingletonScope();
+
 });
+
+function bindChatViewWidget(bind: interfaces.Bind): void {
+    let chatViewWidget: ChatViewWidget | undefined;
+    bind(ChatViewWidget).toSelf();
+
+    bind(WidgetFactory).toDynamicValue(context => ({
+        id: ChatViewWidget.ID,
+        createWidget: () => {
+            if (chatViewWidget?.isDisposed !== false) {
+                chatViewWidget = context.container.get<ChatViewWidget>(ChatViewWidget);
+            }
+            return chatViewWidget;
+        }
+    })).inSingletonScope();
+}
