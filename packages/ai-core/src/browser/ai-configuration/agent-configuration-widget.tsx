@@ -103,7 +103,7 @@ export class AIAgentConfigurationWidget extends ReactWidget {
             <div style={{ paddingBottom: 10 }}>
                 <span style={{ marginRight: '0.5rem' }}>Variables:</span>
                 <ul className='variable-references'>
-                    {agent.variables.map(variableId => <li className='theia-TreeNode theia-CompositeTreeNode theia-ExpandableTreeNode theia-mod-selected'>
+                    {agent.variables.map(variableId => <li key={variableId} className='theia-TreeNode theia-CompositeTreeNode theia-ExpandableTreeNode theia-mod-selected'>
                         <div key={variableId} onClick={() => { this.showVariableConfigurationTab(); }} className='variable-reference'>
                             <span>{variableId}</span>
                             <i className={codicon('chevron-right')}></i>
