@@ -18,7 +18,7 @@ import { codicon, ReactWidget } from '@theia/core/lib/browser';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
 import { CommunicationCard } from './ai-history-communication-card';
-import { SelectComponent } from '@theia/core/lib/browser/widgets/select-component';
+import { SelectComponent, SelectOption } from '@theia/core/lib/browser/widgets/select-component';
 
 @injectable()
 export class AIHistoryView extends ReactWidget {
@@ -61,11 +61,15 @@ export class AIHistoryView extends ReactWidget {
     }
 
     render(): React.ReactNode {
+        const selectionChange = (value: SelectOption) => {
+            this.selectedAgent = this.agentService.getAgents(true).find(agent => agent.id === value.value);
+            this.update();
+        }
         return (
             <div className='agent-history-widget'>
                 <SelectComponent
                     options={this.agentService.getAgents(true).map(agent => ({ value: agent.id, label: agent.name, description: agent.description }))}
-                    onChange={value => this.agentService.getAgents(true).find(agent => agent.id === value.value)}
+                    onChange={selectionChange}
                     defaultValue={this.selectedAgent?.id} />
                 <div className='agent-history'>
                     {this.renderHistory()}
