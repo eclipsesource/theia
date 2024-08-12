@@ -86,7 +86,7 @@ export class AIHistoryView extends ReactWidget {
         if (history.length === 0) {
             return <div className='theia-card no-content'>No history available for the selected agent '{this.selectedAgent.name}'.</div>;
         }
-        return history.map(entry => <CommunicationCard entry={entry} />);
+        return history.map(entry => <CommunicationCard key={entry.requestId} entry={entry} />);
     }
 
     protected onClick(e: React.MouseEvent<HTMLDivElement>, agent: Agent): void {
