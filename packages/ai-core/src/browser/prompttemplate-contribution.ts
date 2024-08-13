@@ -14,15 +14,16 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { inject, injectable } from '@theia/core/shared/inversify';
+import { inject, injectable, named } from '@theia/core/shared/inversify';
 import { GrammarDefinition, GrammarDefinitionProvider, LanguageGrammarDefinitionContribution, TextmateRegistry } from '@theia/monaco/lib/browser/textmate';
 import * as monaco from '@theia/monaco-editor-core';
-import { Command, CommandContribution, CommandRegistry, MessageService } from '@theia/core';
+import { Command, CommandContribution, CommandRegistry, ContributionProvider, MessageService } from '@theia/core';
 import { TabBarToolbarContribution, TabBarToolbarRegistry } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 
 import { codicon, Widget } from '@theia/core/lib/browser';
 import { EditorWidget, ReplaceOperation } from '@theia/editor/lib/browser';
-import { PromptCustomizationService, PromptService } from '../common';
+import { PromptCustomizationService, PromptService, ToolProvider } from '../common';
+import { ProviderResult } from '@theia/monaco-editor-core/esm/vs/editor/common/languages';
 
 const PROMPT_TEMPLATE_LANGUAGE_ID = 'theia-ai-prompt-template';
 const PROMPT_TEMPLATE_TEXTMATE_SCOPE = 'source.prompttemplate';
@@ -53,16 +54,23 @@ export class PromptTemplateContribution implements LanguageGrammarDefinitionCont
     @inject(PromptCustomizationService)
     protected readonly customizationService: PromptCustomizationService;
 
+    @inject(ContributionProvider)
+    @named(ToolProvider)
+    private toolProviders: ContributionProvider<ToolProvider>;
+
     readonly config: monaco.languages.LanguageConfiguration =
         {
             'brackets': [
                 ['${', '}'],
+                ['~{', '}']
             ],
             'autoClosingPairs': [
                 { 'open': '${', 'close': '}' },
+                { 'open': '~{', 'close': '}' },
             ],
             'surroundingPairs': [
                 { 'open': '${', 'close': '}' },
+                { 'open': '~{', 'close': '}' }
             ]
         };
 
@@ -80,6 +88,12 @@ export class PromptTemplateContribution implements LanguageGrammarDefinitionCont
 
         monaco.languages.setLanguageConfiguration(PROMPT_TEMPLATE_LANGUAGE_ID, this.config);
 
+        monaco.languages.registerCompletionItemProvider(PROMPT_TEMPLATE_LANGUAGE_ID, {
+            // Monaco only supports single character trigger characters
+            triggerCharacters: ['{'],
+            provideCompletionItems: (model, position, _context, _token): ProviderResult<monaco.languages.CompletionList> => this.provideFunctionCompletions(model, position),
+        });
+
         const textmateGrammar = require('../../data/prompttemplate.tmLanguage.json');
         const grammarDefinitionProvider: GrammarDefinitionProvider = {
             getGrammarDefinition: function (): Promise<GrammarDefinition> {
@@ -92,6 +106,67 @@ export class PromptTemplateContribution implements LanguageGrammarDefinitionCont
         registry.registerTextmateGrammarScope(PROMPT_TEMPLATE_TEXTMATE_SCOPE, grammarDefinitionProvider);
 
         registry.mapLanguageIdToTextmateGrammar(PROMPT_TEMPLATE_LANGUAGE_ID, PROMPT_TEMPLATE_TEXTMATE_SCOPE);
+    }
+
+    provideFunctionCompletions(model: monaco.editor.ITextModel, position: monaco.Position): ProviderResult<monaco.languages.CompletionList> {
+        return this.getSuggestions(
+            model,
+            position,
+            '~{',
+            this.toolProviders.getContributions().map(provider => provider.getTool()),
+            monaco.languages.CompletionItemKind.Function,
+            tool => tool.id,
+            tool => tool.name,
+            tool => tool.description ?? ''
+        );
+    }
+
+    getCompletionRange(model: monaco.editor.ITextModel, position: monaco.Position, triggerCharacters: string): monaco.Range | undefined {
+        // Check if the characters before the current position are the trigger characters
+        const lineContent = model.getLineContent(position.lineNumber);
+        const triggerLength = triggerCharacters.length;
+        const charactersBefore = lineContent.substring(
+            position.column - triggerLength - 1,
+            position.column - 1
+        );
+
+        if (charactersBefore !== triggerCharacters) {
+            // Do not return agent suggestions if the user didn't just type the trigger characters
+            return undefined;
+        }
+
+        // Calculate the range from the position of the trigger characters
+        const wordInfo = model.getWordUntilPosition(position);
+        return new monaco.Range(
+            position.lineNumber,
+            wordInfo.startColumn,
+            position.lineNumber,
+            position.column
+        );
+    }
+
+    private getSuggestions<T>(
+        model: monaco.editor.ITextModel,
+        position: monaco.Position,
+        triggerChars: string,
+        items: T[],
+        kind: monaco.languages.CompletionItemKind,
+        getId: (item: T) => string,
+        getName: (item: T) => string,
+        getDescription: (item: T) => string
+    ): ProviderResult<monaco.languages.CompletionList> {
+        const completionRange = this.getCompletionRange(model, position, triggerChars);
+        if (completionRange === undefined) {
+            return { suggestions: [] };
+        }
+        const suggestions = items.map(item => ({
+            insertText: getId(item),
+            kind: kind,
+            label: getName(item),
+            range: completionRange,
+            detail: getDescription(item),
+        }));
+        return { suggestions };
     }
 
     registerCommands(commands: CommandRegistry): void {
