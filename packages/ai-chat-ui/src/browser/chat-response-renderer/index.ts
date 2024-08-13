@@ -13,10 +13,12 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
+export * from './ai-editor-manager';
+export * from './ai-monaco-editor-provider';
 export * from './code-part-renderer';
-export * from './text-part-renderer';
-export * from './markdown-part-renderer';
 export * from './command-part-renderer';
-export * from './toolcall-part-renderer';
-export * from './horizontal-layout-part-renderer';
 export * from './error-part-renderer';
+export * from './horizontal-layout-part-renderer';
+export * from './markdown-part-renderer';
+export * from './text-part-renderer';
+export * from './toolcall-part-renderer';

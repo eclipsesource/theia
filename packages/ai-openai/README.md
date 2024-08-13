@@ -4,7 +4,7 @@
 
 <img src='https://raw.githubusercontent.com/eclipse-theia/theia/master/logo/theia.svg?sanitize=true' alt='theia-ext-logo' width='100px' />
 
-<h2>ECLIPSE THEIA - AI Chat EXTENSION</h2>
+<h2>ECLIPSE THEIA - Open AI EXTENSION</h2>
 
 <hr />
 
@@ -12,12 +12,12 @@
 
 ## Description
 
-The `@theia/ai-chat` extension contributes the `AI Chat` view.\
-The `AI Chat view` can be used to easily communicate with a language model.
+The `@theia/ai-openai` integrates OpenAI's models with Theia AI.
+The OpenAI API key and the models to use can be configured via preferences.
+Alternatively the OpenAI API key can also be handed in via an environment variable.
 
 ## Additional Information
 
-<!-- - [API documentation for `@theia/navigator`](https://eclipse-theia.github.io/theia/docs/next/modules/navigator.html) -->
 - [Theia - GitHub](https://github.com/eclipse-theia/theia)
 - [Theia - Website](https://theia-ide.org/)
 

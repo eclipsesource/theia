@@ -12,12 +12,11 @@
 
 ## Description
 
-The `@theia/ai-chat` extension contributes the `AI Chat` view.\
-The `AI Chat view` can be used to easily communicate with a language model.
+The `@theia/ai-chat` extension provides the concept of a language model chat to Theia.
+It serves as the basis for `@theia/ai-chat-ui` to provide the Chat UI.
 
 ## Additional Information
 
-<!-- - [API documentation for `@theia/navigator`](https://eclipse-theia.github.io/theia/docs/next/modules/navigator.html) -->
 - [Theia - GitHub](https://github.com/eclipse-theia/theia)
 - [Theia - Website](https://theia-ide.org/)
 

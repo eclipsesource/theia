@@ -13,10 +13,10 @@
 ## Description
 
 The `@theia/ai-code-completion` extension contributes Ai based code completion.
+The user can separately enable code completion items as well as inline code completion.
 
 ## Additional Information
 
-<!-- - [API documentation for `@theia/navigator`](https://eclipse-theia.github.io/theia/docs/next/modules/navigator.html) -->
 - [Theia - GitHub](https://github.com/eclipse-theia/theia)
 - [Theia - Website](https://theia-ide.org/)
 

@@ -22,6 +22,11 @@ import { PreferenceService } from '@theia/core/lib/browser';
 import { CancellationTokenSource } from '@theia/core';
 import { PREF_AI_CODE_COMPLETION_PRECOMPUTE } from './ai-code-completion-preference';
 
+interface WithArgs<T = unknown[]> {
+    args: T;
+}
+const hasArgs = <T>(object: {}): object is WithArgs<T> => 'args' in object && Array.isArray(object['args']);
+
 @injectable()
 export class AICodeCompletionProvider implements monaco.languages.CompletionItemProvider {
 
@@ -45,11 +50,11 @@ export class AICodeCompletionProvider implements monaco.languages.CompletionItem
                         startColumn: position.column,
                         endLineNumber: position.lineNumber,
                         endColumn: position.column
-                    }
+                    },
+                    args: []
                 }]
             };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (result as any).suggestions[0].args = [...arguments];
+            (result.suggestions[0] as WithArgs).args = [...arguments];
             return result;
         }
         const cancellationTokenSource = new CancellationTokenSource();
@@ -58,12 +63,10 @@ export class AICodeCompletionProvider implements monaco.languages.CompletionItem
     }
 
     async resolveCompletionItem(item: monaco.languages.CompletionItem, token: monaco.CancellationToken): Promise<monaco.languages.CompletionItem> {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (!(item as any).args) {
+        if (!hasArgs<Parameters<CodeCompletionAgent['provideCompletionItems']>>(item)) {
             return item;
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const args: Parameters<CodeCompletionAgent['provideCompletionItems']> = (item as any).args;
+        const args = item.args;
         const cancellationTokenSource = new CancellationTokenSource();
         token.onCancellationRequested(() => { cancellationTokenSource.cancel(); });
         const resolvedItems = await this.agent.provideCompletionItems(args[0], args[1], args[2], cancellationTokenSource.token);

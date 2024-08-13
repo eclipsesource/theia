@@ -29,8 +29,7 @@ export const getTextOfResponse = async (response: LanguageModelResponse): Promis
     throw new Error(`Invalid response type ${response}`);
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const getJsonOfResponse = async (response: LanguageModelResponse): Promise<any> => {
+export const getJsonOfResponse = async (response: LanguageModelResponse): Promise<unknown> => {
     const text = await getTextOfResponse(response);
     if (text.startsWith('```json')) {
         const regex = /```json\s*([\s\S]*?)\s*```/g;
@@ -48,4 +47,3 @@ export const getJsonOfResponse = async (response: LanguageModelResponse): Promis
     }
     throw new Error('Invalid response format');
 };
-

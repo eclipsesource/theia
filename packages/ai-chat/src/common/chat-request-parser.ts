@@ -40,7 +40,6 @@ import { AIVariable, AIVariableService, FunctionCallRegistry, ToolRequest } from
 const agentReg = /^@([\w_\-\.]+)(?=(\s|$|\b))/i; // An @-agent
 const functionReg = /^~([\w_\-\.]+)(?=(\s|$|\b))/i; // A ~ tool function
 const variableReg = /^#([\w_\-]+)(?::([\w_\-_\/\\.:]+))?(?=(\s|$|\b))/i; // A #-variable with an optional : arg (#file:workspace/path/name.ext)
-// const slashReg = /\/([\w_\-]+)(?=(\s|$|\b))/i; // A / command
 
 export const ChatRequestParser = Symbol('ChatRequestParser');
 export interface ChatRequestParser {
@@ -146,7 +145,6 @@ export class ChatRequestParserImpl {
 
         let agents = this.agentService.getAgentsByName(name);
         if (!agents.length) {
-            // TODO changed to use simple id for now instead of fullyQualifiedId
             const fqAgent = this.agentService.getAgent(name);
             if (fqAgent) {
                 agents = [fqAgent];

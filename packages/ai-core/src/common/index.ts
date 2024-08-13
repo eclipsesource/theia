@@ -13,13 +13,16 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
+export * from './agent-service';
 export * from './agent';
+export * from './agents-variable-contribution';
 export * from './communication-recording-service';
-export * from './language-model';
+export * from './function-call-registry';
 export * from './language-model-delegate';
 export * from './language-model-util';
+export * from './language-model';
 export * from './prompt-service';
-export * from './variable-service';
-export * from './function-call-registry';
 export * from './protocol';
-export * from './agent-service';
+export * from './today-variable-contribution';
+export * from './tomorrow-variable-contribution';
+export * from './variable-service';

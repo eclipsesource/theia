@@ -283,6 +283,7 @@ export class FrontendLanguageModelRegistryImpl
         }
     }
 
+    // called by backend once tool is invoked
     toolCall(id: string, toolId: string, arg_string: string): Promise<unknown> {
         if (!this.requests.has(id)) {
             throw new Error('Somehow we got a callback for a non existing request!');
