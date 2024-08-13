@@ -17,6 +17,9 @@
 import { URI } from '@theia/core';
 import { inject, injectable, optional } from '@theia/core/shared/inversify';
 import { AIVariableService } from './variable-service';
+import { FunctionCallRegistry } from './function-call-registry';
+import { toolRequestToPromptText } from './language-model-util';
+import { ToolRequest } from './language-model';
 
 export interface PromptTemplate {
     id: string;
@@ -24,6 +27,14 @@ export interface PromptTemplate {
 }
 
 export interface PromptMap { [id: string]: PromptTemplate }
+
+export interface ResolvedPromptTemplate {
+    id: string;
+    /** The resolved prompt text with variables and function requests being replaced. */
+    text: string;
+    /** All functions referenced in the prompt template. */
+    functionDescriptions?: Map<string, ToolRequest<object>>;
+}
 
 export const PromptService = Symbol('PromptService');
 export interface PromptService {
@@ -40,10 +51,11 @@ export interface PromptService {
     /**
      * Allows to directly replace placeholders in the prompt. The supported format is 'Hi ${name}!'.
      * The placeholder is then searched inside the args object and replaced.
+     * Function references are also supported via format '~{functionId}'.
      * @param id the id of the prompt
      * @param args the object with placeholders, mapping the placeholder key to the value
      */
-    getPrompt(id: string, args?: { [key: string]: unknown }): Promise<string | undefined>;
+    getPrompt(id: string, args?: { [key: string]: unknown }): Promise<ResolvedPromptTemplate | undefined>;
     /**
      * Manually add a prompt to the list of prompts.
      * @param id the id of the prompt
@@ -96,6 +108,9 @@ export interface PromptCustomizationService {
 // should match the one from VariableResolverService
 const PROMPT_VARIABLE_REGEX = /\$\{(.*?)\}/g;
 
+// Match function/tool references in the prompt. The format is ~{functionId}
+const PROMPT_FUNCTION_REGEX = /\~\{(.*?)\}/g;
+
 @injectable()
 export class PromptServiceImpl implements PromptService {
     @inject(PromptCustomizationService) @optional()
@@ -103,6 +118,9 @@ export class PromptServiceImpl implements PromptService {
 
     @inject(AIVariableService) @optional()
     protected readonly variableService: AIVariableService | undefined;
+
+    @inject(FunctionCallRegistry) @optional()
+    protected readonly functionCallRegistry: FunctionCallRegistry | undefined;
 
     protected _prompts: PromptMap = {};
 
@@ -118,14 +136,14 @@ export class PromptServiceImpl implements PromptService {
     getDefaultRawPrompt(id: string): PromptTemplate | undefined {
         return this._prompts[id];
     }
-    async getPrompt(id: string, args?: { [key: string]: unknown }): Promise<string | undefined> {
+    async getPrompt(id: string, args?: { [key: string]: unknown }): Promise<ResolvedPromptTemplate | undefined> {
         const prompt = this.getRawPrompt(id);
         if (prompt === undefined) {
             return undefined;
         }
 
         const matches = [...prompt.template.matchAll(PROMPT_VARIABLE_REGEX)];
-        const replacements = await Promise.all(matches.map(async match => {
+        const variableAndArgReplacements = await Promise.all(matches.map(async match => {
             const completeText = match[0];
             const variableAndArg = match[1];
             let variableName = variableAndArg;
@@ -143,9 +161,30 @@ export class PromptServiceImpl implements PromptService {
                 }, {}))?.value ?? completeText)
             };
         }));
-        let result = prompt.template;
-        replacements.forEach(replacement => result = result.replace(replacement.placeholder, replacement.value));
-        return result;
+
+        const functionMatches = [...prompt.template.matchAll(PROMPT_FUNCTION_REGEX)];
+        const functions = new Map<string, ToolRequest<object>>();
+        const functionReplacements = functionMatches.map(match => {
+            const completeText = match[0];
+            const functionId = match[1];
+            const toolRequest = this.functionCallRegistry?.getFunction(functionId);
+            if (toolRequest) {
+                functions.set(toolRequest.id, toolRequest);
+            }
+            return {
+                placeholder: completeText,
+                value: toolRequest ? toolRequestToPromptText(toolRequest) : completeText
+            };
+        });
+
+        let resolvedTemplate = prompt.template;
+        const replacements = [...variableAndArgReplacements, ...functionReplacements];
+        replacements.forEach(replacement => resolvedTemplate = resolvedTemplate.replace(replacement.placeholder, replacement.value));
+        return {
+            id,
+            text: resolvedTemplate,
+            functionDescriptions: functions.size > 0 ? functions : undefined
+        };
     }
     getAllPrompts(): PromptMap {
         if (this.customizationService !== undefined) {

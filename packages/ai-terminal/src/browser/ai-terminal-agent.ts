@@ -122,8 +122,8 @@ recent-terminal-contents:
             return [];
         }
 
-        const systemPrompt = await this.promptService.getPrompt('ai-terminal:system-prompt', input);
-        const userPrompt = await this.promptService.getPrompt('ai-terminal:user-prompt', input);
+        const systemPrompt = await this.promptService.getPrompt('ai-terminal:system-prompt', input).then(p => p?.text);
+        const userPrompt = await this.promptService.getPrompt('ai-terminal:user-prompt', input).then(p => p?.text);
         if (!systemPrompt || !userPrompt) {
             this.logger.error('The prompt service didn\'t return prompts for the AI Terminal Agent.');
             return [];

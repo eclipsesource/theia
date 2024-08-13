@@ -20,7 +20,7 @@ import {
 } from '@theia/ai-core/lib/common';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgentService } from './chat-agent-service';
-import { AbstractStreamParsingChatAgent } from './chat-agents';
+import { AbstractStreamParsingChatAgent, SystemMessage } from './chat-agents';
 import { ChatRequestModelImpl, InformationalChatResponseContentImpl } from './chat-model';
 
 export const delegateTemplate: PromptTemplate = {
@@ -81,8 +81,9 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
     @inject(ChatAgentService)
     protected chatAgentService: ChatAgentService;
 
-    protected async getSystemMessage(): Promise<string | undefined> {
-        return this.promptService.getPrompt(delegateTemplate.id);
+    protected async getSystemMessage(): Promise<SystemMessage | undefined> {
+        const resolvedPrompt = await this.promptService.getPrompt(delegateTemplate.id);
+        return resolvedPrompt ? SystemMessage.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
     }
 
     protected override async addContentsToResponse(response: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {

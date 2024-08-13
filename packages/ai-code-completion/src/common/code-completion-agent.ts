@@ -79,7 +79,7 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         if (token.isCancellationRequested) {
             return undefined;
         }
-        const prompt = await this.promptService.getPrompt('code-completion-prompt', { snippet, file, language });
+        const prompt = await this.promptService.getPrompt('code-completion-prompt', { snippet, file, language }).then(p => p?.text);
         if (!prompt) {
             console.error('No prompt found for code-completion-agent');
             return undefined;

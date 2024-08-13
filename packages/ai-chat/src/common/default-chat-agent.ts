@@ -19,7 +19,7 @@ import {
     PromptTemplate
 } from '@theia/ai-core/lib/common';
 import { injectable } from '@theia/core/shared/inversify';
-import { AbstractStreamParsingChatAgent } from './chat-agents';
+import { AbstractStreamParsingChatAgent, SystemMessage } from './chat-agents';
 
 export const defaultTemplate: PromptTemplate = {
     id: 'default-template',
@@ -92,8 +92,9 @@ export class DefaultChatAgent extends AbstractStreamParsingChatAgent {
     variables: string[] = [];
     promptTemplates: PromptTemplate[] = [defaultTemplate];
 
-    protected async getSystemMessage(): Promise<string | undefined> {
-        return this.promptService.getPrompt(defaultTemplate.id);
-    }
+    protected async getSystemMessage(): Promise<SystemMessage | undefined> {
+      const resolvedPrompt = await this.promptService.getPrompt(defaultTemplate.id);
+      return resolvedPrompt ? SystemMessage.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
+   }
 
 }
