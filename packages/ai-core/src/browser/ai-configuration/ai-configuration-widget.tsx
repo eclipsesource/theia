@@ -58,7 +58,7 @@ export class AIConfigurationContainerWidget extends BaseWidget {
         });
         BoxLayout.setStretch(this.dockpanel, 1);
         layout.addWidget(this.dockpanel);
-        this.dockpanel.addClass('preferences-tabbar-widget');
+        this.dockpanel.addClass('ai-configuration-widget');
 
         this.agentsWidget = await this.widgetManager.getOrCreateWidget(AIAgentConfigurationWidget.ID);
         this.variablesWidget = await this.widgetManager.getOrCreateWidget(AIVariableConfigurationWidget.ID);

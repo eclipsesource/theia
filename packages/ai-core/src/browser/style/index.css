@@ -1,3 +1,7 @@
+.ai-configuration-widget {
+  padding: var(--theia-ui-padding);
+}
+
 .theia-ai-settings-container {
   padding: var(--theia-ui-padding);
 }
@@ -16,6 +20,11 @@
   grid-template-columns: 1fr auto auto;
   /** add a 3px gap between rows */
   row-gap: 3px;
+}
+
+#ai-variable-configuration-container-widget,
+#ai-agent-configuration-container-widget {
+  margin-top: 5px;
 }
 
 /* Variable Settings */
