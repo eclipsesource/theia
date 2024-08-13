@@ -94,7 +94,7 @@ export class OpenAiModel implements LanguageModel {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             resolve(runner.finalChatCompletion as any);
         });
-        // eslint-disable-next-line @typescript-eslint/tslint/config
+
         const asyncIterator = (async function* () {
             runner.on('chunk', chunk => {
                 if (chunk.choices[0]?.delta) {

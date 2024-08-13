@@ -4,7 +4,7 @@
 
 <img src='https://raw.githubusercontent.com/eclipse-theia/theia/master/logo/theia.svg?sanitize=true' alt='theia-ext-logo' width='100px' />
 
-<h2>ECLIPSE THEIA - AI Core EXTENSION</h2>
+<h2>ECLIPSE THEIA - AI Workspace Agent EXTENSION</h2>
 
 <hr />
 
@@ -12,8 +12,8 @@
 
 ## Description
 
-The `@theia/ai-core` extension serves as the basis of all AI integration in Theia.
-It manages the integration of language models and provides core concepts like agents, prompts and AI variables.
+The `@theia/ai-workspace-agent` extension contributes the `Workspace` agent to Theia AI.
+The agent is able to inspect the current files of the workspace, including their content, to answer questions.
 
 ## Additional Information
 

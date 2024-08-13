@@ -102,7 +102,6 @@ export class ChatServiceImpl implements ChatService {
 
     protected _sessions: ChatSession[] = [];
 
-    // TODO we might not want to expose this.
     getSessions(): ChatSession[] {
         return [...this._sessions];
     }
@@ -187,7 +186,6 @@ export class ChatServiceImpl implements ChatService {
 
         for (const part of parsedRequest.parts) {
             if (part instanceof ChatRequestVariablePart) {
-                // resolve variable
                 const resolvedVariable = await this.variableService.resolveVariable(
                     { variable: part.variableName, arg: part.variableArg },
                     { request, model: session }

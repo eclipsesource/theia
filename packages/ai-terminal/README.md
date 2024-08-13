@@ -17,8 +17,6 @@ The overlay can be used to ask a dedicated `TerminalAgent` for suggestions of te
 
 ## Additional Information
 
-<!-- - [API documentation for `@theia/navigator`](https://eclipse-theia.github.io/theia/docs/next/modules/navigator.html) -->
-
 -   [Theia - GitHub](https://github.com/eclipse-theia/theia)
 -   [Theia - Website](https://theia-ide.org/)
 

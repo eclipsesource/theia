@@ -1,7 +1,7 @@
 {
   "name": "@theia/ai-openai",
   "version": "1.52.0",
-  "description": "Theia - OpenAI LLM Integration",
+  "description": "Theia - OpenAI Integration",
   "dependencies": {
     "@theia/core": "1.52.0",
     "@theia/filesystem": "1.52.0",

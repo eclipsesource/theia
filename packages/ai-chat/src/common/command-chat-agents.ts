@@ -274,7 +274,6 @@ export class CommandChatAgent extends AbstractTextToModelParsingChatAgent<Parsed
         for (const command of this.commandRegistry.getAllCommands()) {
             knownCommands.push(`${command.id}: ${command.label}`);
         }
-        // eslint-disable-next-line @typescript-eslint/await-thenable
         const systemPrompt = await this.promptService.getPrompt('command-chat-agent-system-prompt-template', {
             'command-ids': knownCommands.join('\n')
         });
