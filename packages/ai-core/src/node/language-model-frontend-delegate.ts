@@ -28,6 +28,7 @@ import {
     LanguageModelRegistryFrontendDelegate,
     LanguageModelResponseDelegate,
     LanguageModelRegistryClient,
+    isLanguageModelParsedResponse,
 } from '../common';
 import { BackendLanguageModelRegistry } from './backend-language-model-registry';
 
@@ -86,7 +87,7 @@ export class LanguageModelFrontendDelegateImpl implements LanguageModelFrontendD
             this.requestCancellationTokenMap.set(requestId, tokenSource);
         }
         const response = await model.request(request);
-        if (isLanguageModelTextResponse(response)) {
+        if (isLanguageModelTextResponse(response) || isLanguageModelParsedResponse(response)) {
             return response;
         }
         if (isLanguageModelStreamResponse(response)) {

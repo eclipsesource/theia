@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { LanguageModelMetaData, LanguageModelRequest, LanguageModelStreamResponsePart, LanguageModelTextResponse } from './language-model';
+import { LanguageModelMetaData, LanguageModelParsedResponse, LanguageModelRequest, LanguageModelStreamResponsePart, LanguageModelTextResponse } from './language-model';
 
 export const LanguageModelDelegateClient = Symbol('LanguageModelDelegateClient');
 export interface LanguageModelDelegateClient {
@@ -32,7 +32,7 @@ export interface LanguageModelStreamResponseDelegate {
 export const isLanguageModelStreamResponseDelegate = (obj: unknown): obj is LanguageModelStreamResponseDelegate =>
     !!(obj && typeof obj === 'object' && 'streamId' in obj && typeof (obj as { streamId: unknown }).streamId === 'string');
 
-export type LanguageModelResponseDelegate = LanguageModelTextResponse | LanguageModelStreamResponseDelegate;
+export type LanguageModelResponseDelegate = LanguageModelTextResponse | LanguageModelParsedResponse | LanguageModelStreamResponseDelegate;
 
 export const LanguageModelFrontendDelegate = Symbol('LanguageModelFrontendDelegate');
 export interface LanguageModelFrontendDelegate {

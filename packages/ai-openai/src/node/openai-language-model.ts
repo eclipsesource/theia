@@ -14,10 +14,17 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { LanguageModel, LanguageModelRequest, LanguageModelRequestMessage, LanguageModelResponse, LanguageModelStreamResponsePart } from '@theia/ai-core';
+import {
+    LanguageModel,
+    LanguageModelParsedResponse,
+    LanguageModelRequest,
+    LanguageModelRequestMessage,
+    LanguageModelResponse,
+    LanguageModelStreamResponsePart
+} from '@theia/ai-core';
 import OpenAI from 'openai';
 import { ChatCompletionStream } from 'openai/lib/ChatCompletionStream';
-import { BaseFunctionsArgs, RunnableToolFunctionWithoutParse, RunnableTools } from 'openai/lib/RunnableFunction';
+import { RunnableToolFunctionWithoutParse } from 'openai/lib/RunnableFunction';
 import { ChatCompletionMessageParam } from 'openai/resources';
 
 export const OpenAiModelIdentifier = Symbol('OpenAiModelIdentifier');
@@ -39,23 +46,14 @@ export class OpenAiModel implements LanguageModel {
     }
 
     async request(request: LanguageModelRequest): Promise<LanguageModelResponse> {
-        const key = this.apiKey();
-        if (!key) {
-            throw new Error('Please provide OPENAI_API_KEY in preferences or via environment variable');
-        }
-        const openai = new OpenAI({ apiKey: key });
+        const openai = this.initializeOpenAi();
 
-        const tools: RunnableTools<BaseFunctionsArgs> | undefined = request.tools?.map(tool => ({
-            type: 'function',
-            function: {
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.parameters,
-                function: (args_string: string) => tool.handler(args_string)
-            }
-        } as RunnableToolFunctionWithoutParse
-        ));
+        if (request.response_format?.type === 'json_schema') {
+            return this.handleStructuredOutputRequest(openai, request);
+        }
+
         let runner: ChatCompletionStream;
+        const tools = this.createTools(request);
         if (tools) {
             runner = openai.beta.chat.completions.runTools({
                 model: this.model,
@@ -87,7 +85,7 @@ export class OpenAiModel implements LanguageModel {
         });
         runner.on('message', message => {
             if (message.role === 'tool') {
-                resolve({ tool_calls: [{ id: message.tool_call_id, finished: true, result: message.content }] });
+                resolve({ tool_calls: [{ id: message.tool_call_id, finished: true, result: this.getCompletionContent(message) }] });
             }
             console.log('Message:', JSON.stringify(message));
         });
@@ -111,6 +109,51 @@ export class OpenAiModel implements LanguageModel {
             }
         })();
         return { stream: asyncIterator };
+    }
+
+    protected async handleStructuredOutputRequest(openai: OpenAI, request: LanguageModelRequest): Promise<LanguageModelParsedResponse> {
+        // TODO implement tool support for structured output (parse() seems to require different tool format)
+        const result = await openai.beta.chat.completions.parse({
+            model: this.model,
+            messages: request.messages.map(this.toOpenAIMessage),
+            response_format: request.response_format,
+            ...request.settings
+        });
+        const message = result.choices[0].message;
+        if (message.refusal || message.parsed === undefined) {
+            console.error('Error in OpenAI chat completion stream:', JSON.stringify(message));
+        }
+        return {
+            content: message.content ?? '',
+            parsed: message.parsed
+        };
+    }
+
+    private getCompletionContent(message: OpenAI.Chat.Completions.ChatCompletionToolMessageParam): string {
+        if (Array.isArray(message.content)) {
+            return message.content.join('');
+        }
+        return message.content;
+    }
+
+    protected createTools(request: LanguageModelRequest): RunnableToolFunctionWithoutParse[] | undefined {
+        return request.tools?.map(tool => ({
+            type: 'function',
+            function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
+                function: (args_string: string) => tool.handler(args_string)
+            }
+        } as RunnableToolFunctionWithoutParse));
+    }
+
+    protected initializeOpenAi(): OpenAI {
+        const key = this.apiKey();
+        if (!key) {
+            throw new Error('Please provide OPENAI_API_KEY in preferences or via environment variable');
+        }
+        return new OpenAI({ apiKey: key });
     }
 
     private toOpenAIMessage(message: LanguageModelRequestMessage): ChatCompletionMessageParam {
