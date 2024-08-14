@@ -81,6 +81,11 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
     @inject(ChatAgentService)
     protected chatAgentService: ChatAgentService;
 
+    override invoke(request: ChatRequestModelImpl): Promise<void> {
+        request.response.addProgressMessage({ content: 'Determining the most appropriate agent', status: 'inProgress' });
+        return super.invoke(request);
+    }
+
     protected async getSystemMessage(): Promise<SystemMessage | undefined> {
         const resolvedPrompt = await this.promptService.getPrompt(delegateTemplate.id);
         return resolvedPrompt ? SystemMessage.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
@@ -94,6 +99,9 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
         }
         if (agentIds.length < 1) {
             this.logger.error('No agent was selected, delegating to default chat agent');
+            request.response.progressMessages.forEach(progressMessage =>
+                request.response.updateProgressMessage({ ...progressMessage, status: 'failed' })
+            );
             agentIds = ['DefaultChatAgent'];
         }
         // TODO support delegating to more than one agent
@@ -106,6 +114,9 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
             `
         ));
         request.response.overrideAgentId(delegatedToAgent);
+        request.response.progressMessages.forEach(progressMessage =>
+            request.response.updateProgressMessage({ ...progressMessage, status: 'completed' })
+        );
         await this.chatAgentService.invokeAgent(delegatedToAgent, request);
     }
 }
