@@ -62,13 +62,15 @@ export class OpenAiModel implements LanguageModel {
                 messages: request.messages.map(this.toOpenAIMessage),
                 stream: true,
                 tools: tools,
-                tool_choice: 'auto'
+                tool_choice: 'auto',
+                ...request.settings
             });
         } else {
             runner = openai.beta.chat.completions.stream({
                 model: this.model,
                 messages: request.messages.map(this.toOpenAIMessage),
                 stream: true,
+                ...request.settings
             });
         }
         request.cancellationToken?.onCancellationRequested(() => {
