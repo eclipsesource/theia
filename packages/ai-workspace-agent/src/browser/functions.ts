@@ -19,13 +19,14 @@ import { inject, injectable } from '@theia/core/shared/inversify';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { FileStat } from '@theia/filesystem/lib/common/files';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
+import { FILE_CONTENT_FUNCTION_ID, GET_WORKSPACE_FILE_LIST_FUNCTION_ID } from '../common/functions';
 
 /**
  * A Function that can read the contents of a File from the Workspace.
  */
 @injectable()
 export class FileContentFunction implements ToolProvider {
-    static ID = 'getFileContent';
+    static ID = FILE_CONTENT_FUNCTION_ID;
 
     getTool(): ToolRequest<object> {
         return {
@@ -71,7 +72,7 @@ export class FileContentFunction implements ToolProvider {
  */
 @injectable()
 export class GetWorkspaceFileList implements ToolProvider {
-    static ID = 'getWorkspaceFileList';
+    static ID = GET_WORKSPACE_FILE_LIST_FUNCTION_ID;
 
     getTool(): ToolRequest<object> {
         return {

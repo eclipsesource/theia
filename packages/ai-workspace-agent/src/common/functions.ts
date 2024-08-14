@@ -13,17 +13,5 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { PromptTemplate } from '@theia/ai-core/lib/common';
-import { GET_WORKSPACE_FILE_LIST_FUNCTION_ID, FILE_CONTENT_FUNCTION_ID } from './functions';
-
-export const template = <PromptTemplate>{
-    id: 'workspace-prompt',
-    template: `You are an AI Agent to help developers with coding inside of the IDE.
-    The user has the workspace open.
-    If needed, you can ask for more information.
-    The following functions are available to you:
-    - ~{${GET_WORKSPACE_FILE_LIST_FUNCTION_ID}}
-    - ~{${FILE_CONTENT_FUNCTION_ID}}
-
-Never shorten the file paths when using getFileContent.`
-};
+export const FILE_CONTENT_FUNCTION_ID = 'getFileContent';
+export const GET_WORKSPACE_FILE_LIST_FUNCTION_ID = 'getWorkspaceFileList';
