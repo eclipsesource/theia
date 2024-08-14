@@ -111,6 +111,7 @@ export class ChatViewWidget extends BaseWidget implements ExtractableWidget, Sta
                 if (session) {
                     this.chatSession = session;
                     this.treeWidget.trackChatModel(this.chatSession.model);
+                    this.inputWidget.chatModel = this.chatSession.model;
                     if (event.focus) {
                         this.show();
                     }
