@@ -20,7 +20,7 @@
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatParserTypes.ts
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/editor/common/core/offsetRange.ts
 
-import { AIVariable, ResolvedAIVariable, ToolRequest } from '@theia/ai-core';
+import { AIVariable, ResolvedAIVariable, ToolRequest, toolRequestToPromptText } from '@theia/ai-core';
 import { ChatAgentData } from './chat-agents';
 import { ChatRequest } from './chat-model';
 
@@ -110,22 +110,7 @@ export class ChatRequestFunctionPart implements ChatRequestBasePart {
     }
 
     get promptText(): string {
-        const parameters = this.toolRequest.parameters;
-        let paramsText = '';
-        // parameters are supposed to be as a JSON schema. Thus, derive the parameters from its properties definition
-        if (parameters) {
-            const properties = parameters.properties;
-            paramsText = Object.keys(properties)
-                .map(key => {
-                    const param = properties[key];
-                    return `${key}: ${param.type}`;
-                })
-                .join(', ');
-        }
-        const descriptionText = this.toolRequest.description
-            ? `: ${this.toolRequest.description}`
-            : '';
-        return `You can call function: ${this.toolRequest.id}(${paramsText})${descriptionText}`;
+        return toolRequestToPromptText(this.toolRequest);
     }
 }
 

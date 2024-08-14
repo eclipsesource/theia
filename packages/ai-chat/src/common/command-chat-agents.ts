@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { AbstractTextToModelParsingChatAgent } from './chat-agents';
+import { AbstractTextToModelParsingChatAgent, SystemMessage } from './chat-agents';
 import {
     PromptTemplate,
     LanguageModelRequirement
@@ -269,7 +269,7 @@ export class CommandChatAgent extends AbstractTextToModelParsingChatAgent<Parsed
 
     protected override languageModelPurpose = 'command';
 
-    protected async getSystemMessage(): Promise<string | undefined> {
+    protected async getSystemMessage(): Promise<SystemMessage | undefined> {
         const knownCommands: string[] = [];
         for (const command of this.commandRegistry.getAllCommands()) {
             knownCommands.push(`${command.id}: ${command.label}`);
@@ -280,7 +280,7 @@ export class CommandChatAgent extends AbstractTextToModelParsingChatAgent<Parsed
         if (systemPrompt === undefined) {
             throw new Error('Couldn\'t get system prompt ');
         }
-        return systemPrompt;
+        return SystemMessage.fromResolvedPromptTemplate(systemPrompt);
     }
 
     /**

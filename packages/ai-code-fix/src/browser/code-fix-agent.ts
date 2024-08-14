@@ -77,7 +77,15 @@ export class CodeFixAgentImpl implements CodeFixAgent {
             return [];
         }
 
-        const prompt = await this.promptService.getPrompt('code-fix-prompt', { contextRangeContent, file: fileName, language, errorMsg: errorMsg, lineNumber: lineNumber });
+        const prompt = await this.promptService
+            .getPrompt('code-fix-prompt', {
+                contextRangeContent,
+                file: fileName,
+                language,
+                errorMsg: errorMsg,
+                lineNumber: lineNumber,
+            })
+            .then(p => p?.text);
         if (!prompt) {
             console.error('No prompt found for code-fix-agent');
             return [];

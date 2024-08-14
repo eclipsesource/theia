@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { AbstractStreamParsingChatAgent } from '@theia/ai-chat';
+import { AbstractStreamParsingChatAgent, SystemMessage } from '@theia/ai-chat';
 import { LanguageModelRequirement } from '@theia/ai-core';
 import { injectable } from '@theia/core/shared/inversify';
 
@@ -77,7 +77,8 @@ And here is my git-diff: #git-diff.
 
     protected override languageModelPurpose = 'chat';
 
-    protected override async getSystemMessage(): Promise<string | undefined> {
-        return this.promptTemplates.find(template => template.id === 'ai-pr-finalization:system-prompt')?.template;
+    protected override async getSystemMessage(): Promise<SystemMessage | undefined> {
+        const resolvedPrompt = await this.promptService.getPrompt('ai-pr-finalization:system-prompt');
+        return resolvedPrompt ? SystemMessage.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
     }
 }

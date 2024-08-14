@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { isLanguageModelStreamResponse, isLanguageModelTextResponse, LanguageModelResponse } from './language-model';
+import { isLanguageModelStreamResponse, isLanguageModelTextResponse, LanguageModelResponse, ToolRequest } from './language-model';
 
 export const getTextOfResponse = async (response: LanguageModelResponse): Promise<string> => {
     if (isLanguageModelTextResponse(response)) {
@@ -46,4 +46,22 @@ export const getJsonOfResponse = async (response: LanguageModelResponse): Promis
         return JSON.parse(text);
     }
     throw new Error('Invalid response format');
+};
+export const toolRequestToPromptText = (toolRequest: ToolRequest<object>): string => {
+    const parameters = toolRequest.parameters;
+    let paramsText = '';
+    // parameters are supposed to be as a JSON schema. Thus, derive the parameters from its properties definition
+    if (parameters) {
+        const properties = parameters.properties;
+        paramsText = Object.keys(properties)
+            .map(key => {
+                const param = properties[key];
+                return `${key}: ${param.type}`;
+            })
+            .join(', ');
+    }
+    const descriptionText = toolRequest.description
+        ? `: ${toolRequest.description}`
+        : '';
+    return `You can call function: ${toolRequest.id}(${paramsText})${descriptionText}`;
 };

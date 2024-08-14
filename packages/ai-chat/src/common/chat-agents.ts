@@ -19,7 +19,16 @@
  *--------------------------------------------------------------------------------------------*/
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatAgents.ts
 
-import { CommunicationRecordingService, getTextOfResponse, LanguageModel, LanguageModelRequirement, LanguageModelResponse, PromptService, ToolRequest } from '@theia/ai-core';
+import {
+    CommunicationRecordingService,
+    getTextOfResponse,
+    LanguageModel,
+    LanguageModelRequirement,
+    LanguageModelResponse,
+    PromptService,
+    ResolvedPromptTemplate,
+    ToolRequest,
+} from '@theia/ai-core';
 import {
     Agent,
     isLanguageModelStreamResponse,
@@ -47,6 +56,20 @@ export interface ChatMessage {
     actor: MessageActor;
     type: 'text';
     query: string;
+}
+
+export interface SystemMessage {
+    text: string;
+    /** All functions references in the system message. */
+    functionDescriptions?: Map<string, ToolRequest<object>>;
+}
+export namespace SystemMessage {
+    export function fromResolvedPromptTemplate(resolvedPrompt: ResolvedPromptTemplate): SystemMessage {
+        return {
+            text: resolvedPrompt.text,
+            functionDescriptions: resolvedPrompt.functionDescriptions
+        };
+    }
 }
 
 export enum ChatAgentLocation {
@@ -121,6 +144,23 @@ export abstract class AbstractChatAgent implements ChatAgent {
                 request: request.request.text,
                 messages
             });
+
+            const systemMessage = await this.getSystemMessage();
+            const tools: Map<string, ToolRequest<object>> = new Map();
+            if (systemMessage) {
+                const systemMsg: ChatMessage = {
+                    actor: 'system',
+                    type: 'text',
+                    query: systemMessage.text
+                };
+                // insert system message at the beginning of the request messages
+                messages.unshift(systemMsg);
+                systemMessage.functionDescriptions?.forEach((tool, id) => {
+                    tools.set(id, tool);
+                });
+            }
+            this.getTools(request)?.forEach(tool => tools.set(tool.id, tool));
+
             const cancellationToken = new CancellationTokenSource();
             request.response.onDidChange(() => {
                 if (request.response.isCanceled) {
@@ -128,8 +168,12 @@ export abstract class AbstractChatAgent implements ChatAgent {
                 }
             });
 
-            const tools = this.getTools(request);
-            const languageModelResponse = await this.callLlm(languageModel, messages, tools, cancellationToken.token);
+            const languageModelResponse = await this.callLlm(
+                languageModel,
+                messages,
+                tools.size > 0 ? Array.from(tools.values()) : undefined,
+                cancellationToken.token
+            );
             await this.addContentsToResponse(languageModelResponse, request);
             request.response.complete();
             this.recordingService.recordResponse({
@@ -165,11 +209,10 @@ export abstract class AbstractChatAgent implements ChatAgent {
         return languageModel;
     }
 
-    protected abstract getSystemMessage(): Promise<string | undefined>;
+    protected abstract getSystemMessage(): Promise<SystemMessage | undefined>;
 
     protected async getMessages(
-        model: ChatModel, includeResponseInProgress = false,
-        getSystemMessage: (() => Promise<string | undefined>) = this.getSystemMessage.bind(this)
+        model: ChatModel, includeResponseInProgress = false
     ): Promise<ChatMessage[]> {
         const requestMessages = model.getRequests().flatMap(request => {
             const messages: ChatMessage[] = [];
@@ -188,16 +231,7 @@ export abstract class AbstractChatAgent implements ChatAgent {
             }
             return messages;
         });
-        const systemMessage = await getSystemMessage();
-        if (systemMessage) {
-            const systemMsg: ChatMessage = {
-                actor: 'system',
-                type: 'text',
-                query: systemMessage
-            };
-            // insert systemMsg at the beginning of requestMessages
-            requestMessages.unshift(systemMsg);
-        }
+
         return requestMessages;
     }
 
