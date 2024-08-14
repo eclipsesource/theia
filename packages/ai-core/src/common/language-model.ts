@@ -42,8 +42,18 @@ export interface ToolRequest<T extends object> {
 export interface LanguageModelRequest {
     messages: LanguageModelRequestMessage[],
     tools?: ToolRequest<object>[];
+    response_format?: { type: 'text' } | { type: 'json_object' } | ResponseFormatJsonSchema;
     cancellationToken?: CancellationToken;
     settings?: { [key: string]: unknown };
+}
+export interface ResponseFormatJsonSchema {
+    type: 'json_schema';
+    json_schema: {
+        name: string,
+        description?: string,
+        schema?: Record<string, unknown>,
+        strict?: boolean | null
+    };
 }
 
 export interface LanguageModelTextResponse {
@@ -73,7 +83,14 @@ export interface LanguageModelStreamResponse {
 export const isLanguageModelStreamResponse = (obj: unknown): obj is LanguageModelStreamResponse =>
     !!(obj && typeof obj === 'object' && 'stream' in obj);
 
-export type LanguageModelResponse = LanguageModelTextResponse | LanguageModelStreamResponse;
+export interface LanguageModelParsedResponse {
+    parsed: unknown;
+    content: string;
+}
+export const isLanguageModelParsedResponse = (obj: unknown): obj is LanguageModelParsedResponse =>
+    !!(obj && typeof obj === 'object' && 'parsed' in obj && 'content' in obj);
+
+export type LanguageModelResponse = LanguageModelTextResponse | LanguageModelStreamResponse | LanguageModelParsedResponse;
 
 ///////////////////////////////////////////
 // Language Model Provider

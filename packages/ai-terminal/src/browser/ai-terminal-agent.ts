@@ -15,11 +15,20 @@
 // *****************************************************************************
 
 import {
-    Agent, isLanguageModelStreamResponse, isLanguageModelTextResponse,
-    LanguageModelRegistry, LanguageModelRequirement, LanguageModelResponse, PromptService
+    Agent,
+    isLanguageModelParsedResponse,
+    LanguageModelRegistry, LanguageModelRequirement,
+    PromptService
 } from '@theia/ai-core/lib/common';
 import { ILogger } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
+import { z } from 'zod';
+import zodToJsonSchema from 'zod-to-json-schema';
+
+const Commands = z.object({
+    commands: z.array(z.string()),
+});
+type Commands = z.infer<typeof Commands>;
 
 @injectable()
 export class AiTerminalAgent implements Agent {
@@ -94,7 +103,8 @@ recent-terminal-contents:
     ];
     languageModelRequirements: LanguageModelRequirement[] = [
         {
-            purpose: 'suggest-terminal-commands'
+            purpose: 'suggest-terminal-commands',
+            identifier: 'openai/gpt-4o-2024-08-06',
         }
     ];
 
@@ -129,63 +139,39 @@ recent-terminal-contents:
             return [];
         }
 
-        const result = await lm.request({
-            messages: [
-                {
-                    actor: 'ai',
-                    type: 'text',
-                    query: systemPrompt
-                },
-                {
-                    actor: 'user',
-                    type: 'text',
-                    query: userPrompt
+        try {
+            const result = await lm.request({
+                messages: [
+                    {
+                        actor: 'ai',
+                        type: 'text',
+                        query: systemPrompt
+                    },
+                    {
+                        actor: 'user',
+                        type: 'text',
+                        query: userPrompt
+                    }
+                ],
+                response_format: {
+                    type: 'json_schema',
+                    json_schema: {
+                        name: 'terminal-commands',
+                        description: 'Suggested terminal commands based on the user request',
+                        schema: zodToJsonSchema(Commands)
+                    }
                 }
-            ]
-        });
-
-        const contentResult = await this.waitAndGet(result);
-        return this.parseJsonBlock(contentResult);
-    }
-
-    protected async waitAndGet(response: LanguageModelResponse): Promise<string> {
-        if (isLanguageModelTextResponse(response)) {
-            return response.text;
-        }
-        if (isLanguageModelStreamResponse(response)) {
-            let content = '';
-            for await (const token of response.stream) {
-                content += token.content;
+            });
+            if (!isLanguageModelParsedResponse(result)) {
+                this.logger.error('Failed to parse the response from the language model.', result);
+                return [];
             }
-            return content;
+            const commandsObject = result.parsed as Commands;
+            return commandsObject.commands;
+        } catch (error) {
+            this.logger.error('Error obtaining the command suggestions.', error);
+            return [];
         }
-        return '';
-    }
-
-    protected parseJsonBlock(input: string): string[] {
-        const regex = /```json\s*([\s\S]*?)\s*```/g;
-        let match;
-
-        // try finding ```json ... ```
-        // eslint-disable-next-line no-null/no-null
-        while ((match = regex.exec(input)) !== null) {
-            try {
-                const jsonData = JSON.parse(match[1]);
-                if (jsonData.commands) {
-                    return jsonData.commands;
-                }
-            } catch (error) {
-                console.error('Failed to parse JSON:', error);
-            }
-        }
-
-        // try parsing directly
-        const data = JSON.parse(input);
-        if (data.commands) {
-            return data.commands;
-        }
-
-        return [];
     }
 
 }

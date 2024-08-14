@@ -26,6 +26,7 @@ import {
 } from '@theia/output/lib/browser/output-channel';
 import {
     DefaultLanguageModelRegistryImpl,
+    isLanguageModelParsedResponse,
     isLanguageModelStreamResponse,
     isLanguageModelStreamResponseDelegate,
     isLanguageModelTextResponse,
@@ -215,7 +216,7 @@ export class FrontendLanguageModelRegistryImpl
                     request,
                     requestId
                 );
-                if (isLanguageModelTextResponse(response)) {
+                if (isLanguageModelTextResponse(response) || isLanguageModelParsedResponse(response)) {
                     return response;
                 }
                 if (isLanguageModelStreamResponseDelegate(response)) {
