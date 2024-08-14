@@ -17,6 +17,7 @@ import {
     BaseChatResponseContent,
     ChatAgentService,
     ChatModel,
+    ChatProgressMessage,
     ChatRequestModel,
     ChatResponseContent,
     ChatResponseModel,
@@ -332,6 +333,11 @@ export class ChatViewTreeWidget extends TreeWidget {
     private renderChatResponse(node: ResponseNode): React.ReactNode {
         return (
             <div className={'theia-ResponseNode'}>
+                {!node.response.isComplete
+                    && node.response.response.content.length === 0
+                    && node.response.progressMessages.map((c, i) =>
+                        <ProgressMessage {...c} key={`${node.id}-progress-${i}`} />
+                    )}
                 {node.response.response.content.map((c, i) =>
                     <div className='theia-ResponseNode-Content' key={`${node.id}-content-${i}`}>{this.getChatResponsePartRenderer(c, node)}</div>
                 )}
@@ -354,3 +360,23 @@ export class ChatViewTreeWidget extends TreeWidget {
         event.preventDefault();
     }
 }
+
+const ProgressMessage = (c: ChatProgressMessage) => (
+    <div className='theia-ResponseNode-ProgressMessage'>
+        <Indicator {...c} /> {c.content}
+    </div>
+);
+
+const Indicator = (progressMessage: ChatProgressMessage) => (
+    <span className='theia-ResponseNode-ProgressMessage-Indicator'>
+        {progressMessage.status === 'inProgress' &&
+            <i className={'fa fa-spinner fa-spin ' + progressMessage.status}></i>
+        }
+        {progressMessage.status === 'completed' &&
+            <i className={'fa fa-check ' + progressMessage.status}></i>
+        }
+        {progressMessage.status === 'failed' &&
+            <i className={'fa fa-warning ' + progressMessage.status}></i>
+        }
+    </span>
+);

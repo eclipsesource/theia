@@ -21,7 +21,7 @@
   user-select: text;
   -webkit-user-select: text;
   border-bottom: 1px solid var(--theia-sideBarSectionHeader-border);
-  overflow-wrap: break-word
+  overflow-wrap: break-word;
 }
 
 div:last-child > .theia-ChatNode {
@@ -239,6 +239,23 @@ div:last-child > .theia-ChatNode {
   color: var(--theia-button-background);
 }
 
+.theia-ResponseNode-ProgressMessage {
+  font-weight: normal;
+  color: var(--theia-descriptionForeground);
+  line-height: 20px;
+  margin-bottom: 6px;
+}
+
+.theia-ResponseNode-ProgressMessage .inProgress {
+  color: var(--theia-progressBar-background);
+}
+.theia-ResponseNode-ProgressMessage .completed {
+  color: var(--theia-successBackground);
+}
+.theia-ResponseNode-ProgressMessage .failed {
+  color: var(--theia-errorForeground);
+}
+
 .spinner {
   display: inline-block;
   animation: spin 2s linear infinite;
@@ -261,34 +278,32 @@ div:last-child > .theia-ChatNode {
   color: var(--theia-errorForeground);
 }
 
-
 .section-header {
-    font-weight: bold;
-    font-size: 16px;
-    margin-bottom: 10px;
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 10px;
 }
 
 .section-title {
-    font-weight: bold;
-    font-size: 14px;
-    margin: 20px 0px;
+  font-weight: bold;
+  font-size: 14px;
+  margin: 20px 0px;
 }
 
 .disable-message {
-    font-size: 12px;
-    line-height: 1.6;
-    padding: 15px;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 15px;
 }
 
 .section-content p {
-    margin: 10px 0;
+  margin: 10px 0;
 }
 
 .section-content a {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .section-content strong {
-    font-weight: bold;
+  font-weight: bold;
 }
-

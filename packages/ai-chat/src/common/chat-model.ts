@@ -20,10 +20,10 @@
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatModel.ts
 
 import { Command, Emitter, Event, generateUuid, URI } from '@theia/core';
-import { Position } from '@theia/core/shared/vscode-languageserver-protocol';
 import { MarkdownString, MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
-import { ParsedChatRequest } from './chat-parsed-request';
+import { Position } from '@theia/core/shared/vscode-languageserver-protocol';
 import { ChatAgentLocation } from './chat-agents';
+import { ParsedChatRequest } from './chat-parsed-request';
 
 /**********************
  * INTERFACES AND TYPE GUARDS
@@ -78,6 +78,8 @@ export interface ChatRequestModel {
 
 export interface ChatProgressMessage {
     kind: 'progressMessage';
+    id: string;
+    status: 'inProgress' | 'completed' | 'failed';
     content: string;
 }
 
@@ -252,6 +254,9 @@ export interface ChatResponseModel {
     readonly id: string;
     readonly requestId: string;
     readonly progressMessages: ChatProgressMessage[];
+    addProgressMessage(message: { content: string } & Partial<Omit<ChatProgressMessage, 'kind'>>): ChatProgressMessage;
+    getProgressMessage(id: string): ChatProgressMessage | undefined;
+    updateProgressMessage(message: { id: string } & Partial<Omit<ChatProgressMessage, 'kind'>>): void;
     readonly response: ChatResponse;
     readonly isComplete: boolean;
     readonly isCanceled: boolean;
@@ -670,6 +675,36 @@ class ChatResponseModelImpl implements ChatResponseModel {
 
     get progressMessages(): ChatProgressMessage[] {
         return this._progressMessages;
+    }
+
+    addProgressMessage(message: { content: string } & Partial<Omit<ChatProgressMessage, 'kind'>>): ChatProgressMessage {
+        const id = message.id ?? generateUuid();
+        const existingMessage = this.getProgressMessage(id);
+        if (existingMessage) {
+            this.updateProgressMessage({ id, ...message });
+            return existingMessage;
+        }
+        const newMessage: ChatProgressMessage = {
+            kind: 'progressMessage',
+            id,
+            status: message.status ?? 'inProgress',
+            ...message,
+        };
+        this._progressMessages.push(newMessage);
+        this._onDidChangeEmitter.fire();
+        return newMessage;
+    }
+
+    getProgressMessage(id: string): ChatProgressMessage | undefined {
+        return this._progressMessages.find(message => message.id === id);
+    }
+
+    updateProgressMessage(message: { id: string } & Partial<Omit<ChatProgressMessage, 'kind'>>): void {
+        const progressMessage = this.getProgressMessage(message.id);
+        if (progressMessage) {
+            Object.assign(progressMessage, message);
+            this._onDidChangeEmitter.fire();
+        }
     }
 
     get response(): ChatResponseImpl {
