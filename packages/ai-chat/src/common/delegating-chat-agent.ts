@@ -87,7 +87,11 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
     }
 
     protected override async addContentsToResponse(response: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
-        let agentIds = (await getJsonOfResponse(response)).filter((id: string) => id !== this.id);
+        const jsonResponse = await getJsonOfResponse(response);
+        let agentIds = [];
+        if (Array.isArray(jsonResponse)) {
+            agentIds = jsonResponse.filter((id: string) => id !== this.id);
+        }
         if (agentIds.length < 1) {
             this.logger.error('No agent was selected, delegating to default chat agent');
             agentIds = ['DefaultChatAgent'];
