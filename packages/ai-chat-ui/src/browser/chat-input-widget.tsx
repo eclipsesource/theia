@@ -51,6 +51,7 @@ export class ChatInputWidget extends ReactWidget {
     private _chatModel: ChatModel;
     set chatModel(chatModel: ChatModel) {
         this._chatModel = chatModel;
+        this.update();
     }
 
     @postConstruct()

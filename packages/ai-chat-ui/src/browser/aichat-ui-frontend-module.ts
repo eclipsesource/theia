@@ -47,19 +47,19 @@ export default new ContainerModule((bind, _ubind, _isBound, rebind) => {
     bindChatViewWidget(bind);
 
     bind(ChatInputWidget).toSelf();
-    bind(WidgetFactory).toDynamicValue(context => ({
+    bind(WidgetFactory).toDynamicValue(({ container }) => ({
         id: ChatInputWidget.ID,
-        createWidget: () => context.container.get<ChatInputWidget>(ChatInputWidget)
+        createWidget: () => container.get(ChatInputWidget)
     })).inSingletonScope();
 
     bind(ChatViewTreeWidget).toDynamicValue(ctx =>
         createChatViewTreeWidget(ctx.container)
     );
-
     bind(WidgetFactory).toDynamicValue(({ container }) => ({
         id: ChatViewTreeWidget.ID,
         createWidget: () => container.get(ChatViewTreeWidget)
     })).inSingletonScope();
+
     bind(ChatResponsePartRenderer).to(HorizontalLayoutPartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(ErrorPartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(MarkdownPartRenderer).inSingletonScope();
