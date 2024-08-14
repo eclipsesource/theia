@@ -14,10 +14,9 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { AbstractStreamParsingChatAgent, SystemMessage } from '@theia/ai-chat/lib/common';
-import { FunctionCallRegistry, LanguageModelRequirement, ToolRequest } from '@theia/ai-core';
+import { FunctionCallRegistry, LanguageModelRequirement } from '@theia/ai-core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { template } from '../common/template';
-import { FileContentFunction, GetWorkspaceFileList } from './functions';
 
 @injectable()
 export class WorkspaceAgent extends AbstractStreamParsingChatAgent {
@@ -43,9 +42,5 @@ finding out what this project is about, or how to implement certain aspects of b
     protected override async getSystemMessage(): Promise<SystemMessage | undefined> {
         const resolvedPrompt = await this.promptService.getPrompt(template.id);
         return resolvedPrompt ? SystemMessage.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
-    }
-
-    protected override getTools(): ToolRequest<object>[] | undefined {
-        return this.functionCallRegistry.getFunctions(GetWorkspaceFileList.ID, FileContentFunction.ID);
     }
 }
