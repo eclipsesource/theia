@@ -156,7 +156,10 @@ class AiTerminalChatWidget {
             if (this.commands.length > 0) {
                 this.chatResultParagraph.className = 'command';
                 this.chatResultParagraph.innerText = this.commands[0];
-                this.chatInput.placeholder = 'Hit enter to confirm or use ⇅ to show alternatives...';
+                this.chatInput.placeholder = 'Hit enter to confirm';
+                if (this.commands.length > 1) {
+                    this.chatInput.placeholder += ' or use ⇅ to show alternatives...';
+                }
                 this.haveResult = true;
             } else {
                 this.chatResultParagraph.className = '';
