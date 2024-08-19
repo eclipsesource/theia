@@ -24,11 +24,12 @@ import {
     ChatRequestParser,
     ChatRequestParserImpl,
     ChatService,
-    ChatServiceImpl
+    ChatServiceImpl,
+    DefaultChatAgent,
 } from '../common';
 import { CommandChatAgent } from '../common/command-chat-agents';
 import { DelegatingChatAgent } from '../common/delegating-chat-agent';
-import { DefaultChatAgent } from '../common/general-coding-chat-agent';
+import { GeneralCodingChatAgent } from '../common/general-coding-chat-agent';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, Agent);
@@ -36,6 +37,7 @@ export default new ContainerModule(bind => {
 
     bind(ChatAgentServiceImpl).toSelf().inSingletonScope();
     bind(ChatAgentService).toService(ChatAgentServiceImpl);
+    bind(DefaultChatAgent).toConstantValue({ id: 'DelegatingChatAgent' });
 
     bind(ChatRequestParserImpl).toSelf().inSingletonScope();
     bind(ChatRequestParser).toService(ChatRequestParserImpl);
@@ -47,9 +49,9 @@ export default new ContainerModule(bind => {
     bind(Agent).toService(DelegatingChatAgent);
     bind(ChatAgent).toService(DelegatingChatAgent);
 
-    bind(DefaultChatAgent).toSelf().inSingletonScope();
-    bind(Agent).toService(DefaultChatAgent);
-    bind(ChatAgent).toService(DefaultChatAgent);
+    bind(GeneralCodingChatAgent).toSelf().inSingletonScope();
+    bind(Agent).toService(GeneralCodingChatAgent);
+    bind(ChatAgent).toService(GeneralCodingChatAgent);
 
     bind(CommandChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(CommandChatAgent);

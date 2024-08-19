@@ -77,10 +77,10 @@ simple solutions.
 };
 
 @injectable()
-export class DefaultChatAgent extends AbstractStreamParsingChatAgent {
+export class GeneralCodingChatAgent extends AbstractStreamParsingChatAgent {
 
-    id: string = 'DefaultChatAgent';
-    name: string = 'DefaultChatAgent';
+    id: string = 'Coding';
+    name: string = 'Coding';
     description: string = 'A chat agent that is specialized in answering general programming and software development questions.';
 
     languageModelPurpose = 'chat';
@@ -93,8 +93,8 @@ export class DefaultChatAgent extends AbstractStreamParsingChatAgent {
     promptTemplates: PromptTemplate[] = [defaultTemplate];
 
     protected async getSystemMessage(): Promise<SystemMessage | undefined> {
-      const resolvedPrompt = await this.promptService.getPrompt(defaultTemplate.id);
-      return resolvedPrompt ? SystemMessage.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
-   }
+        const resolvedPrompt = await this.promptService.getPrompt(defaultTemplate.id);
+        return resolvedPrompt ? SystemMessage.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
+    }
 
 }

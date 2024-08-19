@@ -37,20 +37,20 @@ Your response must be a JSON array containing the id(s) of the selected Chat Age
 
 * Do not use ids that are not provided in the list below.
 * Do not include any additional information, explanations, or questions for the user.
-* If there is no suitable choice, pick the \`DefaultChatAgent\`.
+* If there is no suitable choice, pick the \`Coding\`.
 * If there are multiple good choices, return all of them.
 
-Unless there is a more specific agent available, select the \`DefaultChatAgent\`, especially for general programming-related questions.
+Unless there is a more specific agent available, select the \`Coding\`, especially for general programming-related questions.
 You must only use the \`id\` attribute of the agent, never the name.
 
 ### Example Results
 
 \`\`\`json
-["DefaultChatAgent"]
+["Coding"]
 \`\`\`
 
 \`\`\`json
-["AnotherChatAgent", "DefaultChatAgent"]
+["AnotherChatAgent", "Coding"]
 \`\`\`
 
 ## List of Currently Available Chat Agents
@@ -108,7 +108,7 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
             request.response.progressMessages.forEach(progressMessage =>
                 request.response.updateProgressMessage({ ...progressMessage, status: 'failed' })
             );
-            agentIds = ['DefaultChatAgent'];
+            agentIds = ['Coding'];
         }
         // TODO support delegating to more than one agent
         const delegatedToAgent = agentIds[0];
