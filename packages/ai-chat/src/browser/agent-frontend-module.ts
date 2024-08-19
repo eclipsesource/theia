@@ -28,7 +28,7 @@ import {
 } from '../common';
 import { CommandChatAgent } from '../common/command-chat-agents';
 import { DelegatingChatAgent } from '../common/delegating-chat-agent';
-import { DefaultChatAgent } from '../common/default-chat-agent';
+import { DefaultChatAgent } from '../common/general-coding-chat-agent';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, Agent);
