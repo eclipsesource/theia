@@ -55,7 +55,7 @@ You must only use the \`id\` attribute of the agent, never the name.
 
 ## List of Currently Available Chat Agents
 
-\${agents}
+{{agents}}
 
 `
 };

@@ -93,11 +93,11 @@ nothing to commit, working tree clean
             name: 'AI Terminal User Prompt',
             description: 'Prompt that contains the user request',
             template: `
-user-request: \${userRequest}
-shell: \${shell}
-cwd: \${cwd}
+user-request: {{userRequest}}
+shell: {{shell}}
+cwd: {{cwd}}
 recent-terminal-contents:
-\${recentTerminalContents}
+{{recentTerminalContents}}
 `
         }
     ];
