@@ -44,7 +44,7 @@ export class FrontendPromptCustomizationServiceImpl implements PromptCustomizati
     protected readonly agentService: AgentService;
 
     protected readonly trackedTemplateURIs = new Set<string>();
-    protected readonly templates = new Map<string, string>();
+    protected templates = new Map<string, string>();
 
     protected toDispose = new DisposableCollection();
 
@@ -60,7 +60,9 @@ export class FrontendPromptCustomizationServiceImpl implements PromptCustomizati
 
     protected async update(): Promise<void> {
         this.toDispose.dispose();
-        this.templates.clear();
+        // we need to assign a local variable, so that updates running in parallel don't interfere with each other
+        const _templates = new Map<string, string>();
+        this.templates = _templates;
         this.trackedTemplateURIs.clear();
 
         const templateURI = await this.getTemplatesDirectoryURI();
@@ -74,13 +76,13 @@ export class FrontendPromptCustomizationServiceImpl implements PromptCustomizati
                     for (const deletedFile of event.getDeleted()) {
                         if (this.trackedTemplateURIs.has(deletedFile.resource.toString())) {
                             this.trackedTemplateURIs.delete(deletedFile.resource.toString());
-                            this.templates.delete(deletedFile.resource.path.name);
+                            _templates.delete(deletedFile.resource.path.name);
                         }
                     }
                     for (const updatedFile of event.getUpdated()) {
                         if (this.trackedTemplateURIs.has(updatedFile.resource.toString())) {
                             const filecontent = await this.fileService.read(updatedFile.resource);
-                            this.templates.set(this.removePromptTemplateSuffix(updatedFile.resource.path.name), filecontent.value);
+                            _templates.set(this.removePromptTemplateSuffix(updatedFile.resource.path.name), filecontent.value);
                         }
                     }
                 }
@@ -91,7 +93,7 @@ export class FrontendPromptCustomizationServiceImpl implements PromptCustomizati
                 if (addedFile.resource.parent.toString() === templateURI.toString() && addedFile.resource.path.ext === '.prompttemplate') {
                     this.trackedTemplateURIs.add(addedFile.resource.toString());
                     const filecontent = await this.fileService.read(addedFile.resource);
-                    this.templates.set(this.removePromptTemplateSuffix(addedFile.resource.path.name), filecontent.value);
+                    _templates.set(this.removePromptTemplateSuffix(addedFile.resource.path.name), filecontent.value);
                 }
             }
 
@@ -110,7 +112,7 @@ export class FrontendPromptCustomizationServiceImpl implements PromptCustomizati
             if (fileURI.path.ext === '.prompttemplate') {
                 this.trackedTemplateURIs.add(fileURI.toString());
                 const filecontent = await this.fileService.read(fileURI);
-                this.templates.set(this.removePromptTemplateSuffix(file.name), filecontent.value);
+                _templates.set(this.removePromptTemplateSuffix(file.name), filecontent.value);
             }
         }
     }
