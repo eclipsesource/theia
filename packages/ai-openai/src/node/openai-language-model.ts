@@ -48,7 +48,7 @@ export class OpenAiModel implements LanguageModel {
     async request(request: LanguageModelRequest): Promise<LanguageModelResponse> {
         const openai = this.initializeOpenAi();
 
-        if (request.response_format?.type === 'json_schema') {
+        if (request.response_format?.type === 'json_schema' && this.supportsStructuredOutput()) {
             return this.handleStructuredOutputRequest(openai, request);
         }
 
@@ -110,6 +110,12 @@ export class OpenAiModel implements LanguageModel {
             }
         };
         return { stream: asyncIterator };
+    }
+
+    protected supportsStructuredOutput(): boolean {
+        // currently only the lastest 4o and 4o-mini models support structured output
+        // see https://platform.openai.com/docs/guides/structured-outputs
+        return this.model === 'gpt-4o-2024-08-06' || this.model === 'gpt-4o-mini';
     }
 
     protected async handleStructuredOutputRequest(openai: OpenAI, request: LanguageModelRequest): Promise<LanguageModelParsedResponse> {

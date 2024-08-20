@@ -55,10 +55,8 @@ You must only use the \`id\` attribute of the agent, never the name.
 
 ## List of Currently Available Chat Agents
 
-\${agents}
-
-`
-};
+{{chatAgents}}
+`};
 
 @injectable()
 export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
@@ -69,7 +67,7 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
 
     override iconClass = 'codicon codicon-symbol-boolean';
 
-    variables: string[] = ['agents'];
+    variables: string[] = ['chatAgents'];
     promptTemplates: PromptTemplate[] = [delegateTemplate];
 
     fallBackChatAgentId = 'Universal';

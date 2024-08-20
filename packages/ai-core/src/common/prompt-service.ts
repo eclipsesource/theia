@@ -20,6 +20,7 @@ import { AIVariableService } from './variable-service';
 import { FunctionCallRegistry } from './function-call-registry';
 import { toolRequestToPromptText } from './language-model-util';
 import { ToolRequest } from './language-model';
+import { PROMPT_VARIABLE_REGEX, PROMPT_FUNCTION_REGEX } from './prompt-service-util';
 
 export interface PromptTemplate {
     id: string;
@@ -49,7 +50,7 @@ export interface PromptService {
      */
     getDefaultRawPrompt(id: string): PromptTemplate | undefined;
     /**
-     * Allows to directly replace placeholders in the prompt. The supported format is 'Hi ${name}!'.
+     * Allows to directly replace placeholders in the prompt. The supported format is 'Hi {{name}}!'.
      * The placeholder is then searched inside the args object and replaced.
      * Function references are also supported via format '~{functionId}'.
      * @param id the id of the prompt
@@ -104,12 +105,6 @@ export interface PromptCustomizationService {
      */
     getTemplateIDFromURI(uri: URI): string | undefined;
 }
-
-// should match the one from VariableResolverService
-const PROMPT_VARIABLE_REGEX = /\$\{(.*?)\}/g;
-
-// Match function/tool references in the prompt. The format is ~{functionId}
-const PROMPT_FUNCTION_REGEX = /\~\{(.*?)\}/g;
 
 @injectable()
 export class PromptServiceImpl implements PromptService {
