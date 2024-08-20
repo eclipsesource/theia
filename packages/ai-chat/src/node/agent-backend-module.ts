@@ -27,7 +27,7 @@ import {
     ChatServiceImpl,
     DefaultChatAgentId,
 } from '../common';
-import { DelegatingChatAgent } from '../common/delegating-chat-agent';
+import { OrchestratorChatAgent, OrchestratorChatAgentId } from '../common/orchestrator-chat-agent';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, Agent);
@@ -35,7 +35,7 @@ export default new ContainerModule(bind => {
 
     bind(ChatAgentServiceImpl).toSelf().inSingletonScope();
     bind(ChatAgentService).toService(ChatAgentServiceImpl);
-    bind(DefaultChatAgentId).toConstantValue({ id: 'DelegatingChatAgent' });
+    bind(DefaultChatAgentId).toConstantValue({ id: OrchestratorChatAgentId });
 
     bind(ChatRequestParserImpl).toSelf().inSingletonScope();
     bind(ChatRequestParser).toService(ChatRequestParserImpl);
@@ -43,7 +43,7 @@ export default new ContainerModule(bind => {
     bind(ChatServiceImpl).toSelf().inSingletonScope();
     bind(ChatService).toService(ChatServiceImpl);
 
-    bind(DelegatingChatAgent).toSelf().inSingletonScope();
-    bind(Agent).toService(DelegatingChatAgent);
-    bind(ChatAgent).toService(DelegatingChatAgent);
+    bind(OrchestratorChatAgent).toSelf().inSingletonScope();
+    bind(Agent).toService(OrchestratorChatAgent);
+    bind(ChatAgent).toService(OrchestratorChatAgent);
 });

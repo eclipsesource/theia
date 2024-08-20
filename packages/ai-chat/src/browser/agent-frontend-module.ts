@@ -28,7 +28,7 @@ import {
     DefaultChatAgentId
 } from '../common';
 import { CommandChatAgent } from '../common/command-chat-agents';
-import { DelegatingChatAgent } from '../common/delegating-chat-agent';
+import { OrchestratorChatAgent, OrchestratorChatAgentId } from '../common/orchestrator-chat-agent';
 import { UniversalChatAgent } from '../common/universal-chat-agent';
 import { aiChatPreferences } from './ai-chat-preferences';
 import { ChatAgentsVariableContribution } from '../common/chat-agents-variable-contribution';
@@ -40,7 +40,7 @@ export default new ContainerModule(bind => {
 
     bind(ChatAgentServiceImpl).toSelf().inSingletonScope();
     bind(ChatAgentService).toService(ChatAgentServiceImpl);
-    bind(DefaultChatAgentId).toConstantValue({ id: 'DelegatingChatAgent' });
+    bind(DefaultChatAgentId).toConstantValue({ id: OrchestratorChatAgentId });
 
     bind(AIVariableContribution).to(ChatAgentsVariableContribution).inSingletonScope();
 
@@ -50,9 +50,9 @@ export default new ContainerModule(bind => {
     bind(FrontendChatServiceImpl).toSelf().inSingletonScope();
     bind(ChatService).toService(FrontendChatServiceImpl);
 
-    bind(DelegatingChatAgent).toSelf().inSingletonScope();
-    bind(Agent).toService(DelegatingChatAgent);
-    bind(ChatAgent).toService(DelegatingChatAgent);
+    bind(OrchestratorChatAgent).toSelf().inSingletonScope();
+    bind(Agent).toService(OrchestratorChatAgent);
+    bind(ChatAgent).toService(OrchestratorChatAgent);
 
     bind(UniversalChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(UniversalChatAgent);

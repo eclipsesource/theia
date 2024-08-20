@@ -22,4 +22,4 @@ export * from './chat-service';
 export * from './chat-variables';
 export * from './command-chat-agents';
 export * from './universal-chat-agent';
-export * from './delegating-chat-agent';
+export * from './orchestrator-chat-agent';

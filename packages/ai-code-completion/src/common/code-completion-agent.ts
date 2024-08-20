@@ -132,9 +132,9 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
         return { suggestions };
 
     };
-    id: string = 'code-completion-agent';
-    name: string = 'Code Completion Agent';
-    description: string = 'This agent provides code completions for a given code snippet.';
+    id: string = 'Code Completion';
+    name: string = 'Code Completion';
+    description: string = 'This agent provides inline code completion in the code editor in the Theia IDE.';
     promptTemplates: PromptTemplate[] = [
         {
             id: 'code-completion-prompt',
