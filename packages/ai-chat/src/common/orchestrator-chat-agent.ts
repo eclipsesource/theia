@@ -61,11 +61,12 @@ You must only use the \`id\` attribute of the agent, never the name.
 };
 
 @injectable()
-export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
-    id: string = 'DelegatingChatAgent';
-    name: string = 'DelegatingChatAgent';
-    description: string = 'A chat agent that analyzes the user request and the available chat agents' +
-        ' to choose and delegate to the best fitting agent for answering the user request.';
+export class OrchestratorChatAgent extends AbstractStreamParsingChatAgent {
+    id: string = 'Orchestrator';
+    name: string = 'Orchestrator';
+    description: string = `
+        This agent analyzes the user request against the description of all available chat agents and selects the best fitting agent to answer the request
+        (by using AI). The user's request will be directly delegated to the selected agent without further confirmation.`;
 
     override iconClass = 'codicon codicon-symbol-boolean';
 
@@ -113,7 +114,7 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
         // TODO support delegating to more than one agent
         const delegatedToAgent = agentIds[0];
         request.response.response.addContent(new InformationalChatResponseContentImpl(
-            `*DelegatingChatAgent*: Delegating to \`@${delegatedToAgent}\`
+            `*Orchestrator*: Delegating to \`@${delegatedToAgent}\`
             
             ---
 

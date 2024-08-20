@@ -34,12 +34,12 @@ type Commands = z.infer<typeof Commands>;
 @injectable()
 export class AiTerminalAgent implements Agent {
 
-    id = 'ai-terminal';
-    name = 'AI Terminal Assistant';
+    id = 'Terminal Assistant';
+    name = 'Terminal Assistant';
     description = `
-        This agent provides an AI assistant in the terminal.
-        It accesses the terminal environment, past terminal commands of the terminal session,
-        and recent terminal output to provide context-aware assistance.`;
+        This agent provides assistance to write and execute arbitrary terminal commands. 
+        Based on the user's request, it suggests commands and allows the user to directly paste and execute them in the terminal. 
+        It accesses the current directory, environment and the recent terminal output of the terminal session to provide context-aware assistance`;
     variables = [];
     promptTemplates = [
         {
