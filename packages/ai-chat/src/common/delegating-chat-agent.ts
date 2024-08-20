@@ -37,20 +37,20 @@ Your response must be a JSON array containing the id(s) of the selected Chat Age
 
 * Do not use ids that are not provided in the list below.
 * Do not include any additional information, explanations, or questions for the user.
-* If there is no suitable choice, pick the \`DefaultChatAgent\`.
+* If there is no suitable choice, pick \`Universal\`.
 * If there are multiple good choices, return all of them.
 
-Unless there is a more specific agent available, select the \`DefaultChatAgent\`, especially for general programming-related questions.
+Unless there is a more specific agent available, select \`Universal\`, especially for general programming-related questions.
 You must only use the \`id\` attribute of the agent, never the name.
 
 ### Example Results
 
 \`\`\`json
-["DefaultChatAgent"]
+["Universal"]
 \`\`\`
 
 \`\`\`json
-["AnotherChatAgent", "DefaultChatAgent"]
+["AnotherChatAgent", "Universal"]
 \`\`\`
 
 ## List of Currently Available Chat Agents
@@ -69,6 +69,8 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
 
     variables: string[] = ['chatAgents'];
     promptTemplates: PromptTemplate[] = [delegateTemplate];
+
+    fallBackChatAgentId = 'Universal';
 
     languageModelPurpose = 'agent-selection';
     languageModelRequirements: LanguageModelRequirement[] = [{
@@ -102,12 +104,24 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
         }
 
         if (agentIds.length < 1) {
-            this.logger.error('No agent was selected, delegating to default chat agent');
+            this.logger.error('No agent was selected, delegating to fallback chat agent');
             request.response.progressMessages.forEach(progressMessage =>
                 request.response.updateProgressMessage({ ...progressMessage, status: 'failed' })
             );
-            agentIds = ['DefaultChatAgent'];
+            agentIds = [this.fallBackChatAgentId];
         }
+
+        // check if selected (or fallback) agent exists
+        if (!this.chatAgentService.getAgent(agentIds[0])) {
+            this.logger.error(`Chat agent ${agentIds[0]} not found. Falling back to first registered agent.`);
+            const firstRegisteredAgent = this.chatAgentService.getAgents().filter(agent => agent.id !== this.id)[0]?.id;
+            if (firstRegisteredAgent) {
+                agentIds = [firstRegisteredAgent];
+            } else {
+                throw new Error('No chat agent available to handle request. Please check your configuration whether any are enabled.');
+            }
+        }
+
         // TODO support delegating to more than one agent
         const delegatedToAgent = agentIds[0];
         request.response.response.addContent(new InformationalChatResponseContentImpl(

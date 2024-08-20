@@ -13,13 +13,19 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-export * from './chat-agent-service';
-export * from './chat-agents';
-export * from './chat-model';
-export * from './chat-parsed-request';
-export * from './chat-request-parser';
-export * from './chat-service';
-export * from './chat-variables';
-export * from './command-chat-agents';
-export * from './universal-chat-agent';
-export * from './delegating-chat-agent';
+
+import { AI_CORE_PREFERENCES_TITLE } from '@theia/ai-core/lib/browser/ai-core-preferences';
+import { PreferenceSchema } from '@theia/core/lib/browser/preferences/preference-contribution';
+
+export const DEFAULT_CHAT_AGENT_PREF = 'ai-features.chat.default-chat-agent';
+
+export const aiChatPreferences: PreferenceSchema = {
+    type: 'object',
+    properties: {
+        [DEFAULT_CHAT_AGENT_PREF]: {
+            type: 'string',
+            description: '<agent-name> of the Chat Agent that shall be invoked, if no agent is explicitly mentioned with @<agent-name> in the user query.',
+            title: AI_CORE_PREFERENCES_TITLE,
+        }
+    }
+};

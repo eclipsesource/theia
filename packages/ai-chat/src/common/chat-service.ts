@@ -19,7 +19,7 @@
  *--------------------------------------------------------------------------------------------*/
 // Partially copied from https://github.com/microsoft/vscode/blob/a2cab7255c0df424027be05d58e1b7b941f4ea60/src/vs/workbench/contrib/chat/common/chatService.ts
 
-import { inject, injectable } from '@theia/core/shared/inversify';
+import { inject, injectable, optional } from '@theia/core/shared/inversify';
 import {
     ChatModel,
     ChatModelImpl,
@@ -66,6 +66,11 @@ export interface SessionOptions {
     focus?: boolean;
 }
 
+export const DefaultChatAgentId = Symbol('DefaultChatAgentId');
+export interface DefaultChatAgentId {
+    id: string;
+}
+
 export const ChatService = Symbol('ChatService');
 export interface ChatService {
     onActiveSessionChanged: Event<ActiveSessionChangedEvent>
@@ -90,6 +95,9 @@ export class ChatServiceImpl implements ChatService {
 
     @inject(ChatAgentService)
     protected chatAgentService: ChatAgentService;
+
+    @inject(DefaultChatAgentId) @optional()
+    protected defaultChatAgent: DefaultChatAgentId | undefined;
 
     @inject(ChatRequestParser)
     protected chatRequestParser: ChatRequestParser;
@@ -221,10 +229,17 @@ export class ChatServiceImpl implements ChatService {
     }
 
     protected getAgent(parsedRequest: ParsedChatRequest): ChatAgent | undefined {
-        const agentPart = parsedRequest.parts.find(p => p instanceof ChatRequestAgentPart) as ChatRequestAgentPart | undefined;
+        const agentPart = this.getMentionedAgent(parsedRequest);
         if (agentPart) {
             return this.chatAgentService.getAgent(agentPart.agent.id);
         }
+        if (this.defaultChatAgent) {
+            return this.chatAgentService.getAgent(this.defaultChatAgent.id);
+        }
         return this.chatAgentService.getAgents()[0] ?? undefined;
+    }
+
+    protected getMentionedAgent(parsedRequest: ParsedChatRequest): ChatRequestAgentPart | undefined {
+        return parsedRequest.parts.find(p => p instanceof ChatRequestAgentPart) as ChatRequestAgentPart | undefined;
     }
 }
