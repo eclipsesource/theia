@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 /** Should match the one from VariableResolverService. The format is `{{variableName:arg}}`. */
-export const PROMPT_VARIABLE_REGEX = /\{\{([^\s]*?)\}\}/g;
+export const PROMPT_VARIABLE_REGEX = /\{\{\s*(.*?)\s*\}\}/g;
 
 /** Match function/tool references in the prompt. The format is `~{functionId}`. */
-export const PROMPT_FUNCTION_REGEX = /\~\{([^\s]*?)\}/g;
+export const PROMPT_FUNCTION_REGEX = /\~\{\s*(.*?)\s*\}/g;
