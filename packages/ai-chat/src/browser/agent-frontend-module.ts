@@ -29,7 +29,7 @@ import {
 } from '../common';
 import { CommandChatAgent } from '../common/command-chat-agents';
 import { DelegatingChatAgent } from '../common/delegating-chat-agent';
-import { GeneralCodingChatAgent } from '../common/general-coding-chat-agent';
+import { UniversalChatAgent } from '../common/universal-chat-agent';
 import { aiChatPreferences } from './ai-chat-preferences';
 import { FrontendChatServiceImpl } from './frontend-chat-service';
 
@@ -51,9 +51,9 @@ export default new ContainerModule(bind => {
     bind(Agent).toService(DelegatingChatAgent);
     bind(ChatAgent).toService(DelegatingChatAgent);
 
-    bind(GeneralCodingChatAgent).toSelf().inSingletonScope();
-    bind(Agent).toService(GeneralCodingChatAgent);
-    bind(ChatAgent).toService(GeneralCodingChatAgent);
+    bind(UniversalChatAgent).toSelf().inSingletonScope();
+    bind(Agent).toService(UniversalChatAgent);
+    bind(ChatAgent).toService(UniversalChatAgent);
 
     bind(CommandChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(CommandChatAgent);

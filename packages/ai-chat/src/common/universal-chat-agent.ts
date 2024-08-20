@@ -77,11 +77,14 @@ simple solutions.
 };
 
 @injectable()
-export class GeneralCodingChatAgent extends AbstractStreamParsingChatAgent {
+export class UniversalChatAgent extends AbstractStreamParsingChatAgent {
 
-    id: string = 'Coding';
-    name: string = 'Coding';
-    description: string = 'A chat agent that is specialized in answering general programming and software development questions.';
+    id: string = 'Universal';
+    name: string = 'Universal';
+    description: string = 'This agent is designed to help software developers by providing concise and accurate '
+        + 'answers to general programming and software development questions. It is also the fall-back for any generic '
+        + 'questions the user might ask. The universal agent currently does not have any context by default, i.e. it cannot '
+        + 'access the current user context or the workspace.';
 
     languageModelPurpose = 'chat';
     languageModelRequirements: LanguageModelRequirement[] = [{

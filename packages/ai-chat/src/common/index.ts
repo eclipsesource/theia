@@ -21,5 +21,5 @@ export * from './chat-request-parser';
 export * from './chat-service';
 export * from './chat-variables';
 export * from './command-chat-agents';
-export * from './general-coding-chat-agent';
+export * from './universal-chat-agent';
 export * from './delegating-chat-agent';
