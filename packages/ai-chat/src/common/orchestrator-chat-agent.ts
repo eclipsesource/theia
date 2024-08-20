@@ -63,7 +63,7 @@ export const OrchestratorChatAgentId = 'Orchestrator';
 @injectable()
 export class OrchestratorChatAgent extends AbstractStreamParsingChatAgent {
     id: string = OrchestratorChatAgentId;
-    name: string = 'Orchestrator';
+    name: string = OrchestratorChatAgentId;
     description: string = 'This agent analyzes the user request against the description of all available chat agents and selects the best fitting agent to answer the request \
         (by using AI). The user\'s request will be directly delegated to the selected agent without further confirmation.';
 

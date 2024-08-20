@@ -36,11 +36,21 @@ export class FrontendChatServiceImpl extends ChatServiceImpl {
             return configuredDefaultChatAgent;
         }
 
-        if (this.defaultChatAgent) {
-            return this.chatAgentService.getAgent(this.defaultChatAgent.id);
+        if (this.defaultChatAgentId) {
+            const defaultAgent = this.chatAgentService.getAgent(this.defaultChatAgentId.id);
+            // the default agent could be disabled
+            if (defaultAgent) {
+                return defaultAgent;
+            }
         }
 
-        this.logger.warn('No default chat agent is configured. Falling back to first registered agent.');
+        // check whether "Universal" is available
+        const universalAgent = this.chatAgentService.getAgent('Universal');
+        if (universalAgent) {
+            return universalAgent;
+        }
+
+        this.logger.warn('No default chat agent is configured or available and the "Universal" Chat Agent is unavailable too. Falling back to first registered agent.');
 
         return this.chatAgentService.getAgents()[0] ?? undefined;
     }
