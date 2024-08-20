@@ -16,6 +16,7 @@
 
 import {
     Agent,
+    getJsonOfResponse,
     isLanguageModelParsedResponse,
     LanguageModelRegistry, LanguageModelRequirement,
     PromptService
@@ -93,11 +94,11 @@ nothing to commit, working tree clean
             name: 'AI Terminal User Prompt',
             description: 'Prompt that contains the user request',
             template: `
-user-request: \${userRequest}
-shell: \${shell}
-cwd: \${cwd}
+user-request: {{userRequest}}
+shell: {{shell}}
+cwd: {{cwd}}
 recent-terminal-contents:
-\${recentTerminalContents}
+{{recentTerminalContents}}
 `
         }
     ];
@@ -162,12 +163,24 @@ recent-terminal-contents:
                     }
                 }
             });
-            if (!isLanguageModelParsedResponse(result)) {
-                this.logger.error('Failed to parse the response from the language model.', result);
-                return [];
+
+            if (isLanguageModelParsedResponse(result)) {
+                // model returned structured output
+                const parsedResult = Commands.safeParse(result.parsed);
+                if (parsedResult.success) {
+                    return parsedResult.data.commands;
+                }
             }
-            const commandsObject = result.parsed as Commands;
-            return commandsObject.commands;
+
+            // fall back to agent-based parsing of result
+            const jsonResult = await getJsonOfResponse(result);
+            const parsedJsonResult = Commands.safeParse(jsonResult);
+            if (parsedJsonResult.success) {
+                return parsedJsonResult.data.commands;
+            }
+
+            return [];
+
         } catch (error) {
             this.logger.error('Error obtaining the command suggestions.', error);
             return [];
