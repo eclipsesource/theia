@@ -77,11 +77,9 @@ export class ChatAgentsVariableContribution implements AIVariableContribution, A
 }
 
 function prettyPrintInMd(agent: { id: string; name: string; description: string; }): string {
-    return `
-* ${agent.id}
-  * *ID*: ${agent.id}
-  * *Name*: ${agent.name}
-  * *Description*: ${agent.description.replace(/\n/g, ' ')}
-`;
+    return `- ${agent.id}
+  - *ID*: ${agent.id}
+  - *Name*: ${agent.name}
+  - *Description*: ${agent.description.replace(/\n/g, ' ')}`;
 }
 
