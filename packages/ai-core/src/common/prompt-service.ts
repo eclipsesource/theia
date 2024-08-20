@@ -20,6 +20,7 @@ import { AIVariableService } from './variable-service';
 import { FunctionCallRegistry } from './function-call-registry';
 import { toolRequestToPromptText } from './language-model-util';
 import { ToolRequest } from './language-model';
+import { PROMPT_VARIABLE_REGEX, PROMPT_FUNCTION_REGEX } from './prompt-service-util';
 
 export interface PromptTemplate {
     id: string;
@@ -104,12 +105,6 @@ export interface PromptCustomizationService {
      */
     getTemplateIDFromURI(uri: URI): string | undefined;
 }
-
-// should match the one from VariableResolverService. The format is {{variableName:arg}}
-const PROMPT_VARIABLE_REGEX = /\{\{([^\s]*?)\}\}/g;
-
-// Match function/tool references in the prompt. The format is ~{functionId}
-const PROMPT_FUNCTION_REGEX = /\~\{([^\s]*?)\}/g;
 
 @injectable()
 export class PromptServiceImpl implements PromptService {
