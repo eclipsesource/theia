@@ -22,9 +22,9 @@ import { template } from '../common/template';
 export class WorkspaceAgent extends AbstractStreamParsingChatAgent {
     id = 'Workspace';
     name = 'Workspace';
-    description = `This agent can access the users workspace, it can get a list of all available files and retrieve their content. 
-    It can therefore answer questions about the current project, project files and source code in the workspace, such as how to build the project, 
-    where to put source code, where to find specific code or configurations, etc.`;
+    description = 'This agent can access the users workspace, it can get a list of all available files and retrieve their content. \
+    It can therefore answer questions about the current project, project files and source code in the workspace, such as how to build the project, \
+    where to put source code, where to find specific code or configurations, etc.';
     promptTemplates = [template];
     override variables = [];
 

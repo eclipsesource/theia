@@ -258,9 +258,8 @@ export class CommandChatAgent extends AbstractTextToModelParsingChatAgent<Parsed
 
     id: string = 'Command';
     name: string = 'Command';
-    description: string = `
-        This agent is aware of all commands that the user can execute within the Theia IDE, the tool that the user is currently working with. 
-        Based on the user request, it can find the right command and then let the user execute it.`;
+    description: string = 'This agent is aware of all commands that the user can execute within the Theia IDE, the tool that the user is currently working with. \
+        Based on the user request, it can find the right command and then let the user execute it.';
     variables: string[] = [];
     promptTemplates: PromptTemplate[] = [new CommandChatAgentSystemPromptTemplate()];
 

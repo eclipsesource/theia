@@ -36,10 +36,9 @@ export class AiTerminalAgent implements Agent {
 
     id = 'Terminal Assistant';
     name = 'Terminal Assistant';
-    description = `
-        This agent provides assistance to write and execute arbitrary terminal commands. 
-        Based on the user's request, it suggests commands and allows the user to directly paste and execute them in the terminal. 
-        It accesses the current directory, environment and the recent terminal output of the terminal session to provide context-aware assistance`;
+    description = 'This agent provides assistance to write and execute arbitrary terminal commands. \
+        Based on the user\'s request, it suggests commands and allows the user to directly paste and execute them in the terminal. \
+        It accesses the current directory, environment and the recent terminal output of the terminal session to provide context-aware assistance';
     variables = [];
     promptTemplates = [
         {
