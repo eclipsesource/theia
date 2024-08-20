@@ -106,10 +106,10 @@ export interface PromptCustomizationService {
 }
 
 // should match the one from VariableResolverService. The format is {{variableName:arg}}
-const PROMPT_VARIABLE_REGEX = /\{\{(.*?)\}\}/g;
+const PROMPT_VARIABLE_REGEX = /\{\{([^\s]*?)\}\}/g;
 
 // Match function/tool references in the prompt. The format is ~{functionId}
-const PROMPT_FUNCTION_REGEX = /\~\{(.*?)\}/g;
+const PROMPT_FUNCTION_REGEX = /\~\{([^\s]*?)\}/g;
 
 @injectable()
 export class PromptServiceImpl implements PromptService {
