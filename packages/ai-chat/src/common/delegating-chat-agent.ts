@@ -37,10 +37,10 @@ Your response must be a JSON array containing the id(s) of the selected Chat Age
 
 * Do not use ids that are not provided in the list below.
 * Do not include any additional information, explanations, or questions for the user.
-* If there is no suitable choice, pick the \`Coding\`.
+* If there is no suitable choice, pick \`Coding\`.
 * If there are multiple good choices, return all of them.
 
-Unless there is a more specific agent available, select the \`Coding\`, especially for general programming-related questions.
+Unless there is a more specific agent available, select \`Coding\`, especially for general programming-related questions.
 You must only use the \`id\` attribute of the agent, never the name.
 
 ### Example Results
