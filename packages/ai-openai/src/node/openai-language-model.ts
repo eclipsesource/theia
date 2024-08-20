@@ -163,17 +163,21 @@ export class OpenAiModel implements LanguageModel {
         return new OpenAI({ apiKey: key });
     }
 
-    private toOpenAIMessage(message: LanguageModelRequestMessage): ChatCompletionMessageParam {
-        if (message.actor === 'ai') {
-            return { role: 'assistant', content: message.query || '' };
-        }
-        if (message.actor === 'user') {
-            return { role: 'user', content: message.query || '' };
-        }
-        if (message.actor === 'system') {
-            return { role: 'system', content: message.query || '' };
-        }
-        return { role: 'system', content: '' };
+    protected toOpenAIMessage(message: LanguageModelRequestMessage): ChatCompletionMessageParam {
+        return {
+            role: this.toOpenAiRole(message),
+            content: message.query || ''
+        };
     }
 
+    protected toOpenAiRole(message: LanguageModelRequestMessage): 'system' | 'user' | 'assistant' {
+        switch (message.actor) {
+            case 'system':
+                return 'system';
+            case 'ai':
+                return 'assistant';
+            default:
+                return 'user';
+        }
+    }
 }
