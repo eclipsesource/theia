@@ -229,7 +229,7 @@ export class ChatServiceImpl implements ChatService {
     }
 
     protected getAgent(parsedRequest: ParsedChatRequest): ChatAgent | undefined {
-        const agentPart = parsedRequest.parts.find(p => p instanceof ChatRequestAgentPart) as ChatRequestAgentPart | undefined;
+        const agentPart = this.getMentionedAgent(parsedRequest);
         if (agentPart) {
             return this.chatAgentService.getAgent(agentPart.agent.id);
         }
@@ -237,5 +237,9 @@ export class ChatServiceImpl implements ChatService {
             return this.chatAgentService.getAgent(this.defaultChatAgent.id);
         }
         return this.chatAgentService.getAgents()[0] ?? undefined;
+    }
+
+    protected getMentionedAgent(parsedRequest: ParsedChatRequest): ChatRequestAgentPart | undefined {
+        return parsedRequest.parts.find(p => p instanceof ChatRequestAgentPart) as ChatRequestAgentPart | undefined;
     }
 }

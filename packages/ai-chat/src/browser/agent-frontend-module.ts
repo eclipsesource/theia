@@ -16,6 +16,7 @@
 
 import { Agent } from '@theia/ai-core/lib/common';
 import { bindContributionProvider } from '@theia/core';
+import { PreferenceContribution } from '@theia/core/lib/browser';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import {
     ChatAgent,
@@ -24,12 +25,13 @@ import {
     ChatRequestParser,
     ChatRequestParserImpl,
     ChatService,
-    ChatServiceImpl,
-    DefaultChatAgent,
+    DefaultChatAgent
 } from '../common';
 import { CommandChatAgent } from '../common/command-chat-agents';
 import { DelegatingChatAgent } from '../common/delegating-chat-agent';
 import { GeneralCodingChatAgent } from '../common/general-coding-chat-agent';
+import { aiChatPreferences } from './ai-chat-preferences';
+import { FrontendChatServiceImpl } from './frontend-chat-service';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, Agent);
@@ -42,8 +44,8 @@ export default new ContainerModule(bind => {
     bind(ChatRequestParserImpl).toSelf().inSingletonScope();
     bind(ChatRequestParser).toService(ChatRequestParserImpl);
 
-    bind(ChatServiceImpl).toSelf().inSingletonScope();
-    bind(ChatService).toService(ChatServiceImpl);
+    bind(FrontendChatServiceImpl).toSelf().inSingletonScope();
+    bind(ChatService).toService(FrontendChatServiceImpl);
 
     bind(DelegatingChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(DelegatingChatAgent);
@@ -56,4 +58,6 @@ export default new ContainerModule(bind => {
     bind(CommandChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(CommandChatAgent);
     bind(ChatAgent).toService(CommandChatAgent);
+
+    bind(PreferenceContribution).toConstantValue({ schema: aiChatPreferences });
 });
