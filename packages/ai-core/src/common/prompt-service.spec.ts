@@ -84,4 +84,15 @@ describe('PromptService', () => {
         const prompt = await promptService.getPrompt('4');
         expect(prompt).to.be.undefined;
     });
+
+    it('should ignore whitespace in variables', async () => {
+        promptService.storePrompt('4', 'Hello, {{name }}!');
+        promptService.storePrompt('5', 'Hello, {{ name}}!');
+        promptService.storePrompt('6', 'Hello, {{ name }}!');
+        promptService.storePrompt('7', 'Hello, {{       name           }}!');
+        for (let i = 4; i <= 7; i++) {
+            const prompt = await promptService.getPrompt(`${i}`, { name: 'John' });
+            expect(prompt?.text).to.equal('Hello, John!');
+        }
+    });
 });
