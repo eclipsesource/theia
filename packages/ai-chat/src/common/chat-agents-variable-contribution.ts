@@ -71,6 +71,17 @@ export class ChatAgentsVariableContribution implements AIVariableContribution, A
             name: agent.name,
             description: agent.description
         }));
-        return { variable: CHAT_AGENTS_VARIABLE, agents, value: JSON.stringify(agents) };
+        const value = agents.map(agent => prettyPrintInMd(agent)).join('\n');
+        return { variable: CHAT_AGENTS_VARIABLE, agents, value };
     }
 }
+
+function prettyPrintInMd(agent: { id: string; name: string; description: string; }): string {
+    return `
+* ${agent.id}
+  * *ID*: ${agent.id}
+  * *Name*: ${agent.name}
+  * *Description*: ${agent.description.replace(/\n/g, ' ')}
+`;
+}
+
