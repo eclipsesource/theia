@@ -106,18 +106,21 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
         }
 
         if (agentIds.length < 1) {
-            this.logger.error('No agent was selected, delegating to default chat agent');
+            this.logger.error('No agent was selected, delegating to fallback chat agent');
             request.response.progressMessages.forEach(progressMessage =>
                 request.response.updateProgressMessage({ ...progressMessage, status: 'failed' })
             );
-            if (this.chatAgentService.getAgent(this.fallBackChatAgentId)) {
-                agentIds = [this.fallBackChatAgentId];
-            } else {
-                this.logger.error(`Fallback chat agent ${this.fallBackChatAgentId} not found. Falling back to first registered agent.`);
-                agentIds = [this.chatAgentService.getAgents().filter(agent => agent.id !== this.id)[0].id];
-            }
+            agentIds = [this.fallBackChatAgentId];
         }
+
         // TODO support delegating to more than one agent
+
+        // check if selected (or fallback) agent exists
+        if (!this.chatAgentService.getAgent(agentIds[0])) {
+            this.logger.error(`Chat agent ${agentIds[0]} not found. Falling back to first registered agent.`);
+            agentIds = [this.chatAgentService.getAgents().filter(agent => agent.id !== this.id)[0].id];
+        }
+
         const delegatedToAgent = agentIds[0];
         request.response.response.addContent(new InformationalChatResponseContentImpl(
             `*DelegatingChatAgent*: Delegating to \`@${delegatedToAgent}\`
