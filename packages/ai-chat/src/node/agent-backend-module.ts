@@ -25,6 +25,7 @@ import {
     ChatRequestParserImpl,
     ChatService,
     ChatServiceImpl,
+    DefaultChatAgentId,
 } from '../common';
 import { OrchestratorChatAgent } from '../common/orchestrator-chat-agent';
 
@@ -34,6 +35,7 @@ export default new ContainerModule(bind => {
 
     bind(ChatAgentServiceImpl).toSelf().inSingletonScope();
     bind(ChatAgentService).toService(ChatAgentServiceImpl);
+    bind(DefaultChatAgentId).toConstantValue({ id: 'DelegatingChatAgent' });
 
     bind(ChatRequestParserImpl).toSelf().inSingletonScope();
     bind(ChatRequestParser).toService(ChatRequestParserImpl);

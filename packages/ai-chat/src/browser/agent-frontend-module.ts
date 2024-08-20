@@ -14,8 +14,9 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { Agent } from '@theia/ai-core/lib/common';
+import { Agent, AIVariableContribution } from '@theia/ai-core/lib/common';
 import { bindContributionProvider } from '@theia/core';
+import { PreferenceContribution } from '@theia/core/lib/browser';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import {
     ChatAgent,
@@ -24,11 +25,14 @@ import {
     ChatRequestParser,
     ChatRequestParserImpl,
     ChatService,
-    ChatServiceImpl
+    DefaultChatAgentId
 } from '../common';
 import { CommandChatAgent } from '../common/command-chat-agents';
 import { OrchestratorChatAgent } from '../common/orchestrator-chat-agent';
-import { DefaultChatAgent } from '../common/default-chat-agent';
+import { UniversalChatAgent } from '../common/universal-chat-agent';
+import { aiChatPreferences } from './ai-chat-preferences';
+import { ChatAgentsVariableContribution } from '../common/chat-agents-variable-contribution';
+import { FrontendChatServiceImpl } from './frontend-chat-service';
 
 export default new ContainerModule(bind => {
     bindContributionProvider(bind, Agent);
@@ -36,22 +40,27 @@ export default new ContainerModule(bind => {
 
     bind(ChatAgentServiceImpl).toSelf().inSingletonScope();
     bind(ChatAgentService).toService(ChatAgentServiceImpl);
+    bind(DefaultChatAgentId).toConstantValue({ id: 'DelegatingChatAgent' });
+
+    bind(AIVariableContribution).to(ChatAgentsVariableContribution).inSingletonScope();
 
     bind(ChatRequestParserImpl).toSelf().inSingletonScope();
     bind(ChatRequestParser).toService(ChatRequestParserImpl);
 
-    bind(ChatServiceImpl).toSelf().inSingletonScope();
-    bind(ChatService).toService(ChatServiceImpl);
+    bind(FrontendChatServiceImpl).toSelf().inSingletonScope();
+    bind(ChatService).toService(FrontendChatServiceImpl);
 
     bind(OrchestratorChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(OrchestratorChatAgent);
     bind(ChatAgent).toService(OrchestratorChatAgent);
 
-    bind(DefaultChatAgent).toSelf().inSingletonScope();
-    bind(Agent).toService(DefaultChatAgent);
-    bind(ChatAgent).toService(DefaultChatAgent);
+    bind(UniversalChatAgent).toSelf().inSingletonScope();
+    bind(Agent).toService(UniversalChatAgent);
+    bind(ChatAgent).toService(UniversalChatAgent);
 
     bind(CommandChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(CommandChatAgent);
     bind(ChatAgent).toService(CommandChatAgent);
+
+    bind(PreferenceContribution).toConstantValue({ schema: aiChatPreferences });
 });

@@ -123,7 +123,7 @@ If there are no more command ids that seem to fit, return a response of \`"type"
 Here are the known Theia commands:
 
 Begin List:
-\${command-ids}
+{{command-ids}}
 End List
 
 You may only use commands from this list when responding with \`"type": "theia-command"\`.

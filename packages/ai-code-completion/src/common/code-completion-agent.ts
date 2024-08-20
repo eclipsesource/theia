@@ -138,11 +138,11 @@ export class CodeCompletionAgentImpl implements CodeCompletionAgent {
     promptTemplates: PromptTemplate[] = [
         {
             id: 'code-completion-prompt',
-            template: `You are a code completion agent. The current file you have to complete is named \${file}.
-The language of the file is \${language}. Return your result as plain text without markdown formatting.
+            template: `You are a code completion agent. The current file you have to complete is named {{file}}.
+The language of the file is {{language}}. Return your result as plain text without markdown formatting.
 Finish the following code snippet.
 
-\${snippet}
+{{snippet}}
 
 Only return the exact replacement for {{MARKER}} to complete the snippet.`,
         }
