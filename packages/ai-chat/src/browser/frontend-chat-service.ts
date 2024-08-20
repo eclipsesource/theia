@@ -39,6 +39,9 @@ export class FrontendChatServiceImpl extends ChatServiceImpl {
         if (this.defaultChatAgent) {
             return this.chatAgentService.getAgent(this.defaultChatAgent.id);
         }
+
+        this.logger.warn('No default chat agent is configured. Falling back to first registered agent.');
+
         return this.chatAgentService.getAgents()[0] ?? undefined;
     }
 

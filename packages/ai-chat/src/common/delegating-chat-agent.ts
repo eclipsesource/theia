@@ -72,6 +72,8 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
     variables: string[] = ['agents'];
     promptTemplates: PromptTemplate[] = [delegateTemplate];
 
+    fallBackChatAgentId = 'Coding';
+
     languageModelPurpose = 'agent-selection';
     languageModelRequirements: LanguageModelRequirement[] = [{
         purpose: this.languageModelPurpose,
@@ -108,7 +110,12 @@ export class DelegatingChatAgent extends AbstractStreamParsingChatAgent {
             request.response.progressMessages.forEach(progressMessage =>
                 request.response.updateProgressMessage({ ...progressMessage, status: 'failed' })
             );
-            agentIds = ['Coding'];
+            if (this.chatAgentService.getAgent(this.fallBackChatAgentId)) {
+                agentIds = [this.fallBackChatAgentId];
+            } else {
+                this.logger.error(`Fallback chat agent ${this.fallBackChatAgentId} not found. Falling back to first registered agent.`);
+                agentIds = [this.chatAgentService.getAgents().filter(agent => agent.id !== this.id)[0].id];
+            }
         }
         // TODO support delegating to more than one agent
         const delegatedToAgent = agentIds[0];

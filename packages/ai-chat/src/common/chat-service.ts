@@ -66,8 +66,8 @@ export interface SessionOptions {
     focus?: boolean;
 }
 
-export const DefaultChatAgent = Symbol('DefaultChatAgent');
-export interface DefaultChatAgent {
+export const DefaultChatAgentId = Symbol('DefaultChatAgentId');
+export interface DefaultChatAgentId {
     id: string;
 }
 
@@ -96,8 +96,8 @@ export class ChatServiceImpl implements ChatService {
     @inject(ChatAgentService)
     protected chatAgentService: ChatAgentService;
 
-    @inject(DefaultChatAgent) @optional()
-    protected defaultChatAgent: DefaultChatAgent | undefined;
+    @inject(DefaultChatAgentId) @optional()
+    protected defaultChatAgent: DefaultChatAgentId | undefined;
 
     @inject(ChatRequestParser)
     protected chatRequestParser: ChatRequestParser;
