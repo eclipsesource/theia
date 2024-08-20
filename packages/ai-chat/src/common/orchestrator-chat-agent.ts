@@ -58,9 +58,11 @@ You must only use the \`id\` attribute of the agent, never the name.
 {{chatAgents}}
 `};
 
+export const OrchestratorChatAgentId = 'Orchestrator';
+
 @injectable()
 export class OrchestratorChatAgent extends AbstractStreamParsingChatAgent {
-    id: string = 'Orchestrator';
+    id: string = OrchestratorChatAgentId;
     name: string = 'Orchestrator';
     description: string = 'This agent analyzes the user request against the description of all available chat agents and selects the best fitting agent to answer the request \
         (by using AI). The user\'s request will be directly delegated to the selected agent without further confirmation.';
