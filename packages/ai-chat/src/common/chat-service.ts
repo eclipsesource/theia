@@ -97,7 +97,7 @@ export class ChatServiceImpl implements ChatService {
     protected chatAgentService: ChatAgentService;
 
     @inject(DefaultChatAgentId) @optional()
-    protected defaultChatAgent: DefaultChatAgentId | undefined;
+    protected defaultChatAgentId: DefaultChatAgentId | undefined;
 
     @inject(ChatRequestParser)
     protected chatRequestParser: ChatRequestParser;
@@ -233,8 +233,8 @@ export class ChatServiceImpl implements ChatService {
         if (agentPart) {
             return this.chatAgentService.getAgent(agentPart.agent.id);
         }
-        if (this.defaultChatAgent) {
-            return this.chatAgentService.getAgent(this.defaultChatAgent.id);
+        if (this.defaultChatAgentId) {
+            return this.chatAgentService.getAgent(this.defaultChatAgentId.id);
         }
         return this.chatAgentService.getAgents()[0] ?? undefined;
     }
