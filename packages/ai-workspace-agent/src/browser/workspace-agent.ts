@@ -13,14 +13,14 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { AbstractStreamParsingChatAgent, ChatAgent, SystemMessageDescription } from '@theia/ai-chat/lib/common';
+import { AbstractChatAgent, ChatAgent, MarkdownResponseContentExtender, ResponseContentExtender, SystemMessageDescription } from '@theia/ai-chat/lib/common';
 import { AgentSpecificVariables, PromptTemplate, ToolInvocationRegistry } from '@theia/ai-core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { workspaceTemplate } from '../common/template';
 import { FILE_CONTENT_FUNCTION_ID, GET_WORKSPACE_FILE_LIST_FUNCTION_ID } from '../common/functions';
 
 @injectable()
-export class WorkspaceAgent extends AbstractStreamParsingChatAgent implements ChatAgent {
+export class WorkspaceAgent extends AbstractChatAgent implements ChatAgent {
     name: string;
     description: string;
     promptTemplates: PromptTemplate[];
@@ -49,5 +49,9 @@ export class WorkspaceAgent extends AbstractStreamParsingChatAgent implements Ch
     protected override async getSystemMessageDescription(): Promise<SystemMessageDescription | undefined> {
         const resolvedPrompt = await this.promptService.getPrompt(workspaceTemplate.id);
         return resolvedPrompt ? SystemMessageDescription.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
+    }
+
+    protected override getResponseContentExtender(): ResponseContentExtender {
+        return new MarkdownResponseContentExtender(this.logger, this.recordingService, this.id);
     }
 }

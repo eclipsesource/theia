@@ -20,8 +20,9 @@ import {
 } from '@theia/ai-core/lib/common';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgentService } from './chat-agent-service';
-import { AbstractStreamParsingChatAgent, ChatAgent, SystemMessageDescription } from './chat-agents';
+import { AbstractChatAgent, ChatAgent, ResponseContentExtender, SystemMessageDescription } from './chat-agents';
 import { ChatRequestModelImpl, InformationalChatResponseContentImpl } from './chat-model';
+import { ILogger } from '@theia/core';
 
 export const orchestratorTemplate: PromptTemplate = {
     id: 'orchestrator-system',
@@ -61,7 +62,7 @@ You must only use the \`id\` attribute of the agent, never the name.
 export const OrchestratorChatAgentId = 'Orchestrator';
 
 @injectable()
-export class OrchestratorChatAgent extends AbstractStreamParsingChatAgent implements ChatAgent {
+export class OrchestratorChatAgent extends AbstractChatAgent implements ChatAgent {
     name: string;
     description: string;
     readonly variables: string[];
@@ -98,12 +99,20 @@ export class OrchestratorChatAgent extends AbstractStreamParsingChatAgent implem
         return resolvedPrompt ? SystemMessageDescription.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
     }
 
-    protected override async addContentsToResponse(response: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
+    protected override getResponseContentExtender(): ResponseContentExtender {
+        return new OrchestratorResponseContentExtender(this.logger, this.chatAgentService, this.id, this.fallBackChatAgentId);
+    }
+}
+
+class OrchestratorResponseContentExtender implements ResponseContentExtender {
+    constructor(private logger: ILogger, private chatAgentService: ChatAgentService, private agentId: string, private fallBackChatAgentId: string) {
+    }
+    async extendResponseContent(response: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
         let agentIds: string[] = [];
         try {
             const jsonResponse = await getJsonOfResponse(response);
             if (Array.isArray(jsonResponse)) {
-                agentIds = jsonResponse.filter((id: string) => id !== this.id);
+                agentIds = jsonResponse.filter((id: string) => id !== this.agentId);
             }
         } catch (error: unknown) {
             // The llm sometimes does not return a parseable result
@@ -121,7 +130,7 @@ export class OrchestratorChatAgent extends AbstractStreamParsingChatAgent implem
         // check if selected (or fallback) agent exists
         if (!this.chatAgentService.getAgent(agentIds[0])) {
             this.logger.error(`Chat agent ${agentIds[0]} not found. Falling back to first registered agent.`);
-            const firstRegisteredAgent = this.chatAgentService.getAgents().filter(a => a.id !== this.id)[0]?.id;
+            const firstRegisteredAgent = this.chatAgentService.getAgents().filter(a => a.id !== this.agentId)[0]?.id;
             if (firstRegisteredAgent) {
                 agentIds = [firstRegisteredAgent];
             } else {

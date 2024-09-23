@@ -21,7 +21,6 @@
 
 import {
     CommunicationRecordingService,
-    getTextOfResponse,
     LanguageModel,
     LanguageModelRequirement,
     LanguageModelResponse,
@@ -38,7 +37,7 @@ import {
     MessageActor,
 } from '@theia/ai-core/lib/common';
 import { CancellationToken, CancellationTokenSource, ILogger, isArray } from '@theia/core';
-import { inject, injectable } from '@theia/core/shared/inversify';
+import { inject, injectable, unmanaged } from '@theia/core/shared/inversify';
 import { ChatAgentService } from './chat-agent-service';
 import {
     ChatModel,
@@ -115,6 +114,13 @@ export interface ChatAgent extends Agent {
     invoke(request: ChatRequestModelImpl, chatAgentService?: ChatAgentService): Promise<void>;
 }
 
+export interface ResponseContentExtender {
+    extendResponseContent(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void>;
+}
+export const NoopResponseContentExtender: ResponseContentExtender = {
+    extendResponseContent: async () => { }
+};
+
 @injectable()
 export abstract class AbstractChatAgent {
     @inject(LanguageModelRegistry) protected languageModelRegistry: LanguageModelRegistry;
@@ -122,12 +128,12 @@ export abstract class AbstractChatAgent {
     @inject(CommunicationRecordingService) protected recordingService: CommunicationRecordingService;
     @inject(PromptService) protected promptService: PromptService;
     constructor(
-        public id: string,
-        public languageModelRequirements: LanguageModelRequirement[],
-        protected defaultLanguageModelPurpose: string,
-        public iconClass: string = 'codicon codicon-copilot',
-        public locations: ChatAgentLocation[] = ChatAgentLocation.ALL,
-        public tags: String[] = ['Chat']) {
+        @unmanaged() public id: string,
+        @unmanaged() public languageModelRequirements: LanguageModelRequirement[],
+        @unmanaged() protected defaultLanguageModelPurpose: string,
+        @unmanaged() public iconClass: string = 'codicon codicon-copilot',
+        @unmanaged() public locations: ChatAgentLocation[] = ChatAgentLocation.ALL,
+        @unmanaged() public tags: String[] = ['Chat']) {
     }
 
     async invoke(request: ChatRequestModelImpl): Promise<void> {
@@ -175,7 +181,7 @@ export abstract class AbstractChatAgent {
                 tools.size > 0 ? Array.from(tools.values()) : undefined,
                 cancellationToken.token
             );
-            await this.addContentsToResponse(languageModelResponse, request);
+            await this.getResponseContentExtender().extendResponseContent(languageModelResponse, request);
             request.response.complete();
             this.recordingService.recordResponse({
                 agentId: this.id,
@@ -258,35 +264,22 @@ export abstract class AbstractChatAgent {
         return languageModelResponse;
     }
 
-    protected abstract addContentsToResponse(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void>;
-}
-
-@injectable()
-export abstract class AbstractTextToModelParsingChatAgent<T> extends AbstractChatAgent {
-
-    protected async addContentsToResponse(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
-        const responseAsText = await getTextOfResponse(languageModelResponse);
-        const parsedCommand = await this.parseTextResponse(responseAsText);
-        const content = this.createResponseContent(parsedCommand, request);
-        request.response.response.addContent(content);
+    protected getResponseContentExtender(): ResponseContentExtender {
+        return NoopResponseContentExtender;
     }
-
-    protected abstract parseTextResponse(text: string): Promise<T>;
-
-    protected abstract createResponseContent(parsedModel: T, request: ChatRequestModelImpl): ChatResponseContent;
 }
 
-@injectable()
-export abstract class AbstractStreamParsingChatAgent extends AbstractChatAgent {
-
-    protected override async addContentsToResponse(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
+export class MarkdownResponseContentExtender implements ResponseContentExtender {
+    constructor(private logger: ILogger, private recordingService: CommunicationRecordingService, private agentId: string) {
+    }
+    async extendResponseContent(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
         if (isLanguageModelTextResponse(languageModelResponse)) {
             request.response.response.addContent(
                 new MarkdownChatResponseContentImpl(languageModelResponse.text)
             );
             request.response.complete();
             this.recordingService.recordResponse({
-                agentId: this.id,
+                agentId: this.agentId,
                 sessionId: request.session.id,
                 timestamp: Date.now(),
                 requestId: request.response.requestId,
@@ -348,7 +341,7 @@ export abstract class AbstractStreamParsingChatAgent extends AbstractChatAgent {
             }
             request.response.complete();
             this.recordingService.recordResponse({
-                agentId: this.id,
+                agentId: this.agentId,
                 sessionId: request.session.id,
                 timestamp: Date.now(),
                 requestId: request.response.requestId,
@@ -380,5 +373,4 @@ export abstract class AbstractStreamParsingChatAgent extends AbstractChatAgent {
         }
         return new MarkdownChatResponseContentImpl('');
     }
-
 }

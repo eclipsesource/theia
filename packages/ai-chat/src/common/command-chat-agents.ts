@@ -15,10 +15,12 @@
 // *****************************************************************************
 
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { AbstractTextToModelParsingChatAgent, ChatAgent, SystemMessageDescription } from './chat-agents';
+import { AbstractChatAgent, ChatAgent, ResponseContentExtender, SystemMessageDescription } from './chat-agents';
 import {
     PromptTemplate,
-    AgentSpecificVariables
+    AgentSpecificVariables,
+    LanguageModelResponse,
+    getTextOfResponse
 } from '@theia/ai-core';
 import {
     ChatRequestModelImpl,
@@ -248,7 +250,7 @@ interface ParsedCommand {
 }
 
 @injectable()
-export class CommandChatAgent extends AbstractTextToModelParsingChatAgent<ParsedCommand> implements ChatAgent {
+export class CommandChatAgent extends AbstractChatAgent implements ChatAgent {
     @inject(CommandRegistry)
     protected commandRegistry: CommandRegistry;
     @inject(MessageService)
@@ -293,12 +295,26 @@ export class CommandChatAgent extends AbstractTextToModelParsingChatAgent<Parsed
         return SystemMessageDescription.fromResolvedPromptTemplate(systemPrompt);
     }
 
+    protected override getResponseContentExtender(): ResponseContentExtender {
+        return new CommandResponseContentExtender(this.commandRegistry, this.messageService);
+    }
+}
+
+class CommandResponseContentExtender implements ResponseContentExtender {
+    constructor(private commandRegistry: CommandRegistry, private messageService: MessageService) { }
+
+    async extendResponseContent(languageModelResponse: LanguageModelResponse, request: ChatRequestModelImpl): Promise<void> {
+        const responseAsText = await getTextOfResponse(languageModelResponse);
+        const parsedCommand = await this.parseTextResponse(responseAsText);
+        const content = this.createResponseContent(parsedCommand, request);
+        request.response.response.addContent(content);
+    }
     /**
      * @param text the text received from the language model
      * @returns the parsed command if the text contained a valid command.
      * If there was no json in the text, return a no-command response.
      */
-    protected async parseTextResponse(text: string): Promise<ParsedCommand> {
+    private async parseTextResponse(text: string): Promise<ParsedCommand> {
         const jsonMatch = text.match(/(\{[\s\S]*\})/);
         const jsonString = jsonMatch ? jsonMatch[1] : `{
     "type": "no-command",
@@ -308,7 +324,7 @@ export class CommandChatAgent extends AbstractTextToModelParsingChatAgent<Parsed
         return parsedCommand;
     }
 
-    protected createResponseContent(parsedCommand: ParsedCommand, request: ChatRequestModelImpl): ChatResponseContent {
+    private createResponseContent(parsedCommand: ParsedCommand, request: ChatRequestModelImpl): ChatResponseContent {
         if (parsedCommand.type === 'theia-command') {
             const theiaCommand = this.commandRegistry.getCommand(parsedCommand.commandId);
             if (theiaCommand === undefined) {
@@ -344,8 +360,7 @@ export class CommandChatAgent extends AbstractTextToModelParsingChatAgent<Parsed
             return new MarkdownChatResponseContentImpl(parsedCommand.message ?? 'Sorry, I can\'t find such a command');
         }
     }
-
-    protected async commandCallback(...commandArgs: unknown[]): Promise<void> {
+    private async commandCallback(...commandArgs: unknown[]): Promise<void> {
         this.messageService.info(`Executing callback with args ${commandArgs.join(', ')}. The first arg is the command id registered for the dynamically registered command. 
         The other args are the actual args for the handler.`, 'Got it');
     }

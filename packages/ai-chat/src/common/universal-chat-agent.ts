@@ -19,7 +19,7 @@ import {
    PromptTemplate
 } from '@theia/ai-core/lib/common';
 import { injectable } from '@theia/core/shared/inversify';
-import { AbstractStreamParsingChatAgent, ChatAgent, SystemMessageDescription } from './chat-agents';
+import { AbstractChatAgent, ChatAgent, MarkdownResponseContentExtender, ResponseContentExtender, SystemMessageDescription } from './chat-agents';
 
 export const universalTemplate: PromptTemplate = {
    id: 'universal-system',
@@ -77,7 +77,7 @@ simple solutions.
 };
 
 @injectable()
-export class UniversalChatAgent extends AbstractStreamParsingChatAgent implements ChatAgent {
+export class UniversalChatAgent extends AbstractChatAgent implements ChatAgent {
    name: string;
    description: string;
    variables: string[];
@@ -105,5 +105,7 @@ export class UniversalChatAgent extends AbstractStreamParsingChatAgent implement
       const resolvedPrompt = await this.promptService.getPrompt(universalTemplate.id);
       return resolvedPrompt ? SystemMessageDescription.fromResolvedPromptTemplate(resolvedPrompt) : undefined;
    }
-
+   protected override getResponseContentExtender(): ResponseContentExtender {
+      return new MarkdownResponseContentExtender(this.logger, this.recordingService, this.id);
+   }
 }
