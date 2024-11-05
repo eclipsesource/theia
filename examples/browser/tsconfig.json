@@ -9,6 +9,9 @@
       "path": "../../dev-packages/cli"
     },
     {
+      "path": "../../packages/ai-aider"
+    },
+    {
       "path": "../../packages/ai-chat"
     },
     {

@@ -1,0 +1,26 @@
+{
+  "extends": "../../configs/base.tsconfig",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "lib"
+  },
+  "include": [
+    "src",
+    "aider-chat-wrapper/setupPython.js"
+  ],
+  "references": [
+    {
+      "path": "../ai-core"
+    },
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../filesystem"
+    },
+    {
+      "path": "../workspace"
+    }
+  ]
+}

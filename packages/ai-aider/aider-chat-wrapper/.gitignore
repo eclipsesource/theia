@@ -1,0 +1,9 @@
+# Ignore Python bytecode
+*.pyc
+__pycache__/
+
+# Ignore aider chat histories
+.aider.chat.history.md
+
+# Ignore virtual environments
+venv/
