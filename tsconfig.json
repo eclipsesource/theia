@@ -55,6 +55,9 @@
       "path": "examples/playwright"
     },
     {
+      "path": "packages/ai-aider"
+    },
+    {
       "path": "packages/ai-chat"
     },
     {

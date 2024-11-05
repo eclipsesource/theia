@@ -24,7 +24,15 @@ import { AIChatContribution } from './ai-chat-ui-contribution';
 import { AIChatInputWidget } from './chat-input-widget';
 import { ChatNodeToolbarActionContribution } from './chat-node-toolbar-action-contribution';
 import { ChatResponsePartRenderer } from './chat-response-part-renderer';
-import { CodePartRenderer, CommandPartRenderer, ErrorPartRenderer, HorizontalLayoutPartRenderer, MarkdownPartRenderer, ToolCallPartRenderer } from './chat-response-renderer';
+import {
+    CodePartRenderer,
+    CommandPartRenderer,
+    ErrorPartRenderer,
+    HorizontalLayoutPartRenderer,
+    MarkdownPartRenderer,
+    ToolCallPartRenderer,
+    MyQuestionPartRenderer
+} from './chat-response-renderer';
 import {
     AIEditorManager, AIEditorSelectionResolver,
     GitHubSelectionResolver, TextFragmentSelectionResolver, TypeDocSymbolSelectionResolver
@@ -66,6 +74,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(ChatResponsePartRenderer).to(CodePartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(CommandPartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(ToolCallPartRenderer).inSingletonScope();
+    bind(ChatResponsePartRenderer).to(MyQuestionPartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(ErrorPartRenderer).inSingletonScope();
     bind(ChatResponsePartRenderer).to(QuestionPartRenderer).inSingletonScope();
     [CommandContribution, MenuContribution].forEach(serviceIdentifier =>

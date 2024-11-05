@@ -13,12 +13,22 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-export * from './ai-editor-manager';
-export * from './code-part-renderer';
-export * from './command-part-renderer';
-export * from './error-part-renderer';
-export * from './horizontal-layout-part-renderer';
-export * from './markdown-part-renderer';
-export * from './text-part-renderer';
-export * from './toolcall-part-renderer';
-export * from './eugen-question-part-renderer';
+import { Event } from '@theia/core';
+import { Message } from './message';
+
+export const AIDER_CONNECTOR_PATH = '/services/aider-connector';
+export const AiderConnector = Symbol('AiderConnector');
+export interface AiderConnector {
+    startAider(): Promise<void>;
+    sendMessage(message: string): Promise<void>;
+    setClient(client: AiderConnectorClient): void;
+    add(paths: (string | undefined)[]): Promise<void>;
+}
+export interface AiderMessageResponse {
+    stream: AsyncIterable<string>;
+}
+export const AiderConnectorClient = Symbol('AiderConnectorClient');
+export interface AiderConnectorClient {
+    aiderMessage(message: string | Message): void;
+    onAiderMessage: Event<string | Message>;
+}

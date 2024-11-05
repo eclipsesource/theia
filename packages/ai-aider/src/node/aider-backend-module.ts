@@ -13,12 +13,22 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-export * from './ai-editor-manager';
-export * from './code-part-renderer';
-export * from './command-part-renderer';
-export * from './error-part-renderer';
-export * from './horizontal-layout-part-renderer';
-export * from './markdown-part-renderer';
-export * from './text-part-renderer';
-export * from './toolcall-part-renderer';
-export * from './eugen-question-part-renderer';
+
+import { ConnectionHandler, RpcConnectionHandler } from '@theia/core';
+import { ContainerModule } from '@theia/core/shared/inversify';
+import { AIDER_CONNECTOR_PATH, AiderConnector, AiderConnectorClient } from '../common/api';
+import { AiderConnectorImpl } from './aider-connector';
+
+export const OpenAiModelFactory = Symbol('OpenAiModelFactory');
+
+export default new ContainerModule(bind => {
+    bind(AiderConnector).to(AiderConnectorImpl).inSingletonScope();
+    bind(ConnectionHandler).toDynamicValue(ctx =>
+        new RpcConnectionHandler<AiderConnectorClient>(AIDER_CONNECTOR_PATH, client => {
+            const connector = ctx.container.get<AiderConnector>(AiderConnector);
+            connector.setClient(client);
+            return connector;
+
+        })
+    ).inSingletonScope();
+});

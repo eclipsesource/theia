@@ -13,12 +13,19 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-export * from './ai-editor-manager';
-export * from './code-part-renderer';
-export * from './command-part-renderer';
-export * from './error-part-renderer';
-export * from './horizontal-layout-part-renderer';
-export * from './markdown-part-renderer';
-export * from './text-part-renderer';
-export * from './toolcall-part-renderer';
-export * from './eugen-question-part-renderer';
+
+const { spawnSync } = require('child_process');
+const os = require('os');
+
+function setupPythonEnv() {
+    const isWindows = os.platform() === 'win32';
+    const activateCmd = isWindows ? '.\\aider-chat-wrapper\\venv\\Scripts\\activate' : 'source ./aider-chat-wrapper/venv/bin/activate';
+
+    // Create a virtual environment
+    spawnSync('python3', ['-m', 'venv', './aider-chat-wrapper/venv'], { stdio: 'inherit' });
+
+    // Install Python dependencies
+    spawnSync(activateCmd && 'pip', ['install', '-r', './aider-chat-wrapper/requirements.txt'], { stdio: 'inherit' });
+}
+
+setupPythonEnv();
