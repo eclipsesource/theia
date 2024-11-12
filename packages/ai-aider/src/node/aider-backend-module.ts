@@ -14,41 +14,21 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { CommandContribution, CommandRegistry } from '@theia/core';
-import { ContainerModule, injectable } from '@theia/core/shared/inversify';
-import { Aider, Message } from './aider';
+import { ConnectionHandler, RpcConnectionHandler } from '@theia/core';
+import { ContainerModule } from '@theia/core/shared/inversify';
+import { AIDER_CONNECTOR_PATH, AiderConnector, AiderConnectorClient } from '../common/api';
+import { AiderConnectorImpl } from './aider-connector';
 
 export const OpenAiModelFactory = Symbol('OpenAiModelFactory');
 
 export default new ContainerModule(bind => {
-    bind(CommandContribution).to(AiderCommandContribution);
-});
+    bind(AiderConnector).to(AiderConnectorImpl).inSingletonScope();
+    bind(ConnectionHandler).toDynamicValue(ctx =>
+        new RpcConnectionHandler<AiderConnectorClient>(AIDER_CONNECTOR_PATH, client => {
+            const connector = ctx.container.get<AiderConnector>(AiderConnector);
+            connector.setClient(client);
+            return connector;
 
-@injectable()
-export class AiderCommandContribution implements CommandContribution {
-    registerCommands(commands: CommandRegistry): void {
-        commands.registerCommand({
-            id: 'aider:open',
-            label: 'Start Aider'
-        }, {
-            execute: () => {
-                const aider = new Aider(['--dry-run', '--no-git']);
-                aider.on('message', (message: Message) => {
-                    console.log('Received message:', message.text);
-                });
-                aider.on('error', (error: Error) => {
-                    console.error('Error:', error.message);
-                });
-                aider.on('close', (code: number | null, signal: string | null) => {
-                    console.log(`Process exited with code ${code} and signal ${signal}`);
-                });
-                setTimeout(() => {
-                    aider.write('Hello, Aider!');
-                }, 2000);
-                setTimeout(() => {
-                    aider.close();
-                }, 5000);
-            }
-        });
-    }
-}
+        })
+    ).inSingletonScope();
+});

@@ -20,6 +20,7 @@ from aider.io import InputOutput
 from aider.mdstream import MarkdownStream
 from rich.console import Console
 from rich.text import Text
+from custom_mdstream import CustomMarkdownStream
 
 # assistant_output is a method that is called by the Aider CLI to output messages from the assistant
 # append_chat_history could be overridden to store chat history in the Theia way
@@ -39,6 +40,9 @@ class CustomInputOutput(InputOutput):
 
     prompt_ask_start = '[~prompt_ask~]'
     prompt_ask_end = '[~/prompt_ask~]'
+
+    tool_message_start = '[~tool_message~]'
+    tool_message_end = '[~/tool_message~]'
 
     def tool_output(self, *messages, log_only=False, bold=False):
         self.console.print(self.tool_output_start)
@@ -70,14 +74,14 @@ class CustomInputOutput(InputOutput):
         allow_never=False,
     ):
         self.console.print(self.confirm_ask_start)
-        self.console.print(json.dumps({
-            "question": question,
-            "default": default,
-            "subject": subject,
-            "explicit_yes_required": explicit_yes_required,
-            "group": group,
-            "allow_never": allow_never
-        }))
+        # self.console.print(json.dumps({
+        #     "question": question,
+        #     "default": default,
+        #     "subject": subject,
+        #     "explicit_yes_required": explicit_yes_required,
+        #     "group": group,
+        #     "allow_never": allow_never
+        # }))
         super().confirm_ask(question, default, subject, explicit_yes_required, group, allow_never)
         self.console.print(self.confirm_ask_end)
     
@@ -87,6 +91,21 @@ class CustomInputOutput(InputOutput):
         self.console.print(self.prompt_ask_end)
     
     def assistant_output(self, message, pretty=None):
-        self.console.print("OUTPUT_MSG")
+        self.console.print("[~output~]")
         super().assistant_output(message, pretty)
-        self.console.print("/OUTPUT_MSG")
+        self.console.print("[~/output~]")
+
+    def tool_message(self, question, default="", subject=None):
+        self.console.print(self.tool_message_end)
+        super().tool_message(question, default, subject)
+        self.console.print(self.tool_message_end)
+
+    def print(self, message):
+        self.console.print("[~output~]")
+        super().print(message)
+        self.console.print("[~/output~]")
+
+    def get_assistant_mdstream(self):
+        mdargs = dict(style=self.assistant_output_color, code_theme=self.code_theme)
+        mdStream = CustomMarkdownStream(mdargs=mdargs)
+        return mdStream

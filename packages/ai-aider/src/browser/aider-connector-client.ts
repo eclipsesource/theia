@@ -13,12 +13,20 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-export * from './ai-editor-manager';
-export * from './code-part-renderer';
-export * from './command-part-renderer';
-export * from './error-part-renderer';
-export * from './horizontal-layout-part-renderer';
-export * from './markdown-part-renderer';
-export * from './text-part-renderer';
-export * from './toolcall-part-renderer';
-export * from './question-part-renderer';
+
+import { Emitter, Event } from '@theia/core';
+import { AiderConnectorClient } from '../common/api';
+import { injectable } from '@theia/core/shared/inversify';
+import { Message } from '../common/message';
+
+@injectable()
+export class AiderConnectorClientImpl implements AiderConnectorClient {
+    private messageEmitter: Emitter<string | Message> = new Emitter<string | Message>();
+    onAiderMessage: Event<string | Message> = this.messageEmitter.event;
+    aiderMessage(message: string | Message): void {
+        if (message) {
+            this.messageEmitter.fire(message);
+        }
+    }
+
+}

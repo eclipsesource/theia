@@ -132,6 +132,16 @@ export interface MarkdownChatResponseContent
     content: MarkdownString;
 }
 
+export interface QuestionChatResponseContent
+    extends Required<ChatResponseContent> {
+    kind: 'questionContent';
+    content: string;
+    // default to yes|no
+    options?: string[];
+    sessionId: string;
+    agentId?: string;
+}
+
 export interface CodeChatResponseContent
     extends ChatResponseContent {
     kind: 'code';
@@ -209,6 +219,17 @@ export namespace MarkdownChatResponseContent {
             obj.kind === 'markdownContent' &&
             'content' in obj &&
             MarkdownString.is((obj as { content: unknown }).content)
+        );
+    }
+}
+
+export namespace QuestionChatResponseContent {
+    export function is(obj: unknown): obj is QuestionChatResponseContent {
+        return (
+            ChatResponseContent.is(obj) &&
+            obj.kind === 'questionContent' &&
+            'content' in obj &&
+            typeof (obj as { content: unknown }).content === 'string'
         );
     }
 }
@@ -443,6 +464,46 @@ export class MarkdownChatResponseContentImpl implements MarkdownChatResponseCont
 
     merge(nextChatResponseContent: MarkdownChatResponseContent): boolean {
         this._content.appendMarkdown(nextChatResponseContent.content.value);
+        return true;
+    }
+}
+
+export class QuestionChatResponseContentImpl implements QuestionChatResponseContent {
+    readonly kind = 'questionContent';
+    protected _content: string;
+    protected _options: string[];
+    protected _sessionId: string;
+    protected _agentId: string | undefined;
+
+    // default options to yes and no if not provided
+    constructor(content: string, sessionId: string, options: string[] = ['yes', 'no'], agentId?: string) {
+        this._content = content;
+        this._options = options;
+        this._sessionId = sessionId;
+        this._agentId = agentId;
+    }
+
+    get content(): string {
+        return this._content;
+    }
+
+    get options(): string[] {
+        return this._options;
+    }
+
+    get sessionId(): string {
+        return this._sessionId;
+    }
+    get agentId(): string | undefined {
+        return this._agentId;
+    }
+
+    asString(): string {
+        return this._content;
+    }
+
+    merge(nextChatResponseContent: TextChatResponseContent): boolean {
+        this._content += nextChatResponseContent.content;
         return true;
     }
 }

@@ -14,6 +14,11 @@
 
 The `@theia/ai-aider` integrates the popular `aider-chat` chatbot into the Theia IDE.
 
+When using Aider be aware of the special behavior it has.
+It doesn't automatically look at files in the git repo it scanned.
+You have to manually feed it with the file it should look at using its internal /add command.
+Please be also aware that when you add a file or folder it must be the full relative path from the root of the git repo, e.g. to add the ai-openai package so aider can look at it use: /add packages/ai-openai
+
 ## Preconditions
 
 -   Needs python3, pip and venv to be installed:

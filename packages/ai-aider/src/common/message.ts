@@ -13,12 +13,30 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-export * from './ai-editor-manager';
-export * from './code-part-renderer';
-export * from './command-part-renderer';
-export * from './error-part-renderer';
-export * from './horizontal-layout-part-renderer';
-export * from './markdown-part-renderer';
-export * from './text-part-renderer';
-export * from './toolcall-part-renderer';
-export * from './question-part-renderer';
+
+export type Message = AssistantResponse | Question;
+interface BaseMessage {
+    type: string;
+    text: string;
+}
+
+export interface TokensInfo extends BaseMessage {
+    type: 'tokensInfo';
+    tokensSent: string;
+    tokensReceived: string;
+    cost: string;
+}
+
+export interface AssistantResponse extends BaseMessage {
+    type: 'assistantResponse';
+}
+
+export interface Question extends BaseMessage {
+    type: 'question';
+    options: ('yes' | 'no' | 'all' | 'skip' | "don't")[];
+}
+
+export interface ToolMessage extends BaseMessage {
+    type: 'tool';
+    severity: 'info' | 'warning' | 'error';
+}

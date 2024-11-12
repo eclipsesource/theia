@@ -14,68 +14,139 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
-import * as readline from 'readline';
-import * as os from 'os';
+// import * as readline from 'readline';
+// import * as os from 'os';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+// import { AssistantResponse, Question, ToolMessage } from '../common/message';
+import { Socket } from 'net';
 
-export interface Message {
-    type: string;
-    text: string;
-}
-
-export interface TokensInfo extends Message {
-    type: 'tokensInfo';
-    tokensSent: string;
-    tokensReceived: string;
-    cost: string;
-}
-
-export interface AssistantResponse extends Message {
-    type: 'assistantResponse';
-}
-
-export interface Question extends Message {
-    type: 'question';
-    typeOfQuestion: 'yes-no' | 'confirm';
-}
-
-export interface ToolMessage extends Message {
-    type: 'tool';
-    severity: 'info' | 'warning' | 'error';
-}
 
 const AIDER_CHAT_WRAPPER_FOLDER = 'aider-chat-wrapper';
 const AIDER_CHAT_MAIN_FILE = 'aider-main.py';
 
 export class Aider extends EventEmitter {
-    protected process: ChildProcessWithoutNullStreams;
+    // protected process: ChildProcessWithoutNullStreams;
+    private client = new Socket();
 
-    constructor(args: string[] = []) {
+    constructor(workspace: string, args: string[] = []) {
         super();
+        const host = '127.0.0.1';
 
         // TODO package aider-chat-wrapper in the backend somehow and replace absolute paths below
-        const pythonExecutable = os.platform() === 'win32'
-            ? path.join(__dirname, AIDER_CHAT_WRAPPER_FOLDER, 'venv', 'Scripts', 'python.exe')
-            : path.join('/home/philip/Git/OpenSource/Theia/theia/packages/ai-aider/aider-chat-wrapper', 'venv', 'bin', 'python3');
+        // const pythonExecutable = os.platform() === 'win32'
+        //     ? path.join(__dirname, '../../../..', 'packages', 'ai-aider', AIDER_CHAT_WRAPPER_FOLDER, 'venv', 'Scripts', 'python.exe')
+        //     : path.join(__dirname, '../../../..', 'packages', 'ai-aider', AIDER_CHAT_WRAPPER_FOLDER, 'venv', 'bin', 'python3');
 
-        const aiderWrapperPath = path.join('/home/philip/Git/OpenSource/Theia/theia/packages/ai-aider/aider-chat-wrapper', AIDER_CHAT_MAIN_FILE);
-        this.process = spawn(pythonExecutable, [aiderWrapperPath, ...args], {
+        const aiderWrapperPath = path.join(__dirname, '../../../..', 'packages', 'ai-aider', AIDER_CHAT_WRAPPER_FOLDER, AIDER_CHAT_MAIN_FILE);
+        const process = spawn('python3', [aiderWrapperPath, ...args], {
             stdio: ['pipe', 'pipe', 'pipe'],
-            env: process.env // start with the same environment
+            cwd: fileURLToPath(workspace)
+            // env: process.env // start with the same environment
         });
 
-        const rl = readline.createInterface({ input: this.process.stdout });
+        // const rl = readline.createInterface({ input: this.process.stdout });
 
-        rl.on('line', line => this.handleLine(line));
-        this.process.stderr.on('data', data => this.handleError(data));
-        this.process.on('close', (code, signal) => this.handleClose(code, signal));
+        // rl.on('line', line => this.handleLine(line));
+        // this.process.stdout.on('data', data => this.handleFullOutput(data.toString()));
+        // this.process.stderr.on('data', data => this.handleError(data));
+        // this.process.on('close', (code, signal) => this.handleClose(code, signal));
+
+        process.stdout.on('data', dataBuffer => {
+            const data = dataBuffer.toString();
+            if (data.includes('Server listening on')) {
+                const port = parseInt(data.match(/Server listening on (\d+)/)[1], 10);
+                this.client.connect(port, host, () => {
+                    console.log(`Connected to Python server at ${host}:${port}`);
+                    this.emit('started');
+                });
+            }
+        });
+        process.stderr.on('data', data => console.error(data.toString()));
+        process.on('close', (code, signal) => console.log(code, signal));
+
+        this.client.on('data', data => this.handleLine(data.toString()));
+
+        this.client.on('close', () => {
+            console.log('Connection closed');
+        });
     }
+    protected handleFullOutput(text: string): void {
+        this.handleFullText(text);
+        this.emit('data', '$END_REQUEST$');
+    }
+    private outputType?: string;
+    private question?: string;
+    protected handleFullText(line: string): void {
+        const cleanLine = line;
+        const matchOutput = cleanLine.match(/\[~output~\]([\s\S]*?)\[~\/output~\]/);
+        if (matchOutput) {
+            this.emit('data', matchOutput?.[1]);
+        }
+        const matchTool = cleanLine.match(/\[~tool_output~\]([\s\S]*?)\[~\/tool_output~\]/);
+        if (matchTool) {
+            this.emit('data', matchTool?.[1]);
+        }
+    }
+    protected handleLine(line: string, outputType = this.outputType): void {
+        if (line.length === 0) {
+            return;
+        }
+        const cleanLine = line;
 
-    protected handleLine(line: string): void {
-        // TODO
-        console.log(line);
+        if (cleanLine === '~END_REQUEST~') {
+            this.emit('data', '$END_REQUEST$');
+            return;
+        }
+        const matchEnd = cleanLine.match(/([\s\S]*?)\[~\/([\s\S]*?)~\]/);
+        if (matchEnd && matchEnd[2] === outputType) {
+            this.handleLine(matchEnd[1], outputType);
+            const rest = cleanLine.slice((matchEnd.index ?? 0) + matchEnd[0].length);
+            this.outputType = undefined;
+            this.handleLine(rest, undefined);
+
+            return;
+        }
+        const matchStart = cleanLine.match(/\[~(?!\/)([\s\S]*?)~\]([\s\S]*?)/);
+        if (matchStart) {
+            if (outputType) {
+                const sliceIndex = matchStart.index ? matchStart.index - matchStart[0].length : 0;
+                const restBefore = cleanLine.slice(0, sliceIndex);
+                this.handleLine(restBefore, outputType);
+            }
+            this.outputType = matchStart[1];
+            const rest = cleanLine.slice((matchStart.index ?? 0) + matchStart[0].length);
+            this.handleLine(rest, this.outputType);
+            return;
+        }
+
+        const questionEnd = cleanLine.match(/([\s\S]*?)<\/question>([\s\S]*?)/);
+        // we had a question start in the previous message
+        if (questionEnd && this.question) {
+            this.question += questionEnd[1];
+            this.emit('message', JSON.parse(this.question));
+            this.question = undefined;
+        }
+        const questionStart = cleanLine.match(/([\s\S]*?)<question>([\s\S]*?)/);
+        if (questionStart) {
+            this.handleLine(questionStart[1]);
+            if (questionEnd) {
+                const endMatch = (questionEnd.index ?? 0) + questionEnd[1].length;
+                const startMatch = (questionStart.index ?? 0) + questionStart[0].length;
+                this.emit('message', JSON.parse(cleanLine.slice(startMatch, endMatch)));
+            } else {
+                this.question = questionStart[2];
+                return;
+            }
+        }
+        // we found an end, so handle everything afterwards too
+        if (questionEnd) {
+            this.handleLine(questionEnd[2]);
+            return;
+        }
+        this.emit('data', cleanLine);
     }
 
     protected handleError(data: Buffer): void {
@@ -88,19 +159,16 @@ export class Aider extends EventEmitter {
         this.emit('close', code, signal);
     }
 
-    public async add(fileUri: string): Promise<void> {
-        this.write(`/add ${fileUri}`);
-    }
+    // not used at the moment
+    // public async add(fileUri: string): Promise<void> {
+    //     this.write(`/add ${fileUri}`);
+    // }
 
-    public async drop(fileUri: string): Promise<void> {
-        this.write(`/drop ${fileUri}`);
-    }
+    // public async drop(fileUri: string): Promise<void> {
+    //     this.write(`/drop ${fileUri}`);
+    // }
 
     public write(input: string): boolean {
-        return this.process.stdin.write(`${input}\n`);
-    }
-
-    public close(): void {
-        this.process.stdin.end();
+        return this.client.write(`${input}\n`);
     }
 }
