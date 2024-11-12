@@ -15,7 +15,6 @@
 # *****************************************************************************
 import socket
 import sys
-import streamlit
 from aider.coders import Coder
 from aider.io import InputOutput
 from aider.main import main as cli_main
