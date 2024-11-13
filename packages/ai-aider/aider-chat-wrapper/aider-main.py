@@ -57,6 +57,7 @@ class StdioInputOutput(InputOutput):
             "type": "tool_output",
             "messages": messages
         })
+        print(f"tool_output: {', '.join(messages)}",file=sys.stderr)
         # super().tool_output(*messages, log_only=log_only, bold=bold)
 
     def tool_error(self, msg):
@@ -64,6 +65,7 @@ class StdioInputOutput(InputOutput):
             "type": "tool_error",
             "messages": msg
         })
+        print(f"tool_error: {msg}",file=sys.stderr)
         # super().tool_error(msg)
 
     def tool_warning(self, msg):
@@ -71,6 +73,7 @@ class StdioInputOutput(InputOutput):
             "type": "tool_warning",
             "messages": msg
         })
+        print(f"tool_warning: {msg}",file=sys.stderr)
         # super().tool_warning(msg)
 
     def confirm_ask(
@@ -138,13 +141,18 @@ class TheiaWrapper:
     def __init__(self):
         try:
             self.coder = cli_main(return_coder=True)
-            self.io = StdioInputOutput(pretty=False, yes=None, dry_run=True)
+            self.io = StdioInputOutput(pretty=False)
+            self.io.yes = False
+            self.io.dry_run = True
+            self.coder.dry_run = True
             self.coder.io = self.io # this breaks the input_history
+            self.coder.repo_map.io = self.io
 
             # Force the coder to cooperate, regardless of cmd line args
             self.coder.yield_stream = True
             self.coder.stream = True
             self.coder.pretty = False
+            
         except Exception as e:
             print(f"Error during configuration: {e}", file=sys.stderr)
         

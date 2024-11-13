@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-export type Message = AssistantResponse | Question;
+export type Message = AssistantResponse | Question | ProgressMessage;
 interface BaseMessage {
     type: string;
     text: string;
@@ -39,4 +39,8 @@ export interface Question extends BaseMessage {
 export interface ToolMessage extends BaseMessage {
     type: 'tool';
     severity: 'info' | 'warning' | 'error';
+}
+export interface ProgressMessage extends BaseMessage {
+    type: 'progress';
+    done: boolean;
 }

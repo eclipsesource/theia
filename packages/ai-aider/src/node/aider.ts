@@ -21,6 +21,7 @@ import { EventEmitter } from 'events';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 // import { AssistantResponse, Question, ToolMessage } from '../common/message';
+import { ProgressMessage } from '../common/message';
 // import { Socket } from 'net';
 
 const AIDER_CHAT_WRAPPER_FOLDER = 'aider-chat-wrapper';
@@ -29,6 +30,7 @@ const AIDER_CHAT_MAIN_FILE = 'aider-main.py';
 export class Aider extends EventEmitter {
     protected process: ChildProcessWithoutNullStreams;
     private started = false;
+    private progress?: ProgressMessage;
 
     constructor(workspace: string, args: string[] = []) {
         super();
@@ -57,7 +59,25 @@ export class Aider extends EventEmitter {
                 this.handleLine(data);
             }
         });
-        this.process.stderr.on('data', data => console.error(data.toString()));
+        this.process.stderr.on('data', data => {
+            const msg = data.toString();
+            if (msg.match(/\s*Initial repo scan can be slow in larger repos, but only happens once\./)) {
+                this.progress = { type: 'progress', text: 'Initial repo scan can be slow in larger repos, but only happens once', done: false };
+                this.emit('message', this.progress);
+                return;
+            }
+            if (this.progress && msg.match(/\s*Scanning repo: 100%\|.+\| \d+\/\d+/)) {
+                this.progress = { type: 'progress', text: 'Initial repo scan can be slow in larger repos, but only happens once', done: true };
+                this.emit('message', this.progress);
+                this.progress = undefined;
+                return;
+            }
+            if (this.progress) {
+                return;
+            }
+
+            console.error(msg);
+        });
         this.process.on('close', (code, signal) => console.log(code, signal));
     }
     protected handleFullOutput(text: string): void {

@@ -19,7 +19,8 @@ import {
     ChatAgentService,
     ChatRequestModelImpl,
     MarkdownChatResponseContentImpl,
-    QuestionChatResponseContentImpl
+    QuestionChatResponseContentImpl,
+    ToolCallChatResponseContentImpl
 } from '@theia/ai-chat/lib/common';
 import { PromptTemplate, AgentSpecificVariables, LanguageModelRequirement } from '@theia/ai-core';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
@@ -84,6 +85,12 @@ export class AiderChatAgent implements ChatAgent {
                             case 'question': {
                                 this.currentRequest?.response.response.addContent(
                                     new QuestionChatResponseContentImpl(message.text, this.currentRequest.session.id, message.options, this.currentRequest.agentId)
+                                );
+                                break;
+                            }
+                            case 'progress': {
+                                this.currentRequest?.response.response.addContent(
+                                    new ToolCallChatResponseContentImpl(message.text, message.text, undefined, message.done, 'Repo Scanned')
                                 );
                                 break;
                             }

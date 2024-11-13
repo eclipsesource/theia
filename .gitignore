@@ -35,6 +35,3 @@ dependency-check-summary.txt*
 /performance-result.json
 *.vsix
 /scripts/native-dependencies-*
-.aider.chat.history.md
-.aider*
-.env
