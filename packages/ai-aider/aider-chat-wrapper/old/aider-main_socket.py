@@ -47,6 +47,12 @@ request_end = '~END_REQUEST~'
 class StdioInputOutput(InputOutput):
     lines = []
 
+    def set_connection(self, conn):
+        """
+        Sets the socket connection.
+        """
+        self.conn = conn
+    
     def get_captured_lines(self):
         lines = self.lines
         self.lines = []
@@ -57,21 +63,21 @@ class StdioInputOutput(InputOutput):
             "type": "tool_output",
             "messages": messages
         })
-        # super().tool_output(*messages, log_only=log_only, bold=bold)
+        super().tool_output(*messages, log_only=log_only, bold=bold)
 
     def tool_error(self, msg):
         self.lines.append({
             "type": "tool_error",
             "messages": msg
         })
-        # super().tool_error(msg)
+        super().tool_error(msg)
 
     def tool_warning(self, msg):
         self.lines.append({
             "type": "tool_warning",
             "messages": msg
         })
-        # super().tool_warning(msg)
+        super().tool_warning(msg)
 
     def confirm_ask(
         self,
@@ -89,24 +95,24 @@ class StdioInputOutput(InputOutput):
                 options += "/(A)ll"
                 valid_responses.append("all")
             options += "/(S)kip all"
-            valid_responses.append("skip all")
+            valid_responses.append("skip")
         if allow_never:
             options += "/(D)on't ask again"
-            valid_responses.append("don't ask again")
+            valid_responses.append("don't")
 
         question += options + " [Yes]: "
 
 
-        print('\n')
-        print('<question>')
-        print(json.dumps({"type": "question","text": question, "options": valid_responses}))
-        print('</question>')
-        print(output_end)
-        print(request_end, end="", flush=True)
+        self.conn.sendall('\n'.encode('utf-8'))
+        self.conn.sendall('<question>'.encode('utf-8'))
+        self.conn.sendall(json.dumps({"type": "question","text": question, "options": valid_responses}).encode('utf-8'))
+        self.conn.sendall('</question>'.encode('utf-8'))
+        self.conn.sendall(output_end.encode('utf-8'))
+        self.conn.sendall(request_end.encode('utf-8'))
 
         while True:
             # block until we have a valid answer
-            res = input().strip()
+            res = self.conn.recv(1024).decode('utf-8').strip()
             if not res:
                 res = default
                 break
@@ -117,28 +123,27 @@ class StdioInputOutput(InputOutput):
                 break
 
             error_message = f"Please answer with one of: {', '.join(valid_responses)}"
-            print(output_start)
-            print(error_message)
-            print(output_end)
-            print(request_end, end="", flush=True)
+            self.conn.sendall(output_start.encode('utf-8'))
+            self.conn.sendall(error_message.encode('utf-8'))
+            self.conn.sendall(output_end.encode('utf-8'))
+            self.conn.sendall(request_end.encode('utf-8'))
 
         if explicit_yes_required:
             is_yes = res == "y"
         else:
             is_yes = res in ("y", "a")
 
-        print(output_start)
+        self.conn.sendall(output_start.encode('utf-8'))
         return is_yes
     
-    def print():
-        return
 
 class TheiaWrapper:
 
-    def __init__(self):
+    def __init__(self, conn):
         try:
             self.coder = cli_main(return_coder=True)
             self.io = StdioInputOutput(pretty=False, yes=None, dry_run=True)
+            self.io.set_connection(conn)  # Set the connection after instantiation
             self.coder.io = self.io # this breaks the input_history
 
             # Force the coder to cooperate, regardless of cmd line args
@@ -152,7 +157,7 @@ class TheiaWrapper:
 
         while True:
             # Get user input via stdin
-            user_input = input()
+            user_input = conn.recv(1024).decode('utf-8')
 
             # Exit condition
             if user_input.lower() == 'exit':
@@ -160,21 +165,21 @@ class TheiaWrapper:
                 break
 
             try:
-                print(output_start)
+                conn.sendall(output_start.encode('utf-8'))
                 for data_chunk in self.coder.run_stream(user_input):
-                    pass
-                print(output_end)
+                    conn.sendall(data_chunk.encode('utf-8'))
+                conn.sendall(output_end.encode('utf-8'))
             except Exception as e:
                 print(f"Error while sending stream: {e}", file=sys.stderr)
                 traceback.print_exc()
             
             # try:
             #     if self.coder.reflected_message is not None:
-            #         conn.sendall('reflected_message:\n')
+            #         conn.sendall('reflected_message:\n'.encode('utf-8'))
             #         reflected_message = self.coder.reflected_message
             #         reflected_message = ", ".join(reflected_message)
-            #         conn.sendall(reflected_message)
-            #         conn.sendall('\n\n')
+            #         conn.sendall(reflected_message.encode('utf-8'))
+            #         conn.sendall('\n\n'.encode('utf-8'))
             # except Exception as e:
             #     print(f"Error while sending reflected_message: {e}", file=sys.stderr)
             
@@ -182,8 +187,8 @@ class TheiaWrapper:
             #     if self.coder.aider_edited_files is not None:
             #         fnames = [f"`{fname}`" for fname in self.coder.aider_edited_files]
             #         fnames = ", ".join(fnames)
-            #         conn.sendall(f"Applied edits to {fnames}.")
-            #         conn.sendall('\n\n')
+            #         conn.sendall(f"Applied edits to {fnames}.".encode('utf-8'))
+            #         conn.sendall('\n\n'.encode('utf-8'))
             # except Exception as e:
             #     print(f"Error while sending aider_edited_files: {e}", file=sys.stderr)
 
@@ -197,27 +202,39 @@ class TheiaWrapper:
             #         )
             #         if diff:
             #             diff = ", ".join(diff)
-            #             conn.sendall(diff)
+            #             conn.sendall(diff.encode('utf-8'))
 
             # except Exception as e:
             #     print(f"Error while sending diff: {e}", file=sys.stderr)
 
             
             # Capture additional messages accumulated in the IO object
-            # try:
-            #     # conn.sendall(tools_start)
-            #     for message in self.io.get_captured_lines():
-            #         # conn.sendall(f"{json.dumps(message)}\n")
-            #         print(f"{json.dumps(message)}\n")
-            #     # conn.sendall(tools_end)
-            # except Exception as e:
-            #     print(f"Error while sending captured message: {e}", file=sys.stderr)
-            #     traceback.print_exc()
+            try:
+                # conn.sendall(tools_start.encode('utf-8'))
+                for message in self.io.get_captured_lines():
+                    # conn.sendall(f"{json.dumps(message)}\n".encode('utf-8'))
+                    print(f"{json.dumps(message)}\n")
+                # conn.sendall(tools_end.encode('utf-8'))
+            except Exception as e:
+                print(f"Error while sending captured message: {e}", file=sys.stderr)
+                traceback.print_exc()
 
-            print(request_end,  end="", flush=True)
+            conn.sendall(request_end.encode('utf-8'))
 
 def custom_main():
-    TheiaWrapper()
+    host = '127.0.0.1'
+    port = 65432
+    print("Start python", flush=True)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+        server_socket.bind((host, 0))
+        assigned_port = server_socket.getsockname()[1]
+        print(f"Server listening on {assigned_port}", flush=True)
+        server_socket.listen()
+
+        conn, addr = server_socket.accept()
+        with conn:
+            print(f"Connected by {addr}")
+            TheiaWrapper(conn)
     
 
 if __name__ == "__main__":

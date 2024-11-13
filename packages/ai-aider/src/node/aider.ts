@@ -14,26 +14,25 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { spawn } from 'child_process';
+import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { EventEmitter } from 'events';
 // import * as readline from 'readline';
 // import * as os from 'os';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 // import { AssistantResponse, Question, ToolMessage } from '../common/message';
-import { Socket } from 'net';
-
+// import { Socket } from 'net';
 
 const AIDER_CHAT_WRAPPER_FOLDER = 'aider-chat-wrapper';
 const AIDER_CHAT_MAIN_FILE = 'aider-main.py';
 
 export class Aider extends EventEmitter {
-    // protected process: ChildProcessWithoutNullStreams;
-    private client = new Socket();
+    protected process: ChildProcessWithoutNullStreams;
+    private started = false;
 
     constructor(workspace: string, args: string[] = []) {
         super();
-        const host = '127.0.0.1';
+        // const host = '127.0.0.1';
 
         // TODO package aider-chat-wrapper in the backend somehow and replace absolute paths below
         // const pythonExecutable = os.platform() === 'win32'
@@ -41,37 +40,25 @@ export class Aider extends EventEmitter {
         //     : path.join(__dirname, '../../../..', 'packages', 'ai-aider', AIDER_CHAT_WRAPPER_FOLDER, 'venv', 'bin', 'python3');
 
         const aiderWrapperPath = path.join(__dirname, '../../../..', 'packages', 'ai-aider', AIDER_CHAT_WRAPPER_FOLDER, AIDER_CHAT_MAIN_FILE);
-        const process = spawn('python3', [aiderWrapperPath, ...args], {
+        this.process = spawn('python3', [aiderWrapperPath, ...args], {
             stdio: ['pipe', 'pipe', 'pipe'],
             cwd: fileURLToPath(workspace)
             // env: process.env // start with the same environment
         });
 
-        // const rl = readline.createInterface({ input: this.process.stdout });
-
-        // rl.on('line', line => this.handleLine(line));
-        // this.process.stdout.on('data', data => this.handleFullOutput(data.toString()));
-        // this.process.stderr.on('data', data => this.handleError(data));
-        // this.process.on('close', (code, signal) => this.handleClose(code, signal));
-
-        process.stdout.on('data', dataBuffer => {
+        this.process.stdout.on('data', dataBuffer => {
             const data = dataBuffer.toString();
-            if (data.includes('Server listening on')) {
-                const port = parseInt(data.match(/Server listening on (\d+)/)[1], 10);
-                this.client.connect(port, host, () => {
-                    console.log(`Connected to Python server at ${host}:${port}`);
-                    this.emit('started');
-                });
+            if (data.startsWith('Theia Wrapper started')) {
+                this.started = true;
+                this.emit('started');
+                return;
+            }
+            if (this.started) {
+                this.handleLine(data);
             }
         });
-        process.stderr.on('data', data => console.error(data.toString()));
-        process.on('close', (code, signal) => console.log(code, signal));
-
-        this.client.on('data', data => this.handleLine(data.toString()));
-
-        this.client.on('close', () => {
-            console.log('Connection closed');
-        });
+        this.process.stderr.on('data', data => console.error(data.toString()));
+        this.process.on('close', (code, signal) => console.log(code, signal));
     }
     protected handleFullOutput(text: string): void {
         this.handleFullText(text);
@@ -96,7 +83,7 @@ export class Aider extends EventEmitter {
         }
         const cleanLine = line;
 
-        if (cleanLine === '~END_REQUEST~') {
+        if (cleanLine.match(/^\s*~END_REQUEST~\s*$/)) {
             this.emit('data', '$END_REQUEST$');
             return;
         }
@@ -169,6 +156,7 @@ export class Aider extends EventEmitter {
     // }
 
     public write(input: string): boolean {
-        return this.client.write(`${input}\n`);
+        // return this.client.write(`${input}\n`);
+        return this.process.stdin.write(`${input}\n`);
     }
 }
