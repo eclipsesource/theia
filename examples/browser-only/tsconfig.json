@@ -120,6 +120,9 @@
       "path": "../../packages/property-view"
     },
     {
+      "path": "../../packages/scanoss"
+    },
+    {
       "path": "../../packages/scm"
     },
     {

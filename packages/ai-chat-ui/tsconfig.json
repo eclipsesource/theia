@@ -31,6 +31,9 @@
       "path": "../monaco"
     },
     {
+      "path": "../scanoss"
+    },
+    {
       "path": "../workspace"
     }
   ]

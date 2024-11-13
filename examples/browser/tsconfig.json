@@ -144,6 +144,9 @@
       "path": "../../packages/remote"
     },
     {
+      "path": "../../packages/scanoss"
+    },
+    {
       "path": "../../packages/scm"
     },
     {
