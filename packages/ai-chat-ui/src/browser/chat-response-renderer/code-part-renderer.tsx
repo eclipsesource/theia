@@ -32,6 +32,7 @@ import { MonacoLanguages } from '@theia/monaco/lib/browser/monaco-languages';
 import { ChatResponsePartRenderer } from '../chat-response-part-renderer';
 import { ChatViewTreeWidget, ResponseNode } from '../chat-tree-view/chat-view-tree-widget';
 import { IMouseEvent } from '@theia/monaco-editor-core';
+import { ScanOSSService } from '@theia/scanoss';
 
 @injectable()
 export class CodePartRenderer
@@ -49,6 +50,8 @@ export class CodePartRenderer
     protected readonly languageService: MonacoLanguages;
     @inject(ContextMenuRenderer)
     protected readonly contextMenuRenderer: ContextMenuRenderer;
+    @inject(ScanOSSService)
+    protected readonly scanService: ScanOSSService;
 
     canHandle(response: ChatResponseContent): number {
         if (CodeChatResponseContent.is(response)) {
@@ -67,6 +70,7 @@ export class CodePartRenderer
                     <div className="theia-CodePartRenderer-right">
                         <CopyToClipboardButton code={response.code} clipboardService={this.clipboardService} />
                         <InsertCodeAtCursorButton code={response.code} editorManager={this.editorManager} />
+                        <ScanOSSButton code={response.code} scanService={this.scanService} />
                     </div>
                 </div>
                 <div className="theia-CodePartRenderer-separator"></div>
@@ -151,6 +155,13 @@ const InsertCodeAtCursorButton = (props: { code: string, editorManager: EditorMa
         }
     }, [code, editorManager]);
     return <div className='button codicon codicon-insert' title='Insert at Cursor' role='button' onClick={insertCode}></div>;
+};
+
+const ScanOSSButton = (props: { code: string, scanService: ScanOSSService }) => {
+    const scanCode = React.useCallback(() => {
+        props.scanService.scanContent(props.code);
+    }, [props.code, props.scanService]);
+    return <div className='button codicon codicon-code' title='Scan OSS' role='button' onClick={scanCode}></div>;
 };
 
 /**
