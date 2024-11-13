@@ -60,20 +60,20 @@ class StdioInputOutput(InputOutput):
         print(f"tool_output: {', '.join(messages)}",file=sys.stderr)
         # super().tool_output(*messages, log_only=log_only, bold=bold)
 
-    def tool_error(self, msg):
+    def tool_error(self, message="", strip=True):
         self.lines.append({
             "type": "tool_error",
-            "messages": msg
+            "messages": message
         })
-        print(f"tool_error: {msg}",file=sys.stderr)
+        print(f"tool_error: {message}",file=sys.stderr)
         # super().tool_error(msg)
 
-    def tool_warning(self, msg):
+    def tool_warning(self, message="", strip=True):
         self.lines.append({
             "type": "tool_warning",
-            "messages": msg
+            "messages": message
         })
-        print(f"tool_warning: {msg}",file=sys.stderr)
+        print(f"tool_warning: {message}",file=sys.stderr)
         # super().tool_warning(msg)
 
     def confirm_ask(
