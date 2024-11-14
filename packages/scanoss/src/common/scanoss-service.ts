@@ -15,15 +15,20 @@
 // *****************************************************************************
 export const SCANOSS_SERVICE_PATH = '/services/scanoss/service';
 export const ScanOSSService = Symbol('ScanOSSService');
-export interface ScanOSSResultSuccess {
-    type: 'success';
-    result: string;
+export interface ScanOSSResultClean {
+    type: 'clean';
+}
+export interface ScanOSSResultMatch {
+    type: 'match';
+    matched: string; // e.g. "75%"
+    url: string;
+    raw: unknown;
 }
 export interface ScanOSSResultError {
     type: 'error';
     message: string;
 }
-export type ScanOSSResult = ScanOSSResultSuccess | ScanOSSResultError;
+export type ScanOSSResult = ScanOSSResultClean | ScanOSSResultMatch | ScanOSSResultError;
 export interface ScanOSSService {
     scanContent(content: string, apiKey?: string): Promise<ScanOSSResult>;
 }

@@ -18,7 +18,7 @@ import {
     ChatResponseContent,
     CodeChatResponseContent,
 } from '@theia/ai-chat/lib/common';
-import { UntitledResourceResolver, URI } from '@theia/core';
+import { MessageService, UntitledResourceResolver, URI } from '@theia/core';
 import { ContextMenuRenderer, TreeNode } from '@theia/core/lib/browser';
 import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
 import { inject, injectable } from '@theia/core/shared/inversify';
@@ -32,7 +32,7 @@ import { MonacoLanguages } from '@theia/monaco/lib/browser/monaco-languages';
 import { ChatResponsePartRenderer } from '../chat-response-part-renderer';
 import { ChatViewTreeWidget, ResponseNode } from '../chat-tree-view/chat-view-tree-widget';
 import { IMouseEvent } from '@theia/monaco-editor-core';
-import { ScanOSSService } from '@theia/scanoss';
+import { ScanOSSResult, ScanOSSService } from '@theia/scanoss';
 
 @injectable()
 export class CodePartRenderer
@@ -52,6 +52,8 @@ export class CodePartRenderer
     protected readonly contextMenuRenderer: ContextMenuRenderer;
     @inject(ScanOSSService)
     protected readonly scanService: ScanOSSService;
+    @inject(MessageService)
+    protected readonly messageService: MessageService;
 
     canHandle(response: ChatResponseContent): number {
         if (CodeChatResponseContent.is(response)) {
@@ -70,7 +72,7 @@ export class CodePartRenderer
                     <div className="theia-CodePartRenderer-right">
                         <CopyToClipboardButton code={response.code} clipboardService={this.clipboardService} />
                         <InsertCodeAtCursorButton code={response.code} editorManager={this.editorManager} />
-                        <ScanOSSButton code={response.code} scanService={this.scanService} />
+                        <ScanOSSIntegration code={response.code} scanService={this.scanService} messageService={this.messageService} />
                     </div>
                 </div>
                 <div className="theia-CodePartRenderer-separator"></div>
@@ -157,11 +159,27 @@ const InsertCodeAtCursorButton = (props: { code: string, editorManager: EditorMa
     return <div className='button codicon codicon-insert' title='Insert at Cursor' role='button' onClick={insertCode}></div>;
 };
 
-const ScanOSSButton = (props: { code: string, scanService: ScanOSSService }) => {
-    const scanCode = React.useCallback(() => {
-        props.scanService.scanContent(props.code);
-    }, [props.code, props.scanService]);
-    return <div className='button codicon codicon-code' title='Scan OSS' role='button' onClick={scanCode}></div>;
+const ScanOSSIntegration = (props: { code: string, scanService: ScanOSSService, messageService: MessageService }) => {
+    const [scanOSSResult, setScanOSSResult] = React.useState<ScanOSSResult>();
+    const scanCode = React.useCallback(async () => {
+        setScanOSSResult(undefined);
+        const result = await props.scanService.scanContent(props.code);
+        setScanOSSResult(result);
+        if (result.type === 'error') {
+            props.messageService.error(`Scan request unsuccessful: ${result.message}`);
+        } else if (result.type === 'match') {
+            // provide more details about the match
+            props.messageService.warn(`Found a ${result.matched} match in ${result.url}`);
+        } else {
+            props.messageService.info('No matches found');
+        }
+    }, [props.code, props.scanService, props.messageService]);
+    React.useEffect(() => {
+        scanCode();
+    }, []);
+    return <div className={`button theia-scanoss-logo ${scanOSSResult ? scanOSSResult.type : 'requesting'}`} title='SCANOSS - Scan ' role='button' onClick={scanCode}>
+        <div className='codicon codicon-circle placeholder'></div>
+    </div>;
 };
 
 /**

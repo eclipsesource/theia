@@ -17,26 +17,45 @@
 import { injectable } from '@theia/core/shared/inversify';
 import { ScanOSSResult, ScanOSSService } from '../common';
 
-import { Scanner } from 'scanoss';
+import { Scanner, ScannerComponent } from 'scanoss';
+
+// Define our own type of what is actually returned by the scanner
+type ScanContentsResult<T extends string> = {
+    [K in T]: ScannerComponent[];
+};
 
 @injectable()
 export class ScanOSSServiceImpl implements ScanOSSService {
     async scanContent(content: string, apiKey?: string): Promise<ScanOSSResult> {
-        const scanner = new Scanner();
+        const scanner = new Scanner(/* {
+            API_KEY: apiKey || process.env.SCANOSS_API_KEY || undefined,
+            MAX_RESPONSES_IN_BUFFER: 1,
+        } as ScannerCfg*/);
         const results = await scanner.scanContents({
             content,
             key: 'content_scanning',
-        });
+        }) as unknown as ScanContentsResult<'/content_scanning'> | null;
         if (!results) {
             return {
                 type: 'error',
-                message: 'No results found'
+                message: 'Scan request unsuccessful'
             };
         }
-        console.log('ScanOSS results', results);
+
+        // eslint-disable-next-line no-null/no-null
+        console.log('ScanOSS results', JSON.stringify(results, null, 2));
+        // check first of the results
+        const firstEntry = results['/content_scanning'][0];
+        if (firstEntry.id === 'none') {
+            return {
+                type: 'clean'
+            };
+        }
         return {
-            type: 'success',
-            result: JSON.stringify(results)
+            type: 'match',
+            matched: firstEntry.matched,
+            url: firstEntry.url,
+            raw: firstEntry
         };
     }
 }
