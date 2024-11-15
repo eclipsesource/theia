@@ -34,7 +34,6 @@ export class Aider extends EventEmitter {
 
     constructor(workspace: string, args: string[] = []) {
         super();
-        // const host = '127.0.0.1';
 
         // TODO package aider-chat-wrapper in the backend somehow and replace absolute paths below
         // const pythonExecutable = os.platform() === 'win32'

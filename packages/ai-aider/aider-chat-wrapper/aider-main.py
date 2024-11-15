@@ -13,7 +13,6 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 # *****************************************************************************
-import socket
 import sys
 from aider.coders import Coder
 from aider.io import InputOutput
@@ -135,8 +134,19 @@ class StdioInputOutput(InputOutput):
         print(output_start)
         return is_yes
     
-    def print():
+    def print(self, message=""):
+        print(f"print: {message}",file=sys.stderr)
         return
+    
+    def prompt_ask(self, question, default="", subject=None):
+        print('\n')
+        print('<question>')
+        print(json.dumps({"type": "question","text": question, "options": []}))
+        print('</question>')
+        print(output_end)
+        print(request_end, end="", flush=True)
+        res = input().strip()
+        return res
 
 class TheiaWrapper:
 
@@ -162,12 +172,14 @@ class TheiaWrapper:
 
         while True:
             # Get user input via stdin
-            user_input = input()
+            user_input = input().strip()
 
             # Exit condition
             if user_input.lower() == 'exit':
                 self.io.print("Exiting.")
                 break
+
+            user_input = self.coder.preproc_user_input(user_input)
 
             try:
                 print(output_start)
