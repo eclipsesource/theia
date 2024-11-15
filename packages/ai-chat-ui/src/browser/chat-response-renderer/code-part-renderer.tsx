@@ -1,3 +1,4 @@
+/* eslint-disable no-null/no-null */
 // *****************************************************************************
 // Copyright (C) 2024 EclipseSource GmbH.
 //
@@ -19,7 +20,7 @@ import {
     CodeChatResponseContent,
 } from '@theia/ai-chat/lib/common';
 import { MessageService, UntitledResourceResolver, URI } from '@theia/core';
-import { ContextMenuRenderer, TreeNode } from '@theia/core/lib/browser';
+import { ContextMenuRenderer, Dialog, TreeNode } from '@theia/core/lib/browser';
 import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
@@ -32,7 +33,8 @@ import { MonacoLanguages } from '@theia/monaco/lib/browser/monaco-languages';
 import { ChatResponsePartRenderer } from '../chat-response-part-renderer';
 import { ChatViewTreeWidget, ResponseNode } from '../chat-tree-view/chat-view-tree-widget';
 import { IMouseEvent } from '@theia/monaco-editor-core';
-import { ScanOSSResult, ScanOSSService } from '@theia/scanoss';
+import { ScanOSSResult, ScanOSSResultMatch, ScanOSSService } from '@theia/scanoss';
+import { ReactDialog } from '@theia/core/lib/browser/dialogs/react-dialog';
 
 @injectable()
 export class CodePartRenderer
@@ -162,24 +164,27 @@ const InsertCodeAtCursorButton = (props: { code: string, editorManager: EditorMa
 const ScanOSSIntegration = (props: { code: string, scanService: ScanOSSService, messageService: MessageService }) => {
     const [scanOSSResult, setScanOSSResult] = React.useState<ScanOSSResult>();
     const scanCode = React.useCallback(async () => {
-        setScanOSSResult(undefined);
-        const result = await props.scanService.scanContent(props.code);
-        setScanOSSResult(result);
-        if (result.type === 'error') {
-            props.messageService.error(`Scan request unsuccessful: ${result.message}`);
-        } else if (result.type === 'match') {
-            // provide more details about the match
-            props.messageService.warn(`Found a ${result.matched} match in ${result.url}`);
-        } else {
-            props.messageService.info('No matches found');
-        }
-    }, [props.code, props.scanService, props.messageService]);
+
+    }, [props.code, props.scanService]);
     React.useEffect(() => {
-        scanCode();
+        (async () => {
+            setScanOSSResult(undefined);
+            const result = await props.scanService.scanContent(props.code);
+            setScanOSSResult(result); scanCode();
+        })();
     }, []);
-    return <div className={`button theia-scanoss-logo ${scanOSSResult ? scanOSSResult.type : 'requesting'}`} title='SCANOSS - Scan ' role='button' onClick={scanCode}>
-        <div className='codicon codicon-circle placeholder'></div>
-    </div>;
+    const scanOSSClicked = React.useCallback(() => {
+        if (scanOSSResult && scanOSSResult.type === 'match') {
+            const dialog = new ScanOSSDialog(scanOSSResult);
+            dialog.open();
+        }
+    }, [scanOSSResult]);
+    const title = scanOSSResult ? `SCANOSS - ${scanOSSResult.type}` : 'SCANOSS - Scan';
+    return <>
+        <div className={`button theia-scanoss-logo ${scanOSSResult ? scanOSSResult.type : 'requesting'}`} title={title} role='button' onClick={scanOSSClicked}>
+            <div className='codicon codicon-circle placeholder'></div>
+        </div>
+    </>;
 };
 
 /**
@@ -238,3 +243,38 @@ export const CodeWrapper = (props: {
 
     return <div className='theia-CodeWrapper' ref={ref}></div>;
 };
+
+export class ScanOSSDialog extends ReactDialog<void> {
+    protected readonly okButton: HTMLButtonElement;
+
+    constructor(protected result: ScanOSSResultMatch) {
+        super({
+            title: 'SCANOSS Results'
+        });
+        this.appendAcceptButton(Dialog.OK);
+        this.update();
+    }
+
+    protected renderHeader(): React.ReactNode {
+        return <>
+            <div className='theia-scanoss-logo'></div>
+            <h3>SCANOSS Results</h3>
+            <div>Found a {this.result.matched} match in <a href={this.result.url}>${this.result.url}</a></div>
+        </>;
+    }
+
+    protected render(): React.ReactNode {
+        return <div>
+            {this.renderHeader()}
+            {this.renderContent()}
+        </div>;
+    }
+
+    protected renderContent(): React.ReactNode {
+        return <pre>
+            {JSON.stringify(this.result.raw, null, 2)};
+        </pre>;
+    }
+
+    get value(): undefined { return undefined; }
+}
