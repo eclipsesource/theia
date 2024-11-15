@@ -166,11 +166,11 @@ export class Aider extends EventEmitter {
         this.emit('close', code, signal);
     }
 
-    // not used at the moment
-    // public async add(fileUri: string): Promise<void> {
-    //     this.write(`/add ${fileUri}`);
-    // }
+    public async add(fileUri: (string | undefined)[]): Promise<void> {
+        this.write(`/add ${fileUri.filter(f => f !== undefined).join(' ')}`);
+    }
 
+    // not used at the moment
     // public async drop(fileUri: string): Promise<void> {
     //     this.write(`/drop ${fileUri}`);
     // }

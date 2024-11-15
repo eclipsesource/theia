@@ -22,6 +22,7 @@ export interface AiderConnector {
     startAider(): Promise<void>;
     sendMessage(message: string): Promise<void>;
     setClient(client: AiderConnectorClient): void;
+    add(paths: (string | undefined)[]): Promise<void>;
 }
 export interface AiderMessageResponse {
     stream: AsyncIterable<string>;

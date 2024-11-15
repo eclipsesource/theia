@@ -75,6 +75,13 @@ export class AiderConnectorImpl implements AiderConnector {
         this.client = client;
     }
 
+    async add(paths: (string | undefined)[]): Promise<void> {
+        if (this.aider === undefined) {
+            await this.startAider();
+        }
+        this.aider.add(paths);
+    }
+
     // private eventEmitterToAsyncIterator(emitter: EventEmitter): AsyncIterableIterator<string> {
     //     return {
     //         [Symbol.asyncIterator](): AsyncIterableIterator<string> {

@@ -45,7 +45,7 @@ export class AiderChatAgent implements ChatAgent {
     readonly iconClass?: string | undefined;
     readonly id: string;
     readonly languageModelRequirements: LanguageModelRequirement[];
-    readonly tags?: String[] | undefined;
+    readonly tags?: string[];
     constructor() {
         this.id = 'Aider';
         this.name = 'Aider';

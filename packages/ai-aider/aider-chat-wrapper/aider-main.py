@@ -21,6 +21,8 @@ from aider.main import main as cli_main
 import traceback
 import json
 
+dry_run = False
+
 tool_output_start = '[~tool_output~]'
 tool_output_end = '[~/tool_output~]'
 
@@ -143,8 +145,8 @@ class TheiaWrapper:
             self.coder = cli_main(return_coder=True)
             self.io = StdioInputOutput(pretty=False)
             self.io.yes = False
-            self.io.dry_run = True
-            self.coder.dry_run = True
+            self.io.dry_run = dry_run
+            self.coder.dry_run = dry_run
             self.coder.io = self.io # this breaks the input_history
             self.coder.repo_map.io = self.io
 

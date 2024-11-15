@@ -15,13 +15,14 @@
 // *****************************************************************************
 
 import { ContainerModule, inject, injectable } from '@theia/core/shared/inversify';
-import { CommandContribution, CommandRegistry } from '@theia/core';
+import { Command, CommandContribution, CommandRegistry, MenuContribution, MenuModelRegistry, SelectionService } from '@theia/core';
 import { RemoteConnectionProvider, ServiceConnectionProvider } from '@theia/core/lib/browser';
-import { AIDER_CONNECTOR_PATH, AiderConnector } from '../common/api';
+import { AIDER_CONNECTOR_PATH, AiderConnector, AiderConnectorClient } from '../common/api';
 import { ChatAgent } from '@theia/ai-chat';
 import { AiderChatAgent } from './aider-chat-agent';
-import { AiderConnectorClient } from '../common/api';
 import { AiderConnectorClientImpl } from './aider-connector-client';
+import { WorkspaceService } from '@theia/workspace/lib/browser';
+import { UriAwareCommandHandler } from '@theia/core/lib/common/uri-command-handler';
 
 export default new ContainerModule(bind => {
     bind(CommandContribution).to(AiderCommandContribution);
@@ -32,12 +33,23 @@ export default new ContainerModule(bind => {
         return provider.createProxy<AiderConnector>(AIDER_CONNECTOR_PATH, client);
     }).inSingletonScope();
     bind(ChatAgent).to(AiderChatAgent).inSingletonScope();
+    bind(MenuContribution).to(AiderMenuContribution);
 });
+
+export const AiderAddCommand: Command = {
+    id: 'ai.aider.add',
+    label: 'Add to Aider'
+};
 
 @injectable()
 export class AiderCommandContribution implements CommandContribution {
     @inject(AiderConnector)
     private connector: AiderConnector;
+    @inject(WorkspaceService)
+    protected readonly workspaceService: WorkspaceService;
+    @inject(SelectionService)
+    protected readonly selectionService: SelectionService;
+
     registerCommands(commands: CommandRegistry): void {
         commands.registerCommand({
             id: 'aider:open',
@@ -47,6 +59,26 @@ export class AiderCommandContribution implements CommandContribution {
                 this.connector.startAider();
                 this.connector.sendMessage('What is this project about?');
             }
+        });
+        commands.registerCommand(AiderAddCommand, UriAwareCommandHandler.MultiSelect(this.selectionService, {
+            execute: uris => {
+                const workspaceRoot = this.workspaceService.getWorkspaceRootUri(uris[0]);
+                if (workspaceRoot) {
+                    const paths = uris.map(uri => workspaceRoot.relative(uri)?.fsPath());
+                    if (paths) {
+                        this.connector.add(paths);
+                    }
+                }
+            }
+        }));
+    }
+}
+@injectable()
+export class AiderMenuContribution implements MenuContribution {
+    registerMenus(menus: MenuModelRegistry): void {
+        menus.registerMenuAction(['navigator-context-menu', 'navigation'], {
+            commandId: AiderAddCommand.id,
+            order: 'z'
         });
     }
 }
