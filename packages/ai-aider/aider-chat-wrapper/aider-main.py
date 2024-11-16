@@ -88,6 +88,10 @@ class StdioInputOutput(InputOutput):
     ):
         valid_responses = ["yes", "no"]
         options = " (Y)es/(N)o"
+        if group and not group.show_group:
+            group = None
+        if group:
+            allow_never = True
         if group:
             if not explicit_yes_required:
                 options += "/(A)ll"
@@ -103,7 +107,7 @@ class StdioInputOutput(InputOutput):
 
         print('\n')
         print('<question>')
-        print(json.dumps({"type": "question","text": question, "options": valid_responses}))
+        print(json.dumps({"type": "question","subject":subject,"text": question, "options": valid_responses}))
         print('</question>')
         print(output_end)
         print(request_end, end="", flush=True)
@@ -152,13 +156,15 @@ class TheiaWrapper:
 
     def __init__(self):
         try:
-            self.coder = cli_main(return_coder=True)
+            self.coder = cli_main(return_coder=True, argv="--edit-format whole")
             self.io = StdioInputOutput(pretty=False)
             self.io.yes = False
             self.io.dry_run = dry_run
             self.coder.dry_run = dry_run
             self.coder.io = self.io # this breaks the input_history
+
             self.coder.repo_map.io = self.io
+            self.coder.commands.io = self.io
 
             # Force the coder to cooperate, regardless of cmd line args
             self.coder.yield_stream = True
@@ -179,16 +185,21 @@ class TheiaWrapper:
                 self.io.print("Exiting.")
                 break
 
-            user_input = self.coder.preproc_user_input(user_input)
-
             try:
-                print(output_start)
-                for data_chunk in self.coder.run_stream(user_input):
-                    pass
-                print(output_end)
+                message = self.coder.preproc_user_input(user_input)
             except Exception as e:
-                print(f"Error while sending stream: {e}", file=sys.stderr)
+                print(f"Error while preprocessing: {e}", file=sys.stderr)
                 traceback.print_exc()
+
+            if message is not None:
+                try:
+                    print(output_start)
+                    for data_chunk in self.coder.run_stream(message):
+                        pass
+                    print(output_end)
+                except Exception as e:
+                    print(f"Error while sending stream: {e}", file=sys.stderr)
+                    traceback.print_exc()
             
             # try:
             #     if self.coder.reflected_message is not None:

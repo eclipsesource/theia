@@ -132,7 +132,7 @@ export class Aider extends EventEmitter {
         // we had a question start in the previous message
         if (questionEnd && this.question) {
             this.question += questionEnd[1];
-            this.emit('message', JSON.parse(this.question));
+            this.emit('message', JSON.parse(this.question.trim()));
             this.question = undefined;
         }
         const questionStart = cleanLine.match(/([\s\S]*?)<question>([\s\S]*?)/);
@@ -141,7 +141,7 @@ export class Aider extends EventEmitter {
             if (questionEnd) {
                 const endMatch = (questionEnd.index ?? 0) + questionEnd[1].length;
                 const startMatch = (questionStart.index ?? 0) + questionStart[0].length;
-                this.emit('message', JSON.parse(cleanLine.slice(startMatch, endMatch)));
+                this.emit('message', JSON.parse(cleanLine.slice(startMatch, endMatch).trim()));
             } else {
                 this.question = questionStart[2];
                 return;

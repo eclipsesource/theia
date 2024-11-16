@@ -33,6 +33,7 @@ export interface AssistantResponse extends BaseMessage {
 
 export interface Question extends BaseMessage {
     type: 'question';
+    subject?: string;
     options: ('yes' | 'no' | 'all' | 'skip' | "don't")[];
 }
 

@@ -84,7 +84,12 @@ export class AiderChatAgent implements ChatAgent {
                         switch (type) {
                             case 'question': {
                                 this.currentRequest?.response.response.addContent(
-                                    new QuestionChatResponseContentImpl(message.text, this.currentRequest.session.id, message.options, this.currentRequest.agentId)
+                                    new QuestionChatResponseContentImpl
+                                        (message.subject ? `${message.subject} ${message.text}` : message.text,
+                                            this.currentRequest.session.id,
+                                            message.options,
+                                            this.currentRequest.agentId
+                                        )
                                 );
                                 break;
                             }
