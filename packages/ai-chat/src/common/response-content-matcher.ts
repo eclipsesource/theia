@@ -55,11 +55,11 @@ export interface ResponseContentMatcher {
 }
 
 export const CodeContentMatcher: ResponseContentMatcher = {
-    start: /^```.*?$/m,
-    end: /^```$/m,
+    start: /^\s*```.*?$/m,
+    end: /^\s*```$/m,
     contentFactory: (content: string) => {
-        const language = content.match(/^```(\w+)/)?.[1] || '';
-        const code = content.replace(/^```(\w+)\n|```$/g, '');
+        const language = content.match(/^\s*```(\w+)/)?.[1] || '';
+        const code = content.replace(/^\s*```(\w+)\n|\s*```$/g, '');
         return new CodeChatResponseContentImpl(code.trim(), language);
     }
 };

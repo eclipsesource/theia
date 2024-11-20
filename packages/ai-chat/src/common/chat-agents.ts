@@ -340,6 +340,10 @@ export abstract class AbstractStreamParsingChatAgent extends AbstractChatAgent {
     }
 
     protected async addStreamResponse(languageModelResponse: LanguageModelStreamResponse, request: ChatRequestModelImpl): Promise<void> {
+        // Number of tokens before we parse the answer again
+        const PARSE_THRESHOLD = 10;
+        let unparsedTokens = 0;
+
         for await (const token of languageModelResponse.stream) {
             const newContents = this.parse(token, request.response.response.content);
             if (isArray(newContents)) {
@@ -347,22 +351,31 @@ export abstract class AbstractStreamParsingChatAgent extends AbstractChatAgent {
             } else {
                 request.response.response.addContent(newContents);
             }
+            // Throttle the parsing to only parse after `parseThrottle` number of tokens
+            unparsedTokens += 1;
+            if (unparsedTokens >= PARSE_THRESHOLD) {
+                await this.parseStreamResponse(request);
+                unparsedTokens = 0;
+            }
+        }
+        // Run a final parse to ensure all content is parsed
+        await this.parseStreamResponse(request);
+    }
 
-            const lastContent = request.response.response.content.pop();
-            if (lastContent === undefined) {
-                return;
-            }
-            const text = lastContent.asString?.();
-            if (text === undefined) {
-                return;
-            }
-
-            const result: ChatResponseContent[] = findFirstMatch(this.contentMatchers, text) ? this.parseContents(text) : [];
-            if (result.length > 0) {
-                request.response.response.addContents(result);
-            } else {
-                request.response.response.addContent(lastContent);
-            }
+    protected async parseStreamResponse(request: ChatRequestModelImpl): Promise<void> {
+        const lastContent = request.response.response.content.pop();
+        if (lastContent === undefined) {
+            return;
+        }
+        const text = lastContent.asString?.();
+        if (text === undefined) {
+            return;
+        }
+        const result: ChatResponseContent[] = findFirstMatch(this.contentMatchers, text) ? this.parseContents(text) : [];
+        if (result.length > 0) {
+            request.response.response.addContents(result);
+        } else {
+            request.response.response.addContent(lastContent);
         }
     }
 
