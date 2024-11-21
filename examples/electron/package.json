@@ -34,6 +34,7 @@
     "@theia/ai-llamafile": "1.56.0",
     "@theia/ai-ollama": "1.56.0",
     "@theia/ai-openai": "1.56.0",
+    "@theia/ai-scanoss": "1.55.0",
     "@theia/ai-terminal": "1.56.0",
     "@theia/ai-workspace-agent": "1.56.0",
     "@theia/api-provider-sample": "1.56.0",

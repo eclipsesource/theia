@@ -31,10 +31,15 @@ export class ScanOSSServiceImpl implements ScanOSSService {
             API_KEY: apiKey || process.env.SCANOSS_API_KEY || undefined,
             MAX_RESPONSES_IN_BUFFER: 1,
         } as ScannerCfg*/);
-        const results = await scanner.scanContents({
-            content,
-            key: 'content_scanning',
-        }) as unknown as ScanContentsResult<'/content_scanning'> | null;
+        let results = undefined;
+        try {
+            results = await scanner.scanContents({
+                content,
+                key: 'content_scanning',
+            }) as unknown as ScanContentsResult<'/content_scanning'> | null;
+        } catch (e) {
+            console.error('ScanOSS error', e);
+        }
         if (!results) {
             return {
                 type: 'error',
