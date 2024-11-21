@@ -30,6 +30,9 @@
       "path": "../../packages/ai-openai"
     },
     {
+      "path": "../../packages/ai-scanoss"
+    },
+    {
       "path": "../../packages/bulk-edit"
     },
     {

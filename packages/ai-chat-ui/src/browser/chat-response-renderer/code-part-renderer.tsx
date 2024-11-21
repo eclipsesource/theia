@@ -20,7 +20,7 @@ import {
     CodeChatResponseContent,
 } from '@theia/ai-chat/lib/common';
 import { MessageService, UntitledResourceResolver, URI } from '@theia/core';
-import { ContextMenuRenderer, Dialog, TreeNode } from '@theia/core/lib/browser';
+import { ContextMenuRenderer, Dialog, PreferenceService, TreeNode } from '@theia/core/lib/browser';
 import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
@@ -56,6 +56,8 @@ export class CodePartRenderer
     protected readonly scanService: ScanOSSService;
     @inject(MessageService)
     protected readonly messageService: MessageService;
+    @inject(PreferenceService)
+    protected readonly preferenceService: PreferenceService;
 
     canHandle(response: ChatResponseContent): number {
         if (CodeChatResponseContent.is(response)) {
@@ -74,7 +76,7 @@ export class CodePartRenderer
                     <div className="theia-CodePartRenderer-right">
                         <CopyToClipboardButton code={response.code} clipboardService={this.clipboardService} />
                         <InsertCodeAtCursorButton code={response.code} editorManager={this.editorManager} />
-                        <ScanOSSIntegration code={response.code} scanService={this.scanService} messageService={this.messageService} />
+                        <ScanOSSIntegration code={response.code} scanService={this.scanService} messageService={this.messageService} preferenceService={this.preferenceService} />
                     </div>
                 </div>
                 <div className="theia-CodePartRenderer-separator"></div>
@@ -161,27 +163,40 @@ const InsertCodeAtCursorButton = (props: { code: string, editorManager: EditorMa
     return <div className='button codicon codicon-insert' title='Insert at Cursor' role='button' onClick={insertCode}></div>;
 };
 
-const ScanOSSIntegration = (props: { code: string, scanService: ScanOSSService, messageService: MessageService }) => {
-    const [scanOSSResult, setScanOSSResult] = React.useState<ScanOSSResult>();
+const ScanOSSIntegration = (props: { code: string, scanService: ScanOSSService, messageService: MessageService, preferenceService: PreferenceService }) => {
+    const [automaticCheck] = React.useState(() => props.preferenceService.get('ai-features.scanoss.enableAutomaticCheck', false));
+    const [scanOSSResult, setScanOSSResult] = React.useState<ScanOSSResult | 'pending'>();
     const scanCode = React.useCallback(async () => {
-
+        setScanOSSResult('pending');
+        const result = await props.scanService.scanContent(props.code);
+        setScanOSSResult(result);
+        return result;
     }, [props.code, props.scanService]);
+
     React.useEffect(() => {
-        (async () => {
-            setScanOSSResult(undefined);
-            const result = await props.scanService.scanContent(props.code);
-            setScanOSSResult(result); scanCode();
-        })();
-    }, []);
-    const scanOSSClicked = React.useCallback(() => {
-        if (scanOSSResult && scanOSSResult.type === 'match') {
-            const dialog = new ScanOSSDialog(scanOSSResult);
+        if (!scanOSSResult && automaticCheck && props.preferenceService.get('ai-features.scanoss.enableAutomaticCheck', false)) {
+            scanCode();
+        }
+    }, [automaticCheck]);
+    const scanOSSClicked = React.useCallback(async () => {
+        let scanResult = scanOSSResult;
+        if (scanResult === 'pending') {
+            return;
+        }
+        if (!scanResult) {
+            scanResult = await scanCode();
+        }
+        if (scanResult && scanResult.type === 'match') {
+            const dialog = new ScanOSSDialog(scanResult);
             dialog.open();
         }
     }, [scanOSSResult]);
-    const title = scanOSSResult ? `SCANOSS - ${scanOSSResult.type}` : 'SCANOSS - Scan';
+    const title = scanOSSResult ? `SCANOSS - ${scanOSSResult === 'pending' ? scanOSSResult : scanOSSResult.type}` : 'SCANOSS - Perform scan';
     return <>
-        <div className={`button theia-scanoss-logo ${scanOSSResult ? scanOSSResult.type : 'requesting'}`} title={title} role='button' onClick={scanOSSClicked}>
+        <div
+            className={`button theia-scanoss-logo ${scanOSSResult === 'pending' ? 'pending' : scanOSSResult ? scanOSSResult.type : ''}`}
+            title={title} role='button'
+            onClick={scanOSSClicked}>
             <div className='codicon codicon-circle placeholder'></div>
         </div>
     </>;
