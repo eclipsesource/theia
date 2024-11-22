@@ -18,14 +18,16 @@ import {
     ChatAgentLocation,
     ChatAgentService,
     ChatRequestModelImpl,
-    MarkdownChatResponseContentImpl,
+    ChatResponseContent,
     QuestionChatResponseContentImpl,
     ToolCallChatResponseContentImpl
 } from '@theia/ai-chat/lib/common';
 import { PromptTemplate, AgentSpecificVariables, LanguageModelRequirement } from '@theia/ai-core';
-import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
+import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import { AiderConnector, AiderConnectorClient } from '../common/api';
-import { CancellationTokenSource } from '@theia/core';
+import { CancellationTokenSource, ContributionProvider } from '@theia/core';
+import { findFirstMatch, parseContents } from '@theia/ai-chat/lib/common/parse-contents';
+import { DefaultResponseContentFactory, ResponseContentMatcher, ResponseContentMatcherProvider } from '@theia/ai-chat/lib/common/response-content-matcher';
 
 @injectable()
 export class AiderChatAgent implements ChatAgent {
@@ -34,6 +36,11 @@ export class AiderChatAgent implements ChatAgent {
     protected aiderConnector: AiderConnector;
     @inject(AiderConnectorClient)
     protected aiderConnectorClient: AiderConnectorClient;
+    @inject(DefaultResponseContentFactory)
+    protected defaultContentFactory: DefaultResponseContentFactory;
+    @inject(ContributionProvider) @named(ResponseContentMatcherProvider)
+    protected contentMatcherProviders: ContributionProvider<ResponseContentMatcherProvider>;
+    protected contentMatchers: ResponseContentMatcher[] = [];
 
     readonly name: string;
     readonly description: string;
@@ -62,6 +69,8 @@ export class AiderChatAgent implements ChatAgent {
 
     @postConstruct()
     protected initialize(): void {
+        this.contentMatchers = this.contentMatcherProviders.getContributions().flatMap(provider => provider.matchers);
+
         this.aiderConnectorClient.onAiderMessage(message => {
             {
                 if (this.currentCancellationToken?.token.isCancellationRequested) {
@@ -100,16 +109,42 @@ export class AiderChatAgent implements ChatAgent {
                                 break;
                             }
                             default: {
-                                this.currentRequest?.response.response.addContent(new MarkdownChatResponseContentImpl(message.text));
+                                this.addDefaultContent(message.text);
+                                // this.currentRequest?.response.response.addContent(new MarkdownChatResponseContentImpl(message.text));
                             }
                         }
                         return;
                     }
-                    this.currentRequest?.response.response.addContent(new MarkdownChatResponseContentImpl(message));
+                    this.addDefaultContent(message);
+                    // this.currentRequest?.response.response.addContent(new MarkdownChatResponseContentImpl(message));
+
                 }
             }
         });
     }
+    private addDefaultContent(message: string): void {
+        const newContents = this.defaultContentFactory.create(message);
+        this.currentRequest?.response.response.addContent(newContents);
+        const lastContent = this.currentRequest?.response.response.content.pop();
+        if (lastContent === undefined) {
+            return;
+        }
+        const text = lastContent.asString?.();
+        if (text === undefined) {
+            return;
+        }
+        const result: ChatResponseContent[] = findFirstMatch(this.contentMatchers, text) ? parseContents(
+            text,
+            this.contentMatchers,
+            this.defaultContentFactory?.create.bind(this.defaultContentFactory)
+        ) : [];
+        if (result.length > 0) {
+            this.currentRequest?.response.response.addContents(result);
+        } else {
+            this.currentRequest?.response.response.addContent(lastContent);
+        }
+    }
+
     private currentCancellationToken?: CancellationTokenSource;
     private currentRequest?: ChatRequestModelImpl;
     private requestRunning: boolean = false;

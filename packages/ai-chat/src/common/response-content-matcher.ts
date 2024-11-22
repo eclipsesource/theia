@@ -60,7 +60,7 @@ export const CodeContentMatcher: ResponseContentMatcher = {
     end: /^```$/m,
     contentFactory: (content: string) => {
         const language = content.match(/^```(\w+)/)?.[1] || '';
-        const code = content.replace(/^```(\w+)\n|```$/g, '');
+        const code = content.replace(/^```(\w+)?\n|```$/g, '');
         return new CodeChatResponseContentImpl(code.trim(), language);
     }
 };
