@@ -36,6 +36,15 @@ import { IMouseEvent } from '@theia/monaco-editor-core';
 import { ScanOSSResult, ScanOSSResultMatch, ScanOSSService } from '@theia/scanoss';
 import { ReactDialog } from '@theia/core/lib/browser/dialogs/react-dialog';
 
+// cached map of scanOSS results. 'false' is stored when not (yet) requested deliberately
+type ScanOSSResults = Map<string, ScanOSSResult | false>;
+interface HasScanOSSResults {
+    scanOSSResults: ScanOSSResults
+}
+function hasScanOSSResults(obj: object): obj is HasScanOSSResults {
+    return 'scanOSSResults' in obj && obj.scanOSSResults instanceof Map;
+}
+
 @injectable()
 export class CodePartRenderer
     implements ChatResponsePartRenderer<CodeChatResponseContent> {
@@ -68,15 +77,27 @@ export class CodePartRenderer
 
     render(response: CodeChatResponseContent, parentNode: ResponseNode): ReactNode {
         const language = response.language ? this.languageService.getExtension(response.language) : undefined;
-
+        let scanOSSResults;
+        if (!hasScanOSSResults(parentNode.response)) {
+            scanOSSResults = new Map<string, ScanOSSResult>();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((parentNode.response) as unknown as any).scanOSSResults = scanOSSResults;
+        } else {
+            scanOSSResults = parentNode.response.scanOSSResults;
+        }
         return (
-            <div className="theia-CodePartRenderer-root">
+            <div className="theia-CodePartRenderer-root" >
                 <div className="theia-CodePartRenderer-top">
                     <div className="theia-CodePartRenderer-left">{this.renderTitle(response)}</div>
                     <div className="theia-CodePartRenderer-right">
                         <CopyToClipboardButton code={response.code} clipboardService={this.clipboardService} />
                         <InsertCodeAtCursorButton code={response.code} editorManager={this.editorManager} />
-                        <ScanOSSIntegration code={response.code} scanService={this.scanService} messageService={this.messageService} preferenceService={this.preferenceService} />
+                        <ScanOSSIntegration
+                            code={response.code}
+                            scanService={this.scanService}
+                            scanOSSResults={scanOSSResults}
+                            messageService={this.messageService}
+                            preferenceService={this.preferenceService} />
                     </div>
                 </div>
                 <div className="theia-CodePartRenderer-separator"></div>
@@ -163,19 +184,30 @@ const InsertCodeAtCursorButton = (props: { code: string, editorManager: EditorMa
     return <div className='button codicon codicon-insert' title='Insert at Cursor' role='button' onClick={insertCode}></div>;
 };
 
-const ScanOSSIntegration = (props: { code: string, scanService: ScanOSSService, messageService: MessageService, preferenceService: PreferenceService }) => {
+const ScanOSSIntegration = (props: {
+    code: string,
+    scanService: ScanOSSService,
+    scanOSSResults: ScanOSSResults,
+    messageService: MessageService,
+    preferenceService: PreferenceService
+}) => {
     const [automaticCheck] = React.useState(() => props.preferenceService.get('ai-features.scanoss.enableAutomaticCheck', false));
-    const [scanOSSResult, setScanOSSResult] = React.useState<ScanOSSResult | 'pending'>();
+    const [scanOSSResult, setScanOSSResult] = React.useState<ScanOSSResult | 'pending' | undefined | false>(props.scanOSSResults.get(props.code));
     const scanCode = React.useCallback(async () => {
         setScanOSSResult('pending');
         const result = await props.scanService.scanContent(props.code);
         setScanOSSResult(result);
+        props.scanOSSResults.set(props.code, result);
         return result;
     }, [props.code, props.scanService]);
 
     React.useEffect(() => {
-        if (!scanOSSResult && automaticCheck && props.preferenceService.get('ai-features.scanoss.enableAutomaticCheck', false)) {
-            scanCode();
+        if (scanOSSResult === undefined) {
+            if (automaticCheck) {
+                scanCode();
+            } else {
+                props.scanOSSResults.set(props.code, false);
+            }
         }
     }, [automaticCheck]);
     const scanOSSClicked = React.useCallback(async () => {
@@ -183,6 +215,7 @@ const ScanOSSIntegration = (props: { code: string, scanService: ScanOSSService, 
         if (scanResult === 'pending') {
             return;
         }
+        // undefined or false
         if (!scanResult) {
             scanResult = await scanCode();
         }
