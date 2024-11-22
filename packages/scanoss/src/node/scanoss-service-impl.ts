@@ -24,9 +24,25 @@ type ScanContentsResult<T extends string> = {
     [K in T]: ScannerComponent[];
 };
 
+// Helper class to perform scans sequentially
+class SequentialProcessor<T> {
+    private queue: Promise<T> = Promise.resolve() as Promise<T>;
+    public async processTask(task: () => Promise<T>): Promise<T> {
+        this.queue = this.queue.then(() => task());
+        return this.queue;
+    }
+}
+
 @injectable()
 export class ScanOSSServiceImpl implements ScanOSSService {
+
+    private readonly processor = new SequentialProcessor<ScanOSSResult>();
+
     async scanContent(content: string, apiKey?: string): Promise<ScanOSSResult> {
+        return this.processor.processTask(async () => this.doScanContent(content, apiKey));
+    }
+
+    async doScanContent(content: string, apiKey?: string): Promise<ScanOSSResult> {
         const scanner = new Scanner(/* {
             API_KEY: apiKey || process.env.SCANOSS_API_KEY || undefined,
             MAX_RESPONSES_IN_BUFFER: 1,
