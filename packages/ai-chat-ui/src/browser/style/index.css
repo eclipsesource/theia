@@ -279,6 +279,23 @@ div:last-child > .theia-ChatNode {
   background-color: var(--theia-input-border);
 }
 
+.theia-MyQuestionPartRenderer-root {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--theia-input-border);
+  border-radius: 4px;
+}
+.theia-MyQuestionPartRenderer-answers {
+  display: flex;
+  flex-direction: row;
+  justify-content: end;
+}
+.theia-MyQuestionPartRenderer-answer-button  {
+  padding: 0;
+  text-align: center;
+}
+
 .theia-QuestionPartRenderer-root {
   display: flex;
   flex-direction: column;

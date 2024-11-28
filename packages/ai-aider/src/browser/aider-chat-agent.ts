@@ -123,7 +123,7 @@ export class AiderChatAgent implements ChatAgent {
         });
     }
     private addDefaultContent(message: string): void {
-        const newContents = this.defaultContentFactory.create(message);
+        const newContents = this.defaultContentFactory.create(message, this.currentRequest!);
         this.currentRequest?.response.response.addContent(newContents);
         const lastContent = this.currentRequest?.response.response.content.pop();
         if (lastContent === undefined) {
@@ -135,8 +135,7 @@ export class AiderChatAgent implements ChatAgent {
         }
         const result: ChatResponseContent[] = findFirstMatch(this.contentMatchers, text) ? parseContents(
             text,
-            this.contentMatchers,
-            this.defaultContentFactory?.create.bind(this.defaultContentFactory)
+            this.currentRequest!
         ) : [];
         if (result.length > 0) {
             this.currentRequest?.response.response.addContents(result);

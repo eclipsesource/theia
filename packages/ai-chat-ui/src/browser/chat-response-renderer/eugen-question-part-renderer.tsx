@@ -32,12 +32,12 @@ export class MyQuestionPartRenderer implements ChatResponsePartRenderer<Question
         return -1;
     }
     render(response: QuestionChatResponseContent): ReactNode {
-        return <div className="theia-QuestionPartRenderer-root">
+        return <div className="theia-MyQuestionPartRenderer-root">
             {response.content}
-            <div className="theia-QuestionPartRenderer-answers">
+            <div className="theia-MyQuestionPartRenderer-answers">
                 {response.options?.map(option =>
                     <div
-                        className='theia-button theia-QuestionPartRenderer-answer-button'
+                        className='theia-button theia-MyQuestionPartRenderer-answer-button'
                         title={option}
                         role='button'
                         onClick={() => { this.sendAnswer(option, response.sessionId, response.agentId); }}
