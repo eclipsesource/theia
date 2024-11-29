@@ -46,7 +46,8 @@ export class PreferenceTreeGenerator {
         ['features', 'Features'],
         ['application', 'Application'],
         ['security', 'Security'],
-        ['extensions', 'Extensions']
+        ['extensions', 'Extensions'],
+        ['my-own-category', 'My Own Category']
     ]);
     protected readonly sectionAssignments = new Map([
         ['breadcrumbs', 'workbench'],
@@ -66,12 +67,12 @@ export class PreferenceTreeGenerator {
         ['scm', 'features'],
         ['search', 'features'],
         ['task', 'features'],
-        ['terminal', 'features'],
+        ['terminal', 'my-own-category'],
         ['toolbar', 'features'],
         ['webview', 'features'],
         ['workspace', 'application'],
     ]);
-    protected readonly defaultTopLevelCategory = 'extensions';
+    protected readonly defaultTopLevelCategory = 'my-own-category';
 
     get root(): CompositeTreeNode {
         return this._root ?? this.generateTree();

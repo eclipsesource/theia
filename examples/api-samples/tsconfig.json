@@ -28,6 +28,9 @@
       "path": "../../packages/output"
     },
     {
+      "path": "../../packages/preferences"
+    },
+    {
       "path": "../../packages/search-in-workspace"
     },
     {

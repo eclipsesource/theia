@@ -30,6 +30,7 @@ import { rebindOVSXClientFactory } from '../common/vsx/sample-ovsx-client-factor
 import { bindSampleAppInfo } from './vsx/sample-frontend-app-info';
 import { bindTestSample } from './test/sample-test-contribution';
 import { bindSampleFileSystemCapabilitiesCommands } from './file-system/sample-file-system-capabilities';
+import { bindMyPreferenceTreeGenerator } from './preference-tree-generator/my-preference-tree-generator';
 
 export default new ContainerModule((
     bind: interfaces.Bind,
@@ -50,4 +51,5 @@ export default new ContainerModule((
     bindTestSample(bind);
     bindSampleFileSystemCapabilitiesCommands(bind);
     rebindOVSXClientFactory(rebind);
+    bindMyPreferenceTreeGenerator(bind, unbind, isBound, rebind);
 });
