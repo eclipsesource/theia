@@ -9,6 +9,9 @@
       "path": "../../dev-packages/cli"
     },
     {
+      "path": "../../packages/ai-anthropic"
+    },
+    {
       "path": "../../packages/ai-chat"
     },
     {
@@ -28,6 +31,9 @@
     },
     {
       "path": "../../packages/ai-llamafile"
+    },
+    {
+      "path": "../../packages/ai-mcp"
     },
     {
       "path": "../../packages/ai-ollama"
