@@ -4,7 +4,10 @@
   "description": "Theia - ScanOSS AI Integration",
   "dependencies": {
     "@theia/core": "1.56.0",
-    "@theia/ai-core": "1.56.0"
+    "@theia/ai-core": "1.56.0",
+    "@theia/ai-chat": "1.56.0",
+    "@theia/ai-chat-ui": "1.56.0",
+    "@theia/scanoss": "1.56.0"
   },
   "publishConfig": {
     "access": "public"

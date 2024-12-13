@@ -14,15 +14,14 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-
 import {
     ChatResponseContent,
     CodeChatResponseContent,
 } from '@theia/ai-chat/lib/common';
-import { MessageService, UntitledResourceResolver, URI } from '@theia/core';
-import { ContextMenuRenderer, Dialog, PreferenceService, TreeNode } from '@theia/core/lib/browser';
+import { ContributionProvider, UntitledResourceResolver, URI } from '@theia/core';
+import { ContextMenuRenderer, TreeNode } from '@theia/core/lib/browser';
 import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
-import { inject, injectable } from '@theia/core/shared/inversify';
+import { inject, injectable, named } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
 import { ReactNode } from '@theia/core/shared/react';
 import { Position } from '@theia/core/shared/vscode-languageserver-protocol';
@@ -33,24 +32,26 @@ import { MonacoLanguages } from '@theia/monaco/lib/browser/monaco-languages';
 import { ChatResponsePartRenderer } from '../chat-response-part-renderer';
 import { ChatViewTreeWidget, ResponseNode } from '../chat-tree-view/chat-view-tree-widget';
 import { IMouseEvent } from '@theia/monaco-editor-core';
-import { ScanOSSResult, ScanOSSResultMatch, ScanOSSService } from '@theia/scanoss';
-import { ReactDialog } from '@theia/core/lib/browser/dialogs/react-dialog';
 
-// cached map of scanOSS results. 'false' is stored when not (yet) requested deliberately
-type ScanOSSResults = Map<string, ScanOSSResult | false>;
-interface HasScanOSSResults {
-    scanOSSResults: ScanOSSResults
-}
-function hasScanOSSResults(obj: object): obj is HasScanOSSResults {
-    return 'scanOSSResults' in obj && obj.scanOSSResults instanceof Map;
+export const CodePartRendererAction = Symbol('CodePartRendererAction');
+/**
+ * The CodePartRenderer offers to contribute arbitrary React nodes to the rendered code part.
+ * Technically anything can be rendered, however it is intended to be used for actions, like
+ * "Copy to Clipboard" or "Insert at Cursor".
+ */
+export interface CodePartRendererAction {
+    render(response: CodeChatResponseContent, parentNode: ResponseNode): ReactNode;
+    /**
+     *  The priority determines the order in which the actions are rendered.
+     *  The default priorities are 10 and 20.
+     */
+    priority: number;
 }
 
 @injectable()
 export class CodePartRenderer
     implements ChatResponsePartRenderer<CodeChatResponseContent> {
 
-    @inject(ClipboardService)
-    protected readonly clipboardService: ClipboardService;
     @inject(EditorManager)
     protected readonly editorManager: EditorManager;
     @inject(UntitledResourceResolver)
@@ -61,12 +62,8 @@ export class CodePartRenderer
     protected readonly languageService: MonacoLanguages;
     @inject(ContextMenuRenderer)
     protected readonly contextMenuRenderer: ContextMenuRenderer;
-    @inject(ScanOSSService)
-    protected readonly scanService: ScanOSSService;
-    @inject(MessageService)
-    protected readonly messageService: MessageService;
-    @inject(PreferenceService)
-    protected readonly preferenceService: PreferenceService;
+    @inject(ContributionProvider) @named(CodePartRendererAction)
+    protected readonly codePartRendererActions: ContributionProvider<CodePartRendererAction>;
 
     canHandle(response: ChatResponseContent): number {
         if (CodeChatResponseContent.is(response)) {
@@ -77,27 +74,14 @@ export class CodePartRenderer
 
     render(response: CodeChatResponseContent, parentNode: ResponseNode): ReactNode {
         const language = response.language ? this.languageService.getExtension(response.language) : undefined;
-        let scanOSSResults;
-        if (!hasScanOSSResults(parentNode.response)) {
-            scanOSSResults = new Map<string, ScanOSSResult>();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ((parentNode.response) as unknown as any).scanOSSResults = scanOSSResults;
-        } else {
-            scanOSSResults = parentNode.response.scanOSSResults;
-        }
         return (
             <div className="theia-CodePartRenderer-root" >
                 <div className="theia-CodePartRenderer-top">
                     <div className="theia-CodePartRenderer-left">{this.renderTitle(response)}</div>
-                    <div className="theia-CodePartRenderer-right">
-                        <CopyToClipboardButton code={response.code} clipboardService={this.clipboardService} />
-                        <InsertCodeAtCursorButton code={response.code} editorManager={this.editorManager} />
-                        <ScanOSSIntegration
-                            code={response.code}
-                            scanService={this.scanService}
-                            scanOSSResults={scanOSSResults}
-                            messageService={this.messageService}
-                            preferenceService={this.preferenceService} />
+                    <div className="theia-CodePartRenderer-right theia-CodePartRenderer-actions">
+                        {this.codePartRendererActions.getContributions()
+                            .sort((a, b) => a.priority - b.priority)
+                            .map(action => action.render(response, parentNode))}
                     </div>
                 </div>
                 <div className="theia-CodePartRenderer-separator"></div>
@@ -154,6 +138,16 @@ export class CodePartRenderer
     }
 }
 
+@injectable()
+export class CopyToClipboardButtonAction implements CodePartRendererAction {
+    @inject(ClipboardService)
+    protected readonly clipboardService: ClipboardService;
+    priority = 10;
+    render(response: CodeChatResponseContent): ReactNode {
+        return <CopyToClipboardButton code={response.code} clipboardService={this.clipboardService} />;
+    }
+}
+
 const CopyToClipboardButton = (props: { code: string, clipboardService: ClipboardService }) => {
     const { code, clipboardService } = props;
     const copyCodeToClipboard = React.useCallback(() => {
@@ -161,6 +155,16 @@ const CopyToClipboardButton = (props: { code: string, clipboardService: Clipboar
     }, [code, clipboardService]);
     return <div className='button codicon codicon-copy' title='Copy' role='button' onClick={copyCodeToClipboard}></div>;
 };
+
+@injectable()
+export class InsertCodeAtCursorButtonAction implements CodePartRendererAction {
+    @inject(EditorManager)
+    protected readonly editorManager: EditorManager;
+    priority = 20;
+    render(response: CodeChatResponseContent): ReactNode {
+        return <InsertCodeAtCursorButton code={response.code} editorManager={this.editorManager} />;
+    }
+}
 
 const InsertCodeAtCursorButton = (props: { code: string, editorManager: EditorManager }) => {
     const { code, editorManager } = props;
@@ -182,57 +186,6 @@ const InsertCodeAtCursorButton = (props: { code: string, editorManager: EditorMa
         }
     }, [code, editorManager]);
     return <div className='button codicon codicon-insert' title='Insert at Cursor' role='button' onClick={insertCode}></div>;
-};
-
-const ScanOSSIntegration = (props: {
-    code: string,
-    scanService: ScanOSSService,
-    scanOSSResults: ScanOSSResults,
-    messageService: MessageService,
-    preferenceService: PreferenceService
-}) => {
-    const [automaticCheck] = React.useState(() => props.preferenceService.get('ai-features.scanoss.enableAutomaticCheck', false));
-    const [scanOSSResult, setScanOSSResult] = React.useState<ScanOSSResult | 'pending' | undefined | false>(props.scanOSSResults.get(props.code));
-    const scanCode = React.useCallback(async () => {
-        setScanOSSResult('pending');
-        const result = await props.scanService.scanContent(props.code);
-        setScanOSSResult(result);
-        props.scanOSSResults.set(props.code, result);
-        return result;
-    }, [props.code, props.scanService]);
-
-    React.useEffect(() => {
-        if (scanOSSResult === undefined) {
-            if (automaticCheck) {
-                scanCode();
-            } else {
-                props.scanOSSResults.set(props.code, false);
-            }
-        }
-    }, [automaticCheck]);
-    const scanOSSClicked = React.useCallback(async () => {
-        let scanResult = scanOSSResult;
-        if (scanResult === 'pending') {
-            return;
-        }
-        // undefined or false
-        if (!scanResult) {
-            scanResult = await scanCode();
-        }
-        if (scanResult && scanResult.type === 'match') {
-            const dialog = new ScanOSSDialog(scanResult);
-            dialog.open();
-        }
-    }, [scanOSSResult]);
-    const title = scanOSSResult ? `SCANOSS - ${scanOSSResult === 'pending' ? scanOSSResult : scanOSSResult.type}` : 'SCANOSS - Perform scan';
-    return <>
-        <div
-            className={`button theia-scanoss-logo ${scanOSSResult === 'pending' ? 'pending' : scanOSSResult ? scanOSSResult.type : ''}`}
-            title={title} role='button'
-            onClick={scanOSSClicked}>
-            <div className='codicon codicon-circle placeholder'></div>
-        </div>
-    </>;
 };
 
 /**
@@ -291,38 +244,3 @@ export const CodeWrapper = (props: {
 
     return <div className='theia-CodeWrapper' ref={ref}></div>;
 };
-
-export class ScanOSSDialog extends ReactDialog<void> {
-    protected readonly okButton: HTMLButtonElement;
-
-    constructor(protected result: ScanOSSResultMatch) {
-        super({
-            title: 'SCANOSS Results'
-        });
-        this.appendAcceptButton(Dialog.OK);
-        this.update();
-    }
-
-    protected renderHeader(): React.ReactNode {
-        return <>
-            <div className='theia-scanoss-logo'></div>
-            <h3>SCANOSS Results</h3>
-            <div>Found a {this.result.matched} match in <a href={this.result.url}>${this.result.url}</a></div>
-        </>;
-    }
-
-    protected render(): React.ReactNode {
-        return <div>
-            {this.renderHeader()}
-            {this.renderContent()}
-        </div>;
-    }
-
-    protected renderContent(): React.ReactNode {
-        return <pre>
-            {JSON.stringify(this.result.raw, null, 2)};
-        </pre>;
-    }
-
-    get value(): undefined { return undefined; }
-}
