@@ -17,12 +17,12 @@
 import { injectable } from '@theia/core/shared/inversify';
 import { ScanOSSResult, ScanOSSService } from '../common';
 
-import { Scanner, ScannerComponent } from 'scanoss';
+import { Scanner, ScannerCfg, ScannerComponent } from 'scanoss';
 
 // Define our own type of what is actually returned by the scanner
-type ScanContentsResult<T extends string> = {
-    [K in T]: ScannerComponent[];
-};
+interface ScanOSSScanner {
+    scanContents: <T extends string>(options: { content: string; key: T }) => Promise<{ [K in `/${T}`]: ScannerComponent[] } | null>;
+}
 
 // Helper class to perform scans sequentially
 class SequentialProcessor<T> {
@@ -43,18 +43,37 @@ export class ScanOSSServiceImpl implements ScanOSSService {
     }
 
     async doScanContent(content: string, apiKey?: string): Promise<ScanOSSResult> {
-        const scanner = new Scanner(/* {
-            API_KEY: apiKey || process.env.SCANOSS_API_KEY || undefined,
-            MAX_RESPONSES_IN_BUFFER: 1,
-        } as ScannerCfg*/);
+        const config = new ScannerCfg();
+        const apiKeyToUse = apiKey || process.env.SCANOSS_API_KEY || undefined;
+        if (apiKeyToUse) {
+            config.API_KEY = apiKeyToUse;
+        }
+        const scanner = new Scanner(config);
         let results = undefined;
         try {
-            results = await scanner.scanContents({
+            results = await (scanner as unknown as ScanOSSScanner).scanContents({
                 content,
                 key: 'content_scanning',
-            }) as unknown as ScanContentsResult<'/content_scanning'> | null;
+            });
         } catch (e) {
-            console.error('ScanOSS error', e);
+            console.error('SCANOSS error', e);
+            // map known errors to a more user-friendly message
+            if (e.message?.includes('Forbidden')) {
+                return {
+                    type: 'error',
+                    message: 'Forbidden: Please check your API key'
+                };
+            }
+            if (e.message?.includes('rate')) {
+                return {
+                    type: 'error',
+                    message: 'You have reached the limit of the free data subscription, for a commercial subscription please contact support@scanoss.com'
+                };
+            }
+            return {
+                type: 'error',
+                message: e.message
+            };
         }
         if (!results) {
             return {
@@ -64,7 +83,7 @@ export class ScanOSSServiceImpl implements ScanOSSService {
         }
 
         // eslint-disable-next-line no-null/no-null
-        console.log('ScanOSS results', JSON.stringify(results, null, 2));
+        console.log('SCANOSS results', JSON.stringify(results, null, 2));
 
         // first result is the best result
         const firstEntry = results['/content_scanning'][0];

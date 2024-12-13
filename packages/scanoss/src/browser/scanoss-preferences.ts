@@ -16,16 +16,16 @@
 
 import { PreferenceSchema } from '@theia/core/lib/browser/preferences';
 
-export const API_KEY_PREF = 'scanoss.apiKey';
+export const SCAN_OSS_API_KEY_PREF = 'SCANOSS.apiKey';
 
 export const ScanOSSPreferencesSchema: PreferenceSchema = {
     type: 'object',
     properties: {
-        [API_KEY_PREF]: {
+        [SCAN_OSS_API_KEY_PREF]: {
             type: 'string',
-            markdownDescription: 'Enter an API Key of your ScanOSS  Account. **Please note:** By using this preference the key will be stored in clear text\
+            markdownDescription: 'Enter an API Key of your SCANOSS  Account. **Please note:** By using this preference the key will be stored in clear text\
             on the machine running Theia. Use the environment variable `SCANOSS_API_KEY` to set the key securely.',
-            title: 'ScanOSS API Key'
+            title: 'SCANOSS API Key'
         }
     }
 };

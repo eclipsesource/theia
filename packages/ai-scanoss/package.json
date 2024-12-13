@@ -1,7 +1,7 @@
 {
   "name": "@theia/ai-scanoss",
   "version": "1.56.0",
-  "description": "Theia - ScanOSS AI Integration",
+  "description": "Theia - SCANOSS AI Integration",
   "dependencies": {
     "@theia/core": "1.56.0",
     "@theia/ai-core": "1.56.0",

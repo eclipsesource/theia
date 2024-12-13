@@ -17,7 +17,7 @@
 import { PreferenceSchema } from '@theia/core/lib/browser/preferences';
 import { AI_CORE_PREFERENCES_TITLE } from '@theia/ai-core/lib/browser/ai-core-preferences';
 
-export const AUTOMATIC_CHECK_PREF = 'ai-features.scanoss.enableAutomaticCheck';
+export const AUTOMATIC_CHECK_PREF = 'ai-features.SCANOSS.enableAutomaticCheck';
 
 export const AIScanOSSPreferencesSchema: PreferenceSchema = {
     type: 'object',

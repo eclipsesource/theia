@@ -27,6 +27,8 @@ import { ReactNode } from '@theia/core/shared/react';
 import { ResponseNode } from '@theia/ai-chat-ui/lib/browser/chat-tree-view';
 import * as React from '@theia/core/shared/react';
 import { ReactDialog } from '@theia/core/lib/browser/dialogs/react-dialog';
+import { AUTOMATIC_CHECK_PREF } from './ai-scanoss-preferences';
+import { SCAN_OSS_API_KEY_PREF } from '@theia/scanoss/lib/browser/scanoss-preferences';
 
 // cached map of scanOSS results.
 // 'false' is stored when not automatic check is off and it was not (yet) requested deliberately.
@@ -86,7 +88,7 @@ const ScanOSSIntegration = (props: {
 }) => {
     const [automaticCheck] = React.useState(() =>
         props.preferenceService.get(
-            'ai-features.scanoss.enableAutomaticCheck',
+            AUTOMATIC_CHECK_PREF,
             false
         )
     );
@@ -95,7 +97,7 @@ const ScanOSSIntegration = (props: {
     >(props.scanOSSResults.get(props.code));
     const scanCode = React.useCallback(async () => {
         setScanOSSResult('pending');
-        const result = await props.scanService.scanContent(props.code);
+        const result = await props.scanService.scanContent(props.code, props.preferenceService.get(SCAN_OSS_API_KEY_PREF, undefined));
         setScanOSSResult(result);
         props.scanOSSResults.set(props.code, result);
         return result;
@@ -123,14 +125,22 @@ const ScanOSSIntegration = (props: {
             dialog.open();
         }
     }, [scanOSSResult]);
-    const title = scanOSSResult
-        ? `SCANOSS - ${scanOSSResult === 'pending' ? scanOSSResult : scanOSSResult.type
-        }`
-        : 'SCANOSS - Perform scan';
+    let title = 'SCANOSS - Perform scan';
+    if (scanOSSResult) {
+        if (scanOSSResult === 'pending') {
+            title = 'SCANOSS - Performing scan...';
+        } else if (scanOSSResult.type === 'error') {
+            title = `SCANOSS - Error - ${scanOSSResult.message}`;
+        } else if (scanOSSResult.type === 'match') {
+            title = `SCANOSS - Found ${scanOSSResult.matched} match`;
+        } else if (scanOSSResult.type === 'clean') {
+            title = 'SCANOSS - No match';
+        }
+    }
     return (
         <>
             <div
-                className={`button theia-scanoss-logo show-check icon-container ${scanOSSResult === 'pending'
+                className={`button scanoss-logo show-check icon-container ${scanOSSResult === 'pending'
                     ? 'pending'
                     : scanOSSResult
                         ? scanOSSResult.type
@@ -164,36 +174,52 @@ export class ScanOSSDialog extends ReactDialog<void> {
         this.update();
     }
 
-    protected renderHeader(): React.ReactNode {
+    protected render(): React.ReactNode {
         return (
-            <>
-                <div className="theia-scanoss-logo"></div>
-                <h3>SCANOSS Results</h3>
-                <div>
-                    Found a {this.result.matched} match in
-                    <a href={this.result.url}>${this.result.url}</a>
-                </div>
-            </>
+            <div className="scanoss-dialog-container">
+                {this.renderHeader()}
+                {this.renderSummary()}
+                {this.renderContent()}
+            </div>
         );
     }
 
-    protected render(): React.ReactNode {
+    protected renderHeader(): React.ReactNode {
         return (
-            <div>
-                {this.renderHeader()}
-                {this.renderContent()}
+            <div className="scanoss-header">
+                <div className="scanoss-logo-container">
+                    <div className="scanoss-logo"></div>
+                    <h2>SCANOSS</h2>
+                </div>
+            </div>
+        );
+    }
+
+    protected renderSummary(): React.ReactNode {
+        return (
+            <div className="scanoss-summary">
+                <h3>Summary</h3>
+                <div>
+                    Found a {this.result.matched} match in{' '}
+                    <a href={this.result.url} target="_blank" rel="noopener noreferrer">
+                        {this.result.url}
+                    </a>
+                </div>
             </div>
         );
     }
 
     protected renderContent(): React.ReactNode {
         return (
-            <pre>
-                {
-                    // eslint-disable-next-line no-null/no-null
-                    JSON.stringify(this.result.raw, null, 2)
-                }
-            </pre>
+            <div className="scanoss-details">
+                <h4>Details</h4>
+                <pre>
+                    {
+                        // eslint-disable-next-line no-null/no-null
+                        JSON.stringify(this.result.raw, null, 2)
+                    }
+                </pre>
+            </div>
         );
     }
 
