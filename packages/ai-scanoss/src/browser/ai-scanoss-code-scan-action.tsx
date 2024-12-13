@@ -16,7 +16,11 @@
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { CodeChatResponseContent } from '@theia/ai-chat';
 import { CodePartRendererAction } from '@theia/ai-chat-ui/lib/browser/chat-response-renderer';
-import { ScanOSSResult, ScanOSSResultMatch, ScanOSSService } from '@theia/scanoss';
+import {
+    ScanOSSResult,
+    ScanOSSResultMatch,
+    ScanOSSService,
+} from '@theia/scanoss';
 import { Dialog, PreferenceService } from '@theia/core/lib/browser';
 import { MessageService } from '@theia/core';
 import { ReactNode } from '@theia/core/shared/react';
@@ -28,10 +32,12 @@ import { ReactDialog } from '@theia/core/lib/browser/dialogs/react-dialog';
 // 'false' is stored when not automatic check is off and it was not (yet) requested deliberately.
 type ScanOSSResults = Map<string, ScanOSSResult | false>;
 interface HasScanOSSResults {
-    scanOSSResults: ScanOSSResults
+    scanOSSResults: ScanOSSResults;
     [key: string]: unknown;
 }
-function hasScanOSSResults(data: { [key: string]: unknown }): data is HasScanOSSResults {
+function hasScanOSSResults(data: {
+    [key: string]: unknown;
+}): data is HasScanOSSResults {
     return 'scanOSSResults' in data && data.scanOSSResults instanceof Map;
 }
 
@@ -45,30 +51,48 @@ export class ScanOSSScanButtonAction implements CodePartRendererAction {
     protected readonly preferenceService: PreferenceService;
 
     priority = 30;
-    render(response: CodeChatResponseContent, parentNode: ResponseNode): ReactNode {
+    render(
+        response: CodeChatResponseContent,
+        parentNode: ResponseNode
+    ): ReactNode {
         if (!hasScanOSSResults(parentNode.response.data)) {
-            parentNode.response.data.scanOSSResults = new Map<string, ScanOSSResult>();
+            parentNode.response.data.scanOSSResults = new Map<
+                string,
+                ScanOSSResult
+            >();
         }
-        const scanOSSResults = parentNode.response.data.scanOSSResults as ScanOSSResults;
+        const scanOSSResults = parentNode.response.data
+            .scanOSSResults as ScanOSSResults;
 
-        return (<ScanOSSIntegration
-            code={response.code}
-            scanService={this.scanService}
-            scanOSSResults={scanOSSResults}
-            messageService={this.messageService}
-            preferenceService={this.preferenceService} />);
+        return (
+            <ScanOSSIntegration
+                key='scanoss'
+                code={response.code}
+                scanService={this.scanService}
+                scanOSSResults={scanOSSResults}
+                messageService={this.messageService}
+                preferenceService={this.preferenceService}
+            />
+        );
     }
 }
 
 const ScanOSSIntegration = (props: {
-    code: string,
-    scanService: ScanOSSService,
-    scanOSSResults: ScanOSSResults,
-    messageService: MessageService,
-    preferenceService: PreferenceService
+    code: string;
+    scanService: ScanOSSService;
+    scanOSSResults: ScanOSSResults;
+    messageService: MessageService;
+    preferenceService: PreferenceService;
 }) => {
-    const [automaticCheck] = React.useState(() => props.preferenceService.get('ai-features.scanoss.enableAutomaticCheck', false));
-    const [scanOSSResult, setScanOSSResult] = React.useState<ScanOSSResult | 'pending' | undefined | false>(props.scanOSSResults.get(props.code));
+    const [automaticCheck] = React.useState(() =>
+        props.preferenceService.get(
+            'ai-features.scanoss.enableAutomaticCheck',
+            false
+        )
+    );
+    const [scanOSSResult, setScanOSSResult] = React.useState<
+        ScanOSSResult | 'pending' | undefined | false
+    >(props.scanOSSResults.get(props.code));
     const scanCode = React.useCallback(async () => {
         setScanOSSResult('pending');
         const result = await props.scanService.scanContent(props.code);
@@ -91,8 +115,7 @@ const ScanOSSIntegration = (props: {
         if (scanResult === 'pending') {
             return;
         }
-        // undefined or false
-        if (!scanResult) {
+        if (!scanResult || scanResult.type === 'error') {
             scanResult = await scanCode();
         }
         if (scanResult && scanResult.type === 'match') {
@@ -100,15 +123,34 @@ const ScanOSSIntegration = (props: {
             dialog.open();
         }
     }, [scanOSSResult]);
-    const title = scanOSSResult ? `SCANOSS - ${scanOSSResult === 'pending' ? scanOSSResult : scanOSSResult.type}` : 'SCANOSS - Perform scan';
-    return <>
-        <div
-            className={`button theia-scanoss-logo ${scanOSSResult === 'pending' ? 'pending' : scanOSSResult ? scanOSSResult.type : ''}`}
-            title={title} role='button'
-            onClick={scanOSSClicked} >
-            <div className='codicon codicon-circle placeholder' > </div>
-        </div>
-    </>;
+    const title = scanOSSResult
+        ? `SCANOSS - ${scanOSSResult === 'pending' ? scanOSSResult : scanOSSResult.type
+        }`
+        : 'SCANOSS - Perform scan';
+    return (
+        <>
+            <div
+                className={`button theia-scanoss-logo show-check icon-container ${scanOSSResult === 'pending'
+                    ? 'pending'
+                    : scanOSSResult
+                        ? scanOSSResult.type
+                        : ''
+                    }`}
+                title={title}
+                role="button"
+                onClick={scanOSSClicked}
+            >
+                <div className="codicon codicon-circle placeholder" />
+                {scanOSSResult && scanOSSResult !== 'pending' && (
+                    <span className="status-icon">
+                        {scanOSSResult.type === 'clean' && <span className="codicon codicon-pass-filled" />}
+                        {scanOSSResult.type === 'match' && <span className="codicon codicon-warning" />}
+                        {scanOSSResult.type === 'error' && <span className="codicon codicon-error" />}
+                    </span>
+                )}
+            </div>
+        </>
+    );
 };
 
 export class ScanOSSDialog extends ReactDialog<void> {
@@ -116,35 +158,46 @@ export class ScanOSSDialog extends ReactDialog<void> {
 
     constructor(protected result: ScanOSSResultMatch) {
         super({
-            title: 'SCANOSS Results'
+            title: 'SCANOSS Results',
         });
         this.appendAcceptButton(Dialog.OK);
         this.update();
     }
 
     protected renderHeader(): React.ReactNode {
-        return <>
-            <div className='theia-scanoss-logo'></div>
-            <h3>SCANOSS Results</h3>
-            <div>Found a {this.result.matched} match in <a href={this.result.url}>${this.result.url}</a></div>
-        </>;
+        return (
+            <>
+                <div className="theia-scanoss-logo"></div>
+                <h3>SCANOSS Results</h3>
+                <div>
+                    Found a {this.result.matched} match in
+                    <a href={this.result.url}>${this.result.url}</a>
+                </div>
+            </>
+        );
     }
 
     protected render(): React.ReactNode {
-        return <div>
-            {this.renderHeader()}
-            {this.renderContent()}
-        </div>;
+        return (
+            <div>
+                {this.renderHeader()}
+                {this.renderContent()}
+            </div>
+        );
     }
 
     protected renderContent(): React.ReactNode {
-        return <pre>
-            {
-                // eslint-disable-next-line no-null/no-null
-                JSON.stringify(this.result.raw, null, 2)
-            };
-        </pre>;
+        return (
+            <pre>
+                {
+                    // eslint-disable-next-line no-null/no-null
+                    JSON.stringify(this.result.raw, null, 2)
+                }
+            </pre>
+        );
     }
 
-    get value(): undefined { return undefined; }
+    get value(): undefined {
+        return undefined;
+    }
 }

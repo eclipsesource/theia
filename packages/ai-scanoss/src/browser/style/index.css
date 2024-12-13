@@ -1,37 +1,66 @@
-.theia-scanoss-logo {
-  background-image: url("scanoss_logo.jpeg");
-  background-size: cover; /* Resize image to cover the button */
-  background-position: center; /* Center the image within the button */
-  transition: filter 0.3s; /* Smooth transition for hover effect */
+/* We need a more detailed selector to override the default button style */
+.theia-CodePartRenderer-actions .theia-scanoss-logo {
+  background-image: url("scanoss_logo.svg");
+  background-size: 82% auto; /* scale the image to be a bit smaller than the button because the codicon icons are also smaller */
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: filter 0.3s;
   display: inline-block;
-}
-
-.theia-scanoss-logo:hover {
-  filter: brightness(0.7); /* Darkens the image on hover */
 }
 
 .theia-scanoss-logo.requesting {
   animation: pulse 1s infinite ease-in-out;
 }
 
-.theia-scanoss-logo.clean::after {
-  content: '✅'; /* Unicode checkmark symbol */
-  position: absolute;
-  color: green;
+/* Use a rounded background when not hovered  */
+.theia-CodePartRenderer-actions .theia-scanoss-logo:not(:hover) {
+  border-radius: 50%;
 }
 
-.theia-scanoss-logo.match::after {
-  content: '⚠️'; /* Unicode warning triangle symbol */
-  position: absolute;
-  color: yellow
+.theia-scanoss-logo.clean {
+  background-color: #e0ffe0;
 }
 
-.theia-scanoss-logo.error::after {
-  content: '❌'; /* Unicode red cross symbol */
-  position: absolute;
-  color: red;
+.theia-scanoss-logo.match {
+  background-color: #fff9c0;
 }
 
+.theia-scanoss-logo.error {
+  background-color: #ffe0e0;
+}
+
+.icon-container {
+  position: relative; 
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+}
+
+/* The placeholder is used to align with the remaining actions, however it should not be visible*/
 .theia-scanoss-logo .placeholder {
   visibility: hidden;
+}
+
+/* The status icon is used to display the result of the scan on the top right */
+.theia-scanoss-logo .status-icon {
+  position: absolute;
+  transform: translate(-5px, -5px);
+}
+
+.theia-scanoss-logo.clean .status-icon {
+    color: green;
+}
+.theia-scanoss-logo.match .status-icon {
+    color: yellow;
+    text-shadow: 0 0 3px rgba(0,0,0,0.9);
+}
+.theia-scanoss-logo.error .status-icon {
+    color: red;
+    text-shadow: 0 0 3px currentColor
+}
+
+/* Disable the button when it's in the clean state */
+.theia-CodePartRenderer-actions .theia-scanoss-logo.clean{
+  pointer-events: none; 
+  cursor: default;
 }

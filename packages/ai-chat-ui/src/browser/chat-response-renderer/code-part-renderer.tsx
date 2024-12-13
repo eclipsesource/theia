@@ -144,7 +144,7 @@ export class CopyToClipboardButtonAction implements CodePartRendererAction {
     protected readonly clipboardService: ClipboardService;
     priority = 10;
     render(response: CodeChatResponseContent): ReactNode {
-        return <CopyToClipboardButton code={response.code} clipboardService={this.clipboardService} />;
+        return <CopyToClipboardButton key='copyToClipBoard' code={response.code} clipboardService={this.clipboardService} />;
     }
 }
 
@@ -162,7 +162,7 @@ export class InsertCodeAtCursorButtonAction implements CodePartRendererAction {
     protected readonly editorManager: EditorManager;
     priority = 20;
     render(response: CodeChatResponseContent): ReactNode {
-        return <InsertCodeAtCursorButton code={response.code} editorManager={this.editorManager} />;
+        return <InsertCodeAtCursorButton key='insertCodeAtCursor' code={response.code} editorManager={this.editorManager} />;
     }
 }
 

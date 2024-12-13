@@ -65,7 +65,8 @@ export class ScanOSSServiceImpl implements ScanOSSService {
 
         // eslint-disable-next-line no-null/no-null
         console.log('ScanOSS results', JSON.stringify(results, null, 2));
-        // check first of the results
+
+        // first result is the best result
         const firstEntry = results['/content_scanning'][0];
         if (firstEntry.id === 'none') {
             return {
