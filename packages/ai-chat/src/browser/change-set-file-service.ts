@@ -20,6 +20,7 @@ import { inject, injectable } from '@theia/core/shared/inversify';
 import { EditorManager } from '@theia/editor/lib/browser';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { MonacoWorkspace } from '@theia/monaco/lib/browser/monaco-workspace';
+import { MonacoTextModelService } from '@theia/monaco/lib/browser/monaco-text-model-service';
 import { WorkspaceService } from '@theia/workspace/lib/browser/workspace-service';
 import { ChangeSetFileElement } from './change-set-file-element';
 
@@ -48,6 +49,9 @@ export class ChangeSetFileService {
 
     @inject(FileService)
     protected readonly fileService: FileService;
+
+    @inject(MonacoTextModelService)
+    protected readonly textModelService: MonacoTextModelService;
 
     async read(uri: URI): Promise<string | undefined> {
         const exists = await this.fileService.exists(uri);
@@ -123,6 +127,38 @@ export class ChangeSetFileService {
             return true;
         } else {
             return false;
+        }
+    }
+
+    /**
+     * Ensures that a file is saved and save participants (auto-linting, formatting) are triggered.
+     * If the file is not currently open as a document, this method will attempt to load it as a document,
+     * save it to trigger save participants, and then dispose of the document reference.
+     */
+    async ensureSaveWithParticipants(uri: URI): Promise<void> {
+        const openModel = this.monacoWorkspace.getTextDocument(uri.toString());
+        if (openModel) {
+            // File is already open, just save it
+            await openModel.save();
+        } else {
+            // File is not open, we need to load it as a document and then save to trigger save participants
+            try {
+                const exists = await this.fileService.exists(uri);
+                if (exists) {
+                    // Create a model reference to load the document
+                    const reference = await this.textModelService.createModelReference(uri);
+                    try {
+                        // Ensure the document is loaded and save it to trigger save participants
+                        const document = reference.object;
+                        await document.save();
+                    } finally {
+                        // Dispose the reference to clean up
+                        reference.dispose();
+                    }
+                }
+            } catch (error) {
+                this.logger.warn(`Failed to ensure save with participants for ${uri.toString()}:`, error);
+            }
         }
     }
 

@@ -195,6 +195,8 @@ export class ChangeSetFileElement implements ChangeSetElement {
                 this.state = 'applied';
             } else {
                 await this.writeChanges(contents);
+                // Ensure save is called on the target file to trigger auto-linting and formatting
+                await this.changeSetFileService.ensureSaveWithParticipants(this.uri);
             }
         }
         this.changeSetFileService.closeDiff(this.readOnlyUri);
