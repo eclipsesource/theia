@@ -197,6 +197,8 @@ export class ChangeSetFileElement implements ChangeSetElement {
                 await this.writeChanges(contents);
                 // Ensure save is called on the target file to trigger auto-linting and formatting
                 await this.changeSetFileService.ensureSaveWithParticipants(this.uri);
+                // Update the changeset with the potentially modified content after auto-formatting
+                await this.updateChangeSetAfterSave();
             }
         }
         this.changeSetFileService.closeDiff(this.readOnlyUri);
@@ -205,6 +207,28 @@ export class ChangeSetFileElement implements ChangeSetElement {
     async writeChanges(contents?: string): Promise<void> {
         await this.changeSetFileService.writeFrom(this.changedUri, this.uri, contents ?? this.targetState);
         this.state = 'applied';
+    }
+
+    /**
+     * Updates the changeset after save to reflect any changes made by auto-formatting or auto-linting.
+     * This ensures the changeset accurately represents the final state of the file.
+     */
+    protected async updateChangeSetAfterSave(): Promise<void> {
+        try {
+            // Read the current content of the file after save participants have run
+            const currentContent = await this.changeSetFileService.read(this.uri);
+            if (currentContent !== undefined && currentContent !== this.targetState) {
+                // Update the target state to reflect the auto-formatted content
+                this.elementProps.targetState = currentContent;
+                // Update the change resource to show the new content
+                this.changeResource.update({ contents: currentContent });
+                // Notify listeners that the element has changed
+                this.onDidChangeEmitter.fire();
+            }
+        } catch (error) {
+            // Log the error but don't fail the apply operation
+            console.warn('Failed to update changeset after save:', error);
+        }
     }
 
     async revert(): Promise<void> {
