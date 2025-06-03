@@ -16,6 +16,7 @@
 
 import { ChatAgentLocation, ChatService } from '@theia/ai-chat/lib/common';
 import { CommandContribution, CommandRegistry, CommandService } from '@theia/core';
+import { TaskContextStorageService } from '@theia/ai-chat/lib/browser/task-context-service';
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { AI_SUMMARIZE_SESSION_AS_TASK_FOR_CODER } from '../common/summarize-session-commands';
 import { TaskContextService } from '@theia/ai-chat/lib/browser/task-context-service';
@@ -23,6 +24,8 @@ import { CoderAgent } from './coder-agent';
 import { TASK_CONTEXT_VARIABLE } from '@theia/ai-chat/lib/browser/task-context-variable';
 import { ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID } from '../common/architect-prompt-template';
 import { ArchitectTaskSummaryAgent } from '@theia/ai-chat/lib/common/architect-task-summary-agent';
+import { FILE_VARIABLE } from '@theia/ai-core/lib/browser/file-variable-contribution';
+import { AIVariableResolutionRequest } from '@theia/ai-core';
 
 
 @injectable()
@@ -42,6 +45,9 @@ export class SummarizeSessionCommandContribution implements CommandContribution 
     @inject(ArchitectTaskSummaryAgent)
     protected readonly architectTaskSummaryAgent: ArchitectTaskSummaryAgent;
 
+    @inject(TaskContextStorageService)
+    protected readonly taskContextStorageService: TaskContextStorageService;
+
     registerCommands(registry: CommandRegistry): void {
         registry.registerCommand(AI_SUMMARIZE_SESSION_AS_TASK_FOR_CODER, {
             execute: async () => {
@@ -53,6 +59,23 @@ export class SummarizeSessionCommandContribution implements CommandContribution 
 
                 const summaryId = await this.taskContextService.summarize(activeSession, ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID, this.architectTaskSummaryAgent);
 
+                // Open the summary in a new editor
+                await this.taskContextStorageService.open(summaryId);
+
+                // Add the summary file to the context of the active Architect session
+                const summary = this.taskContextService.getAll().find(s => s.id === summaryId);
+                if (summary?.uri) {
+                    // Create a file variable for the summary
+                    const fileVariable: AIVariableResolutionRequest = {
+                        variable: FILE_VARIABLE,
+                        arg: summary.uri.path.fsPath()
+                    };
+
+                    // Add the file to the active session's context
+                    activeSession.model.context.addVariables(fileVariable);
+                }
+
+                // Create a new session with the coder agent
                 const newSession = this.chatService.createSession(ChatAgentLocation.Panel, { focus: true }, this.coderAgent);
                 const summaryVariable = { variable: TASK_CONTEXT_VARIABLE, arg: summaryId };
                 newSession.model.context.addVariables(summaryVariable);
