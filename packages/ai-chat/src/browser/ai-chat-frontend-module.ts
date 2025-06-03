@@ -125,10 +125,10 @@ export default new ContainerModule(bind => {
 
     bind(ChatSessionSummaryAgent).toSelf().inSingletonScope();
     bind(Agent).toService(ChatSessionSummaryAgent);
-    bind(ChatAgent).toService(ChatSessionSummaryAgent);
 
     bind(ArchitectTaskSummaryAgent).toSelf().inSingletonScope();
     bind(Agent).toService(ArchitectTaskSummaryAgent);
+    bind(ChatAgent).toService(ArchitectTaskSummaryAgent);
 
     bind(TaskContextVariableContribution).toSelf().inSingletonScope();
     bind(AIVariableContribution).toService(TaskContextVariableContribution);

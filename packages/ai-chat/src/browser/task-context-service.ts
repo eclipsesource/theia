@@ -77,11 +77,11 @@ export class TaskContextService {
     }
 
     /** Returns an ID that can be used to refer to the summary in the future. */
-    async summarize(session: ChatSession, promptId?: string, agent?: ChatAgent): Promise<string> {
+    async summarize(session: ChatSession, promptId?: string, agent?: ChatAgent, override = true): Promise<string> {
         const pending = this.pendingSummaries.get(session.id);
         if (pending) { return pending.then(({ id }) => id); }
         const existing = this.getSummaryForSession(session);
-        if (existing) { return existing.id; }
+        if (existing && !override) { return existing.id; }
         const summaryId = generateUuid();
         const summaryDeferred = new Deferred<Summary>();
         const progress = await this.progressService.showProgress({ text: `Summarize: ${session.title || session.id}`, options: { location: 'ai-chat' } });
