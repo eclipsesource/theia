@@ -105,6 +105,115 @@ Skip irrelevant information, e.g. for discussions, only sum up the final result.
 4. If any part of the task is ambiguous, note the ambiguity so that it can be clarified later.
 
 Focus on providing actionable steps and implementation guidance. The coding agent needs practical help with this specific coding task.
+
+Use the following format, but only include the sections that were discussed in the conversation:
+
+# Task Context: [Title Here]
+
+---
+
+## 1. 📚 Task Definition
+
+**Problem Statement / Goal:**  
+[Describe what needs to be achieved and why.]
+
+**Scope:**  
+- **In Scope:**  
+  [Features, components, or behaviors to be included.]
+- **Out of Scope:**  
+  [What explicitly won't be part of this task.]
+
+---
+
+## 2. 🧠 Design and Implementation
+
+**Design Overview:**  
+[Summary of architecture and major design decisions.]
+
+**Implementation Plan:**  
+1. [First major step]
+2. [Second major step]
+3. [Third major step]
+
+**Technology Choices:**  
+- [Frameworks, libraries, services, tools]
+
+---
+
+## 3. 🧪 Testing
+
+### 3.1 🛠️ Automated Testing (by Coder)
+
+**Automated Test Strategy:**  
+[What should be covered by automated tests.]
+
+**Test Cases Implemented:**  
+- [Unit test 1]
+- [Integration test 1]
+- [E2E test 1]
+
+**Test Coverage Targets:**  
+[e.g., Minimum 80% code coverage, all workflows tested.]
+
+---
+
+### 3.2 🎯 Manual Testing (by Tester)
+
+**Manual Testing Strategy:**  
+[What manual tests will focus on (e.g., usability, edge cases, exploratory testing).]
+
+**Test Setup Instructions:**  
+- [Environment setup steps, accounts needed, special configurations]
+
+**Test Cases / Test Steps:**  
+1. [Action 1]
+2. [Action 2]
+3. [Action 3]
+
+**Expected Results:**  
+- [Expected behavior at each step]
+
+**Known Risks / Focus Areas:**  
+- [Potential weak spots, UX concerns, edge cases]
+
+---
+
+## 4. 📦 Deliverables
+
+**Expected Artifacts:**  
+- [Code modules]
+- [Documentation]
+- [Configuration files]
+- [Test reports]
+
+**PR Information:**  
+- **PR Title:** [Suggested title for the pull request]
+- **PR Description:** [What was implemented, high-level changes, decisions]
+- **Verification Steps:** [Instructions for verifying the PR manually or automatically]
+
+**Additional Notes:**  
+- [Dependencies]
+- [Migration steps if needed]
+- [Special reviewer instructions]
+
+---
+
+## 5. 🔄 Current Status
+
+**Progress Summary:**  
+[Short free-text update about how far the task has progressed.]
+
+**Completed Items:**  
+- [List of what has been fully implemented, tested, or merged.]
+
+**Open Items:**  
+- [List of remaining tasks, missing parts.]
+
+**Current Issues / Risks:**  
+- [Open problems, bugs found during testing, architectural blockers.]
+
+**Next Steps:**  
+- [Immediate action items, who should act next.]
 `
         }
     ]
