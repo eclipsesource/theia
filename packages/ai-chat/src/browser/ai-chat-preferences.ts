@@ -20,6 +20,7 @@ import { PreferenceSchema } from '@theia/core/lib/browser/preferences/preference
 
 export const DEFAULT_CHAT_AGENT_PREF = 'ai-features.chat.defaultChatAgent';
 export const PIN_CHAT_AGENT_PREF = 'ai-features.chat.pinChatAgent';
+export const CHANGESET_AUTO_FORMAT_PREF = 'ai-features.chat.changeset.autoFormat';
 
 export const aiChatPreferences: PreferenceSchema = {
     type: 'object',
@@ -36,6 +37,13 @@ If no Default Agent is configured, Theia´s defaults will be applied.'),
             description: nls.localize('theia/ai/chat/pinChatAgent/description',
                 'Enable agent pinning to automatically keep a mentioned chat agent active across prompts, reducing the need for repeated mentions.\
 You can manually unpin or switch agents anytime.'),
+            default: true,
+            title: AI_CORE_PREFERENCES_TITLE,
+        },
+        [CHANGESET_AUTO_FORMAT_PREF]: {
+            type: 'boolean',
+            description: nls.localize('theia/ai/chat/changeset/autoFormat/description',
+                'Enable automatic formatting and linting when applying changesets. When enabled, save participants (formatters, linters) will run after applying changes, and the changeset will be updated to reflect the formatted content.'),
             default: true,
             title: AI_CORE_PREFERENCES_TITLE,
         }

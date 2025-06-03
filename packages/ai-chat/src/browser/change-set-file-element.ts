@@ -22,8 +22,9 @@ import { ChangeSetElement, ChangeSetImpl } from '../common';
 import { createChangeSetFileUri } from './change-set-file-resource';
 import { ChangeSetFileService } from './change-set-file-service';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
-import { ConfirmDialog } from '@theia/core/lib/browser';
+import { ConfirmDialog, PreferenceService } from '@theia/core/lib/browser';
 import { ChangeSetDecoratorService } from './change-set-decorator-service';
+import { CHANGESET_AUTO_FORMAT_PREF } from './ai-chat-preferences';
 
 export const ChangeSetFileElementFactory = Symbol('ChangeSetFileElementFactory');
 export type ChangeSetFileElementFactory = (elementProps: ChangeSetElementArgs) => ChangeSetFileElement;
@@ -67,6 +68,9 @@ export class ChangeSetFileElement implements ChangeSetElement {
 
     @inject(FileService)
     protected readonly fileService: FileService;
+
+    @inject(PreferenceService)
+    protected readonly preferenceService: PreferenceService;
 
     @inject(ConfigurableInMemoryResources)
     protected readonly inMemoryResources: ConfigurableInMemoryResources;
@@ -195,10 +199,14 @@ export class ChangeSetFileElement implements ChangeSetElement {
                 this.state = 'applied';
             } else {
                 await this.writeChanges(contents);
-                // Ensure save is called on the target file to trigger auto-linting and formatting
-                await this.changeSetFileService.ensureSaveWithParticipants(this.uri);
-                // Update the changeset with the potentially modified content after auto-formatting
-                await this.updateChangeSetAfterSave();
+                // Check preference before running auto-formatting
+                const autoFormatEnabled = this.preferenceService.get(CHANGESET_AUTO_FORMAT_PREF, true);
+                if (autoFormatEnabled) {
+                    // Ensure save is called on the target file to trigger auto-linting and formatting
+                    await this.changeSetFileService.ensureSaveWithParticipants(this.uri);
+                    // Update the changeset with the potentially modified content after auto-formatting
+                    await this.updateChangeSetAfterSave();
+                }
             }
         }
         this.changeSetFileService.closeDiff(this.readOnlyUri);
