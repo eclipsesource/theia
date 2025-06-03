@@ -19,7 +19,6 @@ import { ChatAgent, DefaultChatAgentId, FallbackChatAgentId } from '@theia/ai-ch
 import { Agent, AIVariableContribution, bindToolProvider } from '@theia/ai-core/lib/common';
 import { ArchitectAgent } from './architect-agent';
 import { CoderAgent } from './coder-agent';
-import { TaskContextAgent } from './task-context-agent';
 import { SummarizeSessionCommandContribution } from './summarize-session-command-contribution';
 import { FileContentFunction, FileDiagnosticProvider, GetWorkspaceDirectoryStructure, GetWorkspaceFileList, WorkspaceFunctionScope } from './workspace-functions';
 import { WorkspaceSearchProvider } from './workspace-search-provider';
@@ -67,10 +66,6 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(CoderAgent).toSelf().inSingletonScope();
     bind(Agent).toService(CoderAgent);
     bind(ChatAgent).toService(CoderAgent);
-
-    bind(TaskContextAgent).toSelf().inSingletonScope();
-    bind(Agent).toService(TaskContextAgent);
-    bind(ChatAgent).toService(TaskContextAgent);
 
     bind(OrchestratorChatAgent).toSelf().inSingletonScope();
     bind(Agent).toService(OrchestratorChatAgent);
