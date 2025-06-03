@@ -56,6 +56,7 @@ import { TaskContextFileStorageService } from './task-context-file-storage-servi
 import { TaskContextStorageService } from '@theia/ai-chat/lib/browser/task-context-service';
 import { CommandContribution } from '@theia/core';
 import { AIPromptFragmentsConfigurationWidget } from './ai-configuration/prompt-fragments-configuration-widget';
+import { AgentDelegationTool } from './agent-delegation-tool';
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(PreferenceContribution).toConstantValue({ schema: WorkspacePreferencesSchema });
@@ -135,6 +136,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bindToolProvider(ClearFileChangesProvider, bind);
     bindToolProvider(GetProposedFileStateProvider, bind);
     bindToolProvider(AddFileToChatContext, bind);
+    bindToolProvider(AgentDelegationTool, bind);
     bind(AIVariableContribution).to(ContextFilesVariableContribution).inSingletonScope();
     bind(PreferenceContribution).toConstantValue({ schema: AiConfigurationPreferences });
 

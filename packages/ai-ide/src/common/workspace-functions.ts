@@ -20,3 +20,4 @@ export const GET_FILE_DIAGNOSTICS_ID = 'getFileDiagnostics';
 export const SEARCH_IN_WORKSPACE_FUNCTION_ID = 'searchInWorkspace';
 export const LIST_TASKS_FUNCTION_ID = 'listTasks';
 export const RUN_TASK_FUNCTION_ID = 'runTask';
+export const AGENT_DELEGATION_FUNCTION_ID = 'delegate_to_agent';
