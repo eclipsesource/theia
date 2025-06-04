@@ -10,8 +10,8 @@
 // *****************************************************************************
 import { PromptVariantSet } from '@theia/ai-core/lib/common';
 import {
-    GET_WORKSPACE_FILE_LIST_FUNCTION_ID, FILE_CONTENT_FUNCTION_ID, GET_WORKSPACE_DIRECTORY_STRUCTURE_FUNCTION_ID, SEARCH_IN_WORKSPACE_FUNCTION_ID,
-    GET_FILE_DIAGNOSTICS_ID
+  GET_WORKSPACE_FILE_LIST_FUNCTION_ID, FILE_CONTENT_FUNCTION_ID, GET_WORKSPACE_DIRECTORY_STRUCTURE_FUNCTION_ID, SEARCH_IN_WORKSPACE_FUNCTION_ID,
+  GET_FILE_DIAGNOSTICS_ID
 } from './workspace-functions';
 import { CONTEXT_FILES_VARIABLE_ID, TASK_CONTEXT_SUMMARY_VARIABLE_ID } from './context-variables';
 import { UPDATE_CONTEXT_FILES_FUNCTION_ID } from './context-functions';
@@ -20,11 +20,11 @@ export const ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID = 'architect-task-summary
 export const ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID = 'architect-update-task-summary';
 
 export const architectVariants = <PromptVariantSet>{
-    id: 'architect-system',
-    defaultVariant: {
-        id: 'architect-system-default',
-        template: `{{!-- This prompt is licensed under the MIT License (https://opensource.org/license/mit).
-Made improvements or adaptations to this prompt template? We’d love for you to share it with the community! Contribute back here:
+  id: 'architect-system',
+  defaultVariant: {
+    id: 'architect-system-default',
+    template: `{{!-- This prompt is licensed under the MIT License (https://opensource.org/license/mit).
+Made improvements or adaptations to this prompt template? We'd love for you to share it with the community! Contribute back here:
 https://github.com/eclipse-theia/theia/discussions/new?category=prompt-template-contribution --}}
 # Instructions
 
@@ -51,12 +51,12 @@ Always look at the relevant files to understand your task using the function ~{$
 
 {{prompt:project-info}}
 `
-    },
-    variants: [
-        {
-            id: 'architect-system-next',
-            template: `{{!-- This prompt is licensed under the MIT License (https://opensource.org/license/mit).
-Made improvements or adaptations to this prompt template? We’d love for you to share it with the community! Contribute back here:
+  },
+  variants: [
+    {
+      id: 'architect-system-next',
+      template: `{{!-- This prompt is licensed under the MIT License (https://opensource.org/license/mit).
+Made improvements or adaptations to this prompt template? We'd love for you to share it with the community! Contribute back here:
 https://github.com/eclipse-theia/theia/discussions/new?category=prompt-template-contribution --}}
 # Instructions
 
@@ -86,10 +86,10 @@ Always look at the relevant files to understand your task using the function ~{$
 
 {{${TASK_CONTEXT_SUMMARY_VARIABLE_ID}}}
 `
-        },
-        {
-            id: ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID,
-            template: `{{!-- This prompt is licensed under the MIT License (https://opensource.org/license/mit).
+    },
+    {
+      id: ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID,
+      template: `{{!-- This prompt is licensed under the MIT License (https://opensource.org/license/mit).
 Made improvements or adaptations to this prompt template? We'd love for you to share it with the community! Contribute back here:
 https://github.com/eclipse-theia/theia/discussions/new?category=prompt-template-contribution --}}
 
@@ -216,31 +216,54 @@ Use the following format, but only include the sections that were discussed in t
 **Next Steps:**  
 - [Immediate action items, who should act next.]
 `
-        },
-        {
-            id: ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID, template: `{{!-- This prompt is licensed under the MIT License (https://opensource.org/license/mit).
+    },
+    {
+      id: ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID,
+      template: `{{!-- This prompt is licensed under the MIT License (https://opensource.org/license/mit).
 Made improvements or adaptations to this prompt template? We'd love for you to share it with the community! Contribute back here:
 https://github.com/eclipse-theia/theia/discussions/new?category=prompt-template-contribution --}}
 You are an AI assistant integrated into Theia IDE, designed to update task context files. You can interact provided task context file and propose changes.
 
-## Context Retrieval
-Use the following functions to interact with the workspace files if you require context:
-- **~{${FILE_CONTENT_FUNCTION_ID}}**: Retrieves the content of a specific file.
+# Task Document Update Instructions
 
-## Propose Code Changes
-To propose code changes or any file changes to the user, never print code or new file content in your response.
+You are an AI agent tasked with updating a technical document based on the current discussion. Your job is to provide the COMPLETE UPDATED DOCUMENT as your response, not commentary about the document.
 
-Instead, for each file you want to propose changes for:
-- **Always Retrieve Current Content**: Use ${FILE_CONTENT_FUNCTION_ID} to get the original content of the target file.
-- **View Pending Changes**: Use ~{changeSet_getProposedFileState} to see the current proposed state of a file, including all pending changes.
-- **Change Content**: Use one of these methods to propose changes:
-  - ~{changeSet_replaceContentInFile}: For targeted replacements of specific text sections. Multiple calls will merge changes unless you set the reset parameter to true.
+## Analysis Requirements
 
-The changes will be presented as an applicable diff to the user in any case.
+1. **Review the Current Discussion**: 
+   - Analyze the entire conversation
+   - Identify new information, decisions, and changes
 
-## Additional Context
+2. **Examine the Existing Document**: 
+   - Understand its structure and purpose
+   - Identify sections that need updates
 
-You will always work on this file: 
+3. **Update the Document**: 
+   - Maintain the original structure and formatting
+   - Add new information from the discussion
+   - Update existing information
+   - Remove outdated information if necessary
+   - Ensure coherence and organization
+
+## IMPORTANT: Response Format
+
+YOUR ENTIRE RESPONSE MUST BE THE UPDATED DOCUMENT ONLY. Do not include:
+- Any commentary about what you changed
+- Introduction or explanation text
+- Markdown fences or syntax indicators
+- Clarifying questions
+
+Simply output the complete updated document as plain text, which will directly replace the existing document.
+
+## Guidelines
+
+- Be thorough in capturing all relevant information
+- Maintain the original document's style and tone
+- Use clear, concise language
+- Preserve all formatting from the original document
+- Ensure technical accuracy in all updates
+
+{{${TASK_CONTEXT_SUMMARY_VARIABLE_ID}}}
 ` }
-    ]
+  ]
 };

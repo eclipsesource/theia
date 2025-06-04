@@ -112,7 +112,7 @@ export class TaskContextService {
         const existingSummary = this.getSummaryForSession(session);
         if (!existingSummary) {
             // If no summary exists, create one instead
-            // TODO: Maybe we could also look into the task  context folder and ask for the existing ones with an additional menu to create a new one?
+            // TODO: Maybe we could also look into the task context folder and ask for the existing ones with an additional menu to create a new one?
             return this.summarize(session, promptId, agent, override);
         }
 
@@ -122,6 +122,8 @@ export class TaskContextService {
             if (!prompt) {
                 return '';
             }
+
+            // Get the task context file path
             const taskContextStorageDirectory = this.preferenceService.get(
                 // preference key is defined in TASK_CONTEXT_STORAGE_DIRECTORY_PREF in @theia/ai-ide
                 'ai-features.promptTemplates.taskContextStorageDirectory',
@@ -130,25 +132,43 @@ export class TaskContextService {
             const taskContextFileVariable = session.model.context.getVariables().find(variableReq => {
                 return variableReq.variable.id === 'file-provider' &&
                     typeof variableReq.arg === 'string' &&
-                    (variableReq.arg.startsWith(taskContextStorageDirectory)
-                    );
+                    (variableReq.arg.startsWith(taskContextStorageDirectory));
             });
-            if (taskContextFileVariable) {
-                prompt.text = prompt.text + ' ' + taskContextFileVariable.arg;
+
+            // Check if we have a document path to update
+            if (taskContextFileVariable && typeof taskContextFileVariable.arg === 'string') {
+                // Set document path in prompt template
+                const documentPath = taskContextFileVariable.arg;
+
+                // Modify prompt to include the document path and content
+                prompt.text = prompt.text + '\nThe document to update is: ' + documentPath + '\n\n## Current Document Content\n\n' + existingSummary.summary;
+
+                // Get updated document content from LLM
+                const updatedDocumentContent = await this.getLlmSummary(session, prompt, agent);
+
+                // For document update templates, we want the actual updated document content,
+                // not the LLM's conversational response
+                const updatedSummary: Summary = {
+                    ...existingSummary,
+                    summary: updatedDocumentContent
+                };
+
+                // Store the updated summary
+                await this.storageService.store(updatedSummary);
+                return updatedSummary.id;
+            } else {
+                // Fall back to standard update if no document path is found
+                const updatedSummaryText = await this.getLlmSummary(session, prompt, agent);
+                const updatedSummary: Summary = {
+                    ...existingSummary,
+                    summary: updatedSummaryText
+                };
+                await this.storageService.store(updatedSummary);
+                return updatedSummary.id;
             }
-
-            // Call LLM with provided promptId and agent
-            const updatedSummaryText = await this.getLlmSummary(session, prompt, agent);
-            console.log(updatedSummaryText)
-
-            // TODO update prompt to provide updated file contents and manually create change set?
-
-            return existingSummary.id;
         } finally {
             progress.cancel();
         }
-
-
     }
 
     protected async getLlmSummary(session: ChatSession, prompt: ResolvedPromptFragment | undefined, agent?: ChatAgent,): Promise<string> {
