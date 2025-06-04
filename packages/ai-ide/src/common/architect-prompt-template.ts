@@ -13,9 +13,8 @@ import {
     GET_WORKSPACE_FILE_LIST_FUNCTION_ID, FILE_CONTENT_FUNCTION_ID, GET_WORKSPACE_DIRECTORY_STRUCTURE_FUNCTION_ID, SEARCH_IN_WORKSPACE_FUNCTION_ID,
     GET_FILE_DIAGNOSTICS_ID
 } from './workspace-functions';
-import { CONTEXT_FILES_VARIABLE_ID } from './context-variables';
+import { CONTEXT_FILES_VARIABLE_ID, TASK_CONTEXT_SUMMARY_VARIABLE_ID } from './context-variables';
 import { UPDATE_CONTEXT_FILES_FUNCTION_ID } from './context-functions';
-import { ReplaceContentInFileProvider } from '../browser/file-changeset-functions';
 
 export const ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID = 'architect-task-summary';
 export const ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID = 'architect-update-task-summary';
@@ -85,8 +84,7 @@ Always look at the relevant files to understand your task using the function ~{$
 
 {{prompt:project-info}}
 
-Use the following functions if you are asked to modify the task context or summary:
-- **~{${ReplaceContentInFileProvider.ID}}**
+{{${TASK_CONTEXT_SUMMARY_VARIABLE_ID}}}
 `
         },
         {
