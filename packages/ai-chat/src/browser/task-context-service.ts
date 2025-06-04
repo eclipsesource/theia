@@ -19,7 +19,7 @@ import { MaybePromise, ProgressService, URI, generateUuid, Event } from '@theia/
 import { ChatAgent, ChatAgentLocation, ChatService, ChatSession, MutableChatModel, MutableChatRequestModel, ParsedChatRequestTextPart } from '../common';
 import { ChatSessionSummaryAgent } from '../common/chat-session-summary-agent';
 import { Deferred } from '@theia/core/lib/common/promise-util';
-import { AgentService, PromptFragment, PromptService, ResolvedPromptFragment } from '@theia/ai-core';
+import { AgentService, PromptService, ResolvedPromptFragment } from '@theia/ai-core';
 import { CHAT_SESSION_SUMMARY_PROMPT } from '../common/chat-session-summary-agent-prompt';
 
 export interface SummaryMetadata {
@@ -118,7 +118,7 @@ export class TaskContextService {
         }
         // TODO
         prompt.text = prompt.text + ' ' + '';
-             
+
         // Call LLM with provided promptId and agent
         const updatedSummaryText = await this.getLlmSummary(session, prompt, agent);
         // Overwrite the summary, reusing existing metadata and ID
@@ -131,7 +131,7 @@ export class TaskContextService {
         return updatedSummary.id;
     }
 
-    protected async getLlmSummary(session: ChatSession, prompt: ResolvedPromptFragment | undefined, agent?: ChatAgent,): Promise<string> {
+    protected async getLlmSummary(session: ChatSession, prompt: ResolvedPromptFragment | undefined, agent?: ChatAgent, ): Promise<string> {
         if (!prompt) { return ''; }
         agent = agent || this.agentService.getAgents().find<ChatAgent>((candidate): candidate is ChatAgent =>
             'invoke' in candidate
@@ -153,7 +153,7 @@ export class TaskContextService {
         return summaryRequest.response.response.asDisplayString();
     }
 
-    protected async getSystemPrompt(session: ChatSession, promptId: string = CHAT_SESSION_SUMMARY_PROMPT.id) {
+    protected async getSystemPrompt(session: ChatSession, promptId: string = CHAT_SESSION_SUMMARY_PROMPT.id): Promise<ResolvedPromptFragment|undefined> {
         const prompt = await this.promptService.getResolvedPromptFragment(promptId || CHAT_SESSION_SUMMARY_PROMPT.id, undefined, { model: session.model });
         return prompt;
     }
