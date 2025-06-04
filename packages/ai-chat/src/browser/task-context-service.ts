@@ -116,8 +116,16 @@ export class TaskContextService {
         if (!prompt) {
             return '';
         }
-        // TODO
-        prompt.text = prompt.text + ' ' + '';
+        // Use only the first variable with 'file-provider' id and argument for .prompts/summaries
+        const taskContextFileVariable = session.model.context.getVariables().find(variableReq => {
+            return variableReq.variable.id === 'file-provider' &&
+                typeof variableReq.arg === 'string' &&
+                (variableReq.arg.startsWith('.prompts/summaries')
+                );
+        });
+        if (taskContextFileVariable) {
+            prompt.text = prompt.text + ' ' + taskContextFileVariable.arg;
+        }
 
         // Call LLM with provided promptId and agent
         const updatedSummaryText = await this.getLlmSummary(session, prompt, agent);
@@ -131,7 +139,7 @@ export class TaskContextService {
         return updatedSummary.id;
     }
 
-    protected async getLlmSummary(session: ChatSession, prompt: ResolvedPromptFragment | undefined, agent?: ChatAgent, ): Promise<string> {
+    protected async getLlmSummary(session: ChatSession, prompt: ResolvedPromptFragment | undefined, agent?: ChatAgent,): Promise<string> {
         if (!prompt) { return ''; }
         agent = agent || this.agentService.getAgents().find<ChatAgent>((candidate): candidate is ChatAgent =>
             'invoke' in candidate
@@ -153,7 +161,7 @@ export class TaskContextService {
         return summaryRequest.response.response.asDisplayString();
     }
 
-    protected async getSystemPrompt(session: ChatSession, promptId: string = CHAT_SESSION_SUMMARY_PROMPT.id): Promise<ResolvedPromptFragment|undefined> {
+    protected async getSystemPrompt(session: ChatSession, promptId: string = CHAT_SESSION_SUMMARY_PROMPT.id): Promise<ResolvedPromptFragment | undefined> {
         const prompt = await this.promptService.getResolvedPromptFragment(promptId || CHAT_SESSION_SUMMARY_PROMPT.id, undefined, { model: session.model });
         return prompt;
     }
