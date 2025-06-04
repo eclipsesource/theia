@@ -55,7 +55,7 @@ export class AgentDelegationTool implements ToolProvider {
     private async delegateToAgent(arg_string: string, ctx: MutableChatRequestModel): Promise<string> {
         try {
 
-            console.log('[DELEGATE] CTX = ' + JSON.stringify(ctx));
+            // console.log('[DELEGATE] CTX = ' + JSON.stringify(ctx));
 
             const args = JSON.parse(arg_string);
             const { agentName, prompt } = args;
@@ -77,7 +77,7 @@ export class AgentDelegationTool implements ToolProvider {
             }
 
             // Create a new session
-            const newSession = this.chatService.createSession(ChatAgentLocation.Panel, { focus: true }, agent);
+            const newSession = this.chatService.createSession(ChatAgentLocation.Panel, { focus: false }, agent);
 
             // Send the request
             const response = await this.chatService.sendRequest(newSession.id, prompt);
@@ -94,6 +94,7 @@ export class AgentDelegationTool implements ToolProvider {
             // Return the response as a string
             return 'success';
         } catch (error) {
+            console.error('Failed to delegate to agent', error);
             return JSON.stringify({
                 error: `Failed to parse arguments or delegate to agent: ${error instanceof Error ? error.message : 'Unknown error'}`
             });
