@@ -83,7 +83,7 @@ export const WorkspacePreferencesSchema: PreferenceSchema = {
                 'A workspace relative path in which to persist and from which to retrieve task context descriptions.' +
                 ' If set to empty value, generated task contexts will be stored in memory rather than on disk.'
             ),
-            default: '.prompts/summaries'
+            default: '.prompts/task-contexts'
         }
     }
 };
