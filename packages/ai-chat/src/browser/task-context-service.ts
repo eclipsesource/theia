@@ -118,6 +118,10 @@ export class TaskContextService {
 
         const progress = await this.progressService.showProgress({ text: `Updating: ${session.title || session.id}`, options: { location: 'ai-chat' } });
         try {
+            const prompt = await this.getSystemPrompt(session, promptId);
+            if (!prompt) {
+                return '';
+            }
             const taskContextStorageDirectory = this.preferenceService.get(
                 // preference key is defined in TASK_CONTEXT_STORAGE_DIRECTORY_PREF in @theia/ai-ide
                 'ai-features.promptTemplates.taskContextStorageDirectory',
