@@ -16,8 +16,13 @@
 
 import { ToolProvider, ToolRequest } from '@theia/ai-core';
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { ChatAgentService, ChatService, MutableChatRequestModel, ChatRequest } from '@theia/ai-chat/lib/common';
-import { DelegationResponseContent } from '@theia/ai-chat-ui/src/browser/delegation-response-content';
+import {
+    ChatAgentService,
+    ChatRequest,
+    ChatService,
+    MutableChatRequestModel,
+} from '../common';
+import { DelegationResponseContent } from './delegation-response-content';
 
 export const AGENT_DELEGATION_FUNCTION_ID = 'delegateToAgent';
 
@@ -35,28 +40,34 @@ export class AgentDelegationTool implements ToolProvider {
         return {
             id: AgentDelegationTool.ID,
             name: AgentDelegationTool.ID,
-            description: 'Delegate a task or question to a specific AI agent. This tool allows you to route requests to specialized agents based on their capabilities.',
+            description:
+                'Delegate a task or question to a specific AI agent. This tool allows you to route requests to specialized agents based on their capabilities.',
             parameters: {
                 type: 'object',
                 properties: {
                     agentName: {
                         type: 'string',
-                        description: 'The name/ID of the AI agent to delegate the task to. Available agents can be found using the chatAgents variable.'
+                        description:
+                            'The name/ID of the AI agent to delegate the task to. Available agents can be found using the chatAgents variable.',
                     },
                     prompt: {
                         type: 'string',
-                        description: 'The task, question, or prompt to pass to the specified agent.'
-                    }
+                        description:
+                            'The task, question, or prompt to pass to the specified agent.',
+                    },
                 },
-                required: ['agentName', 'prompt']
+                required: ['agentName', 'prompt'],
             },
-            handler: (arg_string: string, ctx: MutableChatRequestModel) => this.delegateToAgent(arg_string, ctx)
+            handler: (arg_string: string, ctx: MutableChatRequestModel) =>
+                this.delegateToAgent(arg_string, ctx),
         };
     }
 
-    private async delegateToAgent(arg_string: string, ctx: MutableChatRequestModel): Promise<string> {
+    private async delegateToAgent(
+        arg_string: string,
+        ctx: MutableChatRequestModel
+    ): Promise<string> {
         try {
-
             // console.log('[DELEGATE] CTX = ' + JSON.stringify(ctx));
 
             const args = JSON.parse(arg_string);
@@ -64,35 +75,46 @@ export class AgentDelegationTool implements ToolProvider {
 
             if (!agentName || !prompt) {
                 return JSON.stringify({
-                    error: 'Both agentName and prompt parameters are required.'
+                    error: 'Both agentName and prompt parameters are required.',
                 });
             }
 
             // Check if the specified agent exists
             const agent = this.chatAgentService.getAgent(agentName);
             if (!agent) {
-                const availableAgents = this.chatAgentService.getAgents().map(a => a.id);
+                const availableAgents = this.chatAgentService
+                    .getAgents()
+                    .map(a => a.id);
                 return JSON.stringify({
                     error: `Agent '${agentName}' not found or not enabled.`,
-                    availableAgents: availableAgents
+                    availableAgents: availableAgents,
                 });
             }
 
             // Create a new session
             // FIXME: this creates a new conversation visible in the UI (Panel), which we don't want
-            const newSession = this.chatService.createSession(undefined, { focus: false }, agent);
+            const newSession = this.chatService.createSession(
+                undefined,
+                { focus: false },
+                agent
+            );
 
             // Send the request
             const chatRequest: ChatRequest = {
-                text: prompt
+                text: prompt,
             };
 
-            const response = await this.chatService.sendRequest(newSession.id, chatRequest);
+            const response = await this.chatService.sendRequest(
+                newSession.id,
+                chatRequest
+            );
 
             // this.chatService.deleteSession(newSession.id);
 
             if (response) {
-                ctx.response.response.addContent(new DelegationResponseContent(response));
+                ctx.response.response.addContent(
+                    new DelegationResponseContent(response)
+                );
             }
 
             if (response) {
@@ -108,7 +130,9 @@ export class AgentDelegationTool implements ToolProvider {
         } catch (error) {
             console.error('Failed to delegate to agent', error);
             return JSON.stringify({
-                error: `Failed to parse arguments or delegate to agent: ${error instanceof Error ? error.message : 'Unknown error'}`
+                error: `Failed to parse arguments or delegate to agent: ${
+                    error instanceof Error ? error.message : 'Unknown error'
+                }`,
             });
         }
     }

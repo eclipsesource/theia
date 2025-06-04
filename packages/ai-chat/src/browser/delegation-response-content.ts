@@ -13,11 +13,10 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { ChatRequestInvocation, ChatResponseContent } from '@theia/ai-chat';
 import { isObject } from '@theia/core';
+import { ChatRequestInvocation, ChatResponseContent } from '../common';
 
 export class DelegationResponseContent implements ChatResponseContent {
-
     kind = 'Delegation';
 
     constructor(response: ChatRequestInvocation) {
@@ -25,6 +24,11 @@ export class DelegationResponseContent implements ChatResponseContent {
     }
 }
 
-export function isDelegationResponseContent(value: unknown): value is DelegationResponseContent {
-    return isObject<DelegationResponseContent>(value) && value.kind === 'Delegation';
+export function isDelegationResponseContent(
+    value: unknown
+): value is DelegationResponseContent {
+    return (
+        isObject<DelegationResponseContent>(value) &&
+        value.kind === 'Delegation'
+    );
 }

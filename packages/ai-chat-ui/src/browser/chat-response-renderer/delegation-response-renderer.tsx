@@ -15,11 +15,10 @@
 // *****************************************************************************
 import { injectable } from '@theia/core/shared/inversify';
 import { ChatResponseContent } from '@theia/ai-chat';
-import { ReactNode } from '@theia/core/shared/react';
-import * as React from 'react';
 import { ChatResponsePartRenderer } from '../chat-response-part-renderer';
+import * as React from '@theia/core/shared/react';
 import { ResponseNode } from '../chat-tree-view';
-import { DelegationResponseContent, isDelegationResponseContent } from '../delegation-response-content';
+import { DelegationResponseContent, isDelegationResponseContent } from '@theia/ai-chat/lib/browser/delegation-response-content';
 
 @injectable()
 export class DelegationResponseRenderer implements ChatResponsePartRenderer<DelegationResponseContent> {
@@ -29,15 +28,15 @@ export class DelegationResponseRenderer implements ChatResponsePartRenderer<Dele
         }
         return -1;
     }
-    render(response: DelegationResponseContent, parentNode: ResponseNode): ReactNode {
+    render(response: DelegationResponseContent, parentNode: ResponseNode): React.ReactNode {
         return this.renderExpandableNode(response);
     }
 
-    private renderExpandableNode(response: DelegationResponseContent): ReactNode {
+    private renderExpandableNode(_response: DelegationResponseContent): React.ReactNode {
         return (
             <details className='delegation-response-container'>
                 <summary className='delegation-response-summary'>
-                    {response.title || 'Delegation Response'}
+                    TODO TITLE
                 </summary>
                 <div className='delegation-response-content'>
                     {/* Content will be added here later */}
