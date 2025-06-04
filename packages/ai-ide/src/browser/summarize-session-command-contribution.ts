@@ -18,11 +18,11 @@ import { ChatAgentLocation, ChatService } from '@theia/ai-chat/lib/common';
 import { CommandContribution, CommandRegistry, CommandService } from '@theia/core';
 import { TaskContextStorageService } from '@theia/ai-chat/lib/browser/task-context-service';
 import { injectable, inject } from '@theia/core/shared/inversify';
-import { AI_SUMMARIZE_SESSION_AS_TASK_FOR_CODER } from '../common/summarize-session-commands';
+import { AI_SUMMARIZE_SESSION_AS_TASK_FOR_CODER, AI_UPDATE_TASK_CONTEXT_COMMAND } from '../common/summarize-session-commands';
 import { TaskContextService } from '@theia/ai-chat/lib/browser/task-context-service';
 import { CoderAgent } from './coder-agent';
 import { TASK_CONTEXT_VARIABLE } from '@theia/ai-chat/lib/browser/task-context-variable';
-import { ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID } from '../common/architect-prompt-template';
+import { ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID, ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID } from '../common/architect-prompt-template';
 import { ArchitectTaskSummaryAgent } from '@theia/ai-chat/lib/common/architect-task-summary-agent';
 import { FILE_VARIABLE } from '@theia/ai-core/lib/browser/file-variable-contribution';
 import { AIVariableResolutionRequest } from '@theia/ai-core';
@@ -57,6 +57,25 @@ export class SummarizeSessionCommandContribution implements CommandContribution 
     protected readonly wsService: WorkspaceService;
 
     registerCommands(registry: CommandRegistry): void {
+        registry.registerCommand(AI_UPDATE_TASK_CONTEXT_COMMAND, {
+            execute: async () => {
+                const activeSession = this.chatService.getActiveSession();
+
+                if (!activeSession) {
+                    return;
+                }
+
+                // Check if there is an existing summary for this session
+                if (!this.taskContextService.hasSummary(activeSession)) {
+                    // If no summary exists, create one first
+                    await this.taskContextService.summarize(activeSession, ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID, this.architectTaskSummaryAgent);
+                } else {
+                    // Update existing summary
+                    await this.taskContextService.update(activeSession, ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID, this.architectTaskSummaryAgent);
+                }
+            }
+        });
+
         registry.registerCommand(AI_SUMMARIZE_SESSION_AS_TASK_FOR_CODER, {
             execute: async () => {
                 const activeSession = this.chatService.getActiveSession();

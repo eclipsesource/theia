@@ -111,39 +111,43 @@ export class TaskContextService {
         // Get the existing summary for the session
         const existingSummary = this.getSummaryForSession(session);
         if (!existingSummary) {
-            throw new Error(`No existing summary found for session with id: ${session.id}`);
+            // If no summary exists, create one instead
+            // TODO: Maybe we could also look into the task  context folder and ask for the existing ones with an additional menu to create a new one?
+            return this.summarize(session, promptId, agent, override);
         }
 
-        const prompt = await this.getSystemPrompt(session, promptId);
-        if (!prompt) {
-            return '';
+        const progress = await this.progressService.showProgress({ text: `Updating: ${session.title || session.id}`, options: { location: 'ai-chat' } });
+        try {
+            const taskContextStorageDirectory = this.preferenceService.get(
+                // preference key is defined in TASK_CONTEXT_STORAGE_DIRECTORY_PREF in @theia/ai-ide
+                'ai-features.promptTemplates.taskContextStorageDirectory',
+                '.prompts/task-contexts'
+            );
+            const taskContextFileVariable = session.model.context.getVariables().find(variableReq => {
+                return variableReq.variable.id === 'file-provider' &&
+                    typeof variableReq.arg === 'string' &&
+                    (variableReq.arg.startsWith(taskContextStorageDirectory)
+                    );
+            });
+            if (taskContextFileVariable) {
+                prompt.text = prompt.text + ' ' + taskContextFileVariable.arg;
+            }
+
+            // Call LLM with provided promptId and agent
+            const updatedSummaryText = await this.getLlmSummary(session, prompt, agent);
+            // Overwrite the summary, reusing existing metadata and ID
+            const updatedSummary: Summary = {
+                ...existingSummary,
+                summary: updatedSummaryText
+            };
+            // Store the updated summary
+            await this.storageService.store(updatedSummary);
+            return updatedSummary.id;
+        } finally {
+            progress.cancel();
         }
 
-        const taskContextStorageDirectory = this.preferenceService.get(
-            // preference key is defined in TASK_CONTEXT_STORAGE_DIRECTORY_PREF in @theia/ai-ide
-            'ai-features.promptTemplates.taskContextStorageDirectory',
-            '.prompts/task-contexts'
-        );
-        const taskContextFileVariable = session.model.context.getVariables().find(variableReq => {
-            return variableReq.variable.id === 'file-provider' &&
-                typeof variableReq.arg === 'string' &&
-                (variableReq.arg.startsWith(taskContextStorageDirectory)
-                );
-        });
-        if (taskContextFileVariable) {
-            prompt.text = prompt.text + ' ' + taskContextFileVariable.arg;
-        }
 
-        // Call LLM with provided promptId and agent
-        const updatedSummaryText = await this.getLlmSummary(session, prompt, agent);
-        // Overwrite the summary, reusing existing metadata and ID
-        const updatedSummary: Summary = {
-            ...existingSummary,
-            summary: updatedSummaryText
-        };
-        // Store the updated summary
-        await this.storageService.store(updatedSummary);
-        return updatedSummary.id;
     }
 
     protected async getLlmSummary(session: ChatSession, prompt: ResolvedPromptFragment | undefined, agent?: ChatAgent,): Promise<string> {
