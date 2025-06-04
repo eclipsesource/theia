@@ -18,6 +18,7 @@ import { UPDATE_CONTEXT_FILES_FUNCTION_ID } from './context-functions';
 import { ReplaceContentInFileProvider } from '../browser/file-changeset-functions';
 
 export const ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID = 'architect-task-summary';
+export const ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID = 'architect-update-task-summary';
 
 export const architectVariants = <PromptVariantSet>{
     id: 'architect-system',
@@ -217,6 +218,13 @@ Use the following format, but only include the sections that were discussed in t
 **Next Steps:**  
 - [Immediate action items, who should act next.]
 `
-        }
+        },
+        {
+            id: ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID, template: `{{!-- This prompt is licensed under the MIT License (https://opensource.org/license/mit).
+Made improvements or adaptations to this prompt template? We'd love for you to share it with the community! Contribute back here:
+https://github.com/eclipse-theia/theia/discussions/new?category=prompt-template-contribution --}}
+
+Your job is to use the  ~{changeSet_replaceContentInFile} and apply the changes requested by the user in this file: 
+` }
     ]
 };

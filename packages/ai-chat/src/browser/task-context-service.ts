@@ -19,7 +19,7 @@ import { MaybePromise, ProgressService, URI, generateUuid, Event } from '@theia/
 import { ChatAgent, ChatAgentLocation, ChatService, ChatSession, MutableChatModel, MutableChatRequestModel, ParsedChatRequestTextPart } from '../common';
 import { ChatSessionSummaryAgent } from '../common/chat-session-summary-agent';
 import { Deferred } from '@theia/core/lib/common/promise-util';
-import { AgentService, PromptService } from '@theia/ai-core';
+import { AgentService, PromptFragment, PromptService, ResolvedPromptFragment } from '@theia/ai-core';
 import { CHAT_SESSION_SUMMARY_PROMPT } from '../common/chat-session-summary-agent-prompt';
 
 export interface SummaryMetadata {
@@ -87,8 +87,9 @@ export class TaskContextService {
         const progress = await this.progressService.showProgress({ text: `Summarize: ${session.title || session.id}`, options: { location: 'ai-chat' } });
         this.pendingSummaries.set(session.id, summaryDeferred.promise);
         try {
+            const prompt = await this.getSystemPrompt(session, promptId);
             const newSummary: Summary = {
-                summary: await this.getLlmSummary(session, promptId, agent),
+                summary: await this.getLlmSummary(session, prompt, agent),
                 label: session.title || session.id,
                 sessionId: session.id,
                 id: summaryId
@@ -104,7 +105,34 @@ export class TaskContextService {
         }
     }
 
-    protected async getLlmSummary(session: ChatSession, promptId: string = CHAT_SESSION_SUMMARY_PROMPT.id, agent?: ChatAgent): Promise<string> {
+    async update(session: ChatSession, promptId?: string, agent?: ChatAgent, override = true): Promise<string> {
+        // Get the existing summary for the session
+        const existingSummary = this.getSummaryForSession(session);
+        if (!existingSummary) {
+            throw new Error(`No existing summary found for session with id: ${session.id}`);
+        }
+
+        const prompt = await this.getSystemPrompt(session, promptId);
+        if (!prompt) {
+            return '';
+        }
+        // TODO
+        prompt.text = prompt.text + ' ' + '';
+             
+        // Call LLM with provided promptId and agent
+        const updatedSummaryText = await this.getLlmSummary(session, prompt, agent);
+        // Overwrite the summary, reusing existing metadata and ID
+        const updatedSummary: Summary = {
+            ...existingSummary,
+            summary: updatedSummaryText
+        };
+        // Store the updated summary
+        await this.storageService.store(updatedSummary);
+        return updatedSummary.id;
+    }
+
+    protected async getLlmSummary(session: ChatSession, prompt: ResolvedPromptFragment | undefined, agent?: ChatAgent,): Promise<string> {
+        if (!prompt) { return ''; }
         agent = agent || this.agentService.getAgents().find<ChatAgent>((candidate): candidate is ChatAgent =>
             'invoke' in candidate
             && typeof candidate.invoke === 'function'
@@ -112,8 +140,7 @@ export class TaskContextService {
         );
         if (!agent) { throw new Error('Unable to identify agent for summary.'); }
         const model = new MutableChatModel(ChatAgentLocation.Panel);
-        const prompt = await this.promptService.getResolvedPromptFragment(promptId || CHAT_SESSION_SUMMARY_PROMPT.id, undefined, { model: session.model });
-        if (!prompt) { return ''; }
+
         const messages = session.model.getRequests().filter((candidate): candidate is MutableChatRequestModel => candidate instanceof MutableChatRequestModel);
         messages.forEach(message => model['_hierarchy'].append(message));
         const summaryRequest = model.addRequest({
@@ -124,6 +151,11 @@ export class TaskContextService {
         }, agent.id);
         await agent.invoke(summaryRequest);
         return summaryRequest.response.response.asDisplayString();
+    }
+
+    protected async getSystemPrompt(session: ChatSession, promptId: string = CHAT_SESSION_SUMMARY_PROMPT.id) {
+        const prompt = await this.promptService.getResolvedPromptFragment(promptId || CHAT_SESSION_SUMMARY_PROMPT.id, undefined, { model: session.model });
+        return prompt;
     }
 
     hasSummary(chatSession: ChatSession): boolean {
