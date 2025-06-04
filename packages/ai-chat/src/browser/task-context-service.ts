@@ -17,6 +17,7 @@
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { MaybePromise, ProgressService, URI, generateUuid, Event } from '@theia/core';
 import { ChatAgent, ChatAgentLocation, ChatService, ChatSession, MutableChatModel, MutableChatRequestModel, ParsedChatRequestTextPart } from '../common';
+import { PreferenceService } from '@theia/core/lib/browser';
 import { ChatSessionSummaryAgent } from '../common/chat-session-summary-agent';
 import { Deferred } from '@theia/core/lib/common/promise-util';
 import { AgentService, PromptService, ResolvedPromptFragment } from '@theia/ai-core';
@@ -53,6 +54,7 @@ export class TaskContextService {
     @inject(PromptService) protected readonly promptService: PromptService;
     @inject(TaskContextStorageService) protected readonly storageService: TaskContextStorageService;
     @inject(ProgressService) protected readonly progressService: ProgressService;
+    @inject(PreferenceService) protected readonly preferenceService: PreferenceService;
 
     get onDidChange(): Event<void> {
         return this.storageService.onDidChange;
@@ -117,10 +119,15 @@ export class TaskContextService {
             return '';
         }
 
+        const taskContextStorageDirectory = this.preferenceService.get(
+            // preference key is defined in TASK_CONTEXT_STORAGE_DIRECTORY_PREF in @theia/ai-ide
+            'ai-features.promptTemplates.taskContextStorageDirectory',
+            '.prompts/task-contexts'
+        );
         const taskContextFileVariable = session.model.context.getVariables().find(variableReq => {
             return variableReq.variable.id === 'file-provider' &&
                 typeof variableReq.arg === 'string' &&
-                (variableReq.arg.startsWith('.prompts/tasks-contexts')
+                (variableReq.arg.startsWith(taskContextStorageDirectory)
                 );
         });
         if (taskContextFileVariable) {
