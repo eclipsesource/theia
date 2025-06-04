@@ -17,7 +17,9 @@
 import { ToolProvider, ToolRequest } from '@theia/ai-core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { ChatAgentService, ChatService, MutableChatRequestModel, ChatRequest } from '@theia/ai-chat/lib/common';
-import { AGENT_DELEGATION_FUNCTION_ID } from '../common/workspace-functions';
+import { DelegationResponseContent } from '@theia/ai-chat-ui/src/browser/delegation-response-content';
+
+export const AGENT_DELEGATION_FUNCTION_ID = 'delegateToAgent';
 
 @injectable()
 export class AgentDelegationTool implements ToolProvider {
@@ -89,7 +91,9 @@ export class AgentDelegationTool implements ToolProvider {
 
             // this.chatService.deleteSession(newSession.id);
 
-            // ctx.response.response.addContent(new DelegateResponseContent(response));
+            if (response) {
+                ctx.response.response.addContent(new DelegationResponseContent(response));
+            }
 
             if (response) {
                 const result = await response.responseCompleted;

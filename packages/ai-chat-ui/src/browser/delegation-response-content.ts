@@ -1,5 +1,5 @@
 // *****************************************************************************
-// Copyright (C) 2024 EclipseSource GmbH.
+// Copyright (C) 2025 EclipseSource GmbH.
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,10 +13,18 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-export const FILE_CONTENT_FUNCTION_ID = 'getFileContent';
-export const GET_WORKSPACE_FILE_LIST_FUNCTION_ID = 'getWorkspaceFileList';
-export const GET_WORKSPACE_DIRECTORY_STRUCTURE_FUNCTION_ID = 'getWorkspaceDirectoryStructure';
-export const GET_FILE_DIAGNOSTICS_ID = 'getFileDiagnostics';
-export const SEARCH_IN_WORKSPACE_FUNCTION_ID = 'searchInWorkspace';
-export const LIST_TASKS_FUNCTION_ID = 'listTasks';
-export const RUN_TASK_FUNCTION_ID = 'runTask';
+import { ChatRequestInvocation, ChatResponseContent } from '@theia/ai-chat';
+import { isObject } from '@theia/core';
+
+export class DelegationResponseContent implements ChatResponseContent {
+
+    kind = 'Delegation';
+
+    constructor(response: ChatRequestInvocation) {
+        // TODO
+    }
+}
+
+export function isDelegationResponseContent(value: unknown): value is DelegationResponseContent {
+    return isObject<DelegationResponseContent>(value) && value.kind === 'Delegation';
+}
