@@ -16,7 +16,7 @@
 
 import { ToolProvider, ToolRequest } from '@theia/ai-core';
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { ChatAgentService, ChatService, ChatAgentLocation, MutableChatRequestModel, ChatRequest } from '@theia/ai-chat/lib/common';
+import { ChatAgentService, ChatService, MutableChatRequestModel, ChatRequest } from '@theia/ai-chat/lib/common';
 import { AGENT_DELEGATION_FUNCTION_ID } from '../common/workspace-functions';
 
 @injectable()
@@ -77,7 +77,8 @@ export class AgentDelegationTool implements ToolProvider {
             }
 
             // Create a new session
-            const newSession = this.chatService.createSession(ChatAgentLocation.Panel, { focus: false }, agent);
+            // FIXME: this creates a new conversation visible in the UI (Panel), which we don't want
+            const newSession = this.chatService.createSession(undefined, { focus: false }, agent);
 
             // Send the request
             const chatRequest: ChatRequest = {
@@ -86,17 +87,20 @@ export class AgentDelegationTool implements ToolProvider {
 
             const response = await this.chatService.sendRequest(newSession.id, chatRequest);
 
+            // this.chatService.deleteSession(newSession.id);
+
             // ctx.response.response.addContent(new DelegateResponseContent(response));
 
             if (response) {
-                await response.responseCompleted;
+                const result = await response.responseCompleted;
+                return result.response.asString();
             } else {
                 // TODO Properly handle error case
                 return 'delegation has failed';
             }
 
             // Return the response as a string
-            return 'success';
+            // return 'success';
         } catch (error) {
             console.error('Failed to delegate to agent', error);
             return JSON.stringify({
