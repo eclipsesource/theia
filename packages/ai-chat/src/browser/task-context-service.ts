@@ -116,11 +116,11 @@ export class TaskContextService {
         if (!prompt) {
             return '';
         }
-        // Use only the first variable with 'file-provider' id and argument for .prompts/summaries
+
         const taskContextFileVariable = session.model.context.getVariables().find(variableReq => {
             return variableReq.variable.id === 'file-provider' &&
                 typeof variableReq.arg === 'string' &&
-                (variableReq.arg.startsWith('.prompts/summaries')
+                (variableReq.arg.startsWith('.prompts/tasks-contexts')
                 );
         });
         if (taskContextFileVariable) {
