@@ -139,14 +139,11 @@ export class TaskContextService {
 
             // Call LLM with provided promptId and agent
             const updatedSummaryText = await this.getLlmSummary(session, prompt, agent);
-            // Overwrite the summary, reusing existing metadata and ID
-            const updatedSummary: Summary = {
-                ...existingSummary,
-                summary: updatedSummaryText
-            };
-            // Store the updated summary
-            await this.storageService.store(updatedSummary);
-            return updatedSummary.id;
+            console.log(updatedSummaryText)
+
+            // TODO update prompt to provide updated file contents and manually create change set?
+
+            return existingSummary.id;
         } finally {
             progress.cancel();
         }

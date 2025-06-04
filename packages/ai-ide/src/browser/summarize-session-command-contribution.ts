@@ -68,10 +68,10 @@ export class SummarizeSessionCommandContribution implements CommandContribution 
                 // Check if there is an existing summary for this session
                 if (!this.taskContextService.hasSummary(activeSession)) {
                     // If no summary exists, create one first
-                    await this.taskContextService.summarize(activeSession, ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID, this.architectTaskSummaryAgent);
+                    await this.taskContextService.summarize(activeSession, ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID);
                 } else {
                     // Update existing summary
-                    await this.taskContextService.update(activeSession, ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID, this.architectTaskSummaryAgent);
+                    await this.taskContextService.update(activeSession, ARCHITECT_TASK_SUMMARY_UPDATE_PROMPT_TEMPLATE_ID);
                 }
             }
         });
@@ -84,7 +84,7 @@ export class SummarizeSessionCommandContribution implements CommandContribution 
                     return;
                 }
 
-                const summaryId = await this.taskContextService.summarize(activeSession, ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID, this.architectTaskSummaryAgent);
+                const summaryId = await this.taskContextService.summarize(activeSession, ARCHITECT_TASK_SUMMARY_PROMPT_TEMPLATE_ID);
 
                 // Open the summary in a new editor
                 await this.taskContextStorageService.open(summaryId);
