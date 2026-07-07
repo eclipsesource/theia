@@ -21,6 +21,7 @@ import { WidgetManager } from './widget-manager';
 import { ContributionProvider } from '../common/contribution-provider';
 import { Command, CommandContribution, CommandRegistry } from '../common/command';
 import { Emitter, Event } from '../common/event';
+import { ILogger } from '../common/logger';
 import { QuickInputService, QuickPickItem } from '../common/quick-pick-service';
 import { nls } from '../common/nls';
 import { DisposableCollection } from '../common/disposable';
@@ -74,6 +75,9 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     @inject(QuickInputService) @optional()
     protected readonly quickInputService: QuickInputService | undefined;
 
+    @inject(ILogger) @named('core:PerspectiveService')
+    protected readonly logger: ILogger;
+
     static readonly DEFAULT_PERSPECTIVE_ID = 'default';
 
     protected readonly perspectives = new Map<string, PerspectiveDescriptor>();
@@ -84,6 +88,7 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     readonly onDidChangePerspective: Event<string> = this.onDidChangePerspectiveEmitter.event;
 
     protected readonly toDispose = new DisposableCollection();
+    protected switchInProgress: Promise<void> | undefined;
 
     initialize(): void {
         this.registerPerspective({
@@ -93,13 +98,9 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
         });
         this.activePerspectiveId = PerspectiveService.DEFAULT_PERSPECTIVE_ID;
 
-        this.shell.setWidgetAreaResolver((widgetId, requestedArea) => {
-            const active = this.getActivePerspective();
-            if (active) {
-                return active.viewPlacements.get(widgetId);
-            }
-            return undefined;
-        });
+        this.shell.setWidgetAreaResolver((widgetId, _requestedArea) =>
+            this.getAreaForView(widgetId)
+        );
 
         if (this.contributions) {
             for (const contribution of this.contributions.getContributions()) {
@@ -115,6 +116,18 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     }
 
     async switchPerspective(id: string): Promise<void> {
+        if (this.switchInProgress) {
+            await this.switchInProgress;
+        }
+        this.switchInProgress = this.doSwitchPerspective(id);
+        try {
+            await this.switchInProgress;
+        } finally {
+            this.switchInProgress = undefined;
+        }
+    }
+
+    protected async doSwitchPerspective(id: string): Promise<void> {
         if (id === this.activePerspectiveId) {
             return;
         }
@@ -150,16 +163,16 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
                         }
                     }
                     await this.shell.addWidget(widget, { area });
-                } catch {
-                    // Widget factory may not be registered — skip silently
+                } catch (error) {
+                    this.logger.debug('Failed to create or place widget for perspective', error);
                 }
             }
 
             for (const [viewId] of descriptor.viewPlacements) {
                 try {
                     await this.shell.activateWidget(viewId);
-                } catch {
-                    // Ignore activation errors
+                } catch (error) {
+                    this.logger.debug('Failed to activate widget for perspective', error);
                 }
             }
 

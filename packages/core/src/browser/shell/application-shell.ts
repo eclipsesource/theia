@@ -2253,14 +2253,14 @@ export class ApplicationShell extends Widget {
 }
 
 /**
- * The namespace for `ApplicationShell` class statics.
- */
-/**
  * A function that can override the shell area for a widget.
  * Returns a new area to use, or `undefined` to keep the original.
  */
 export type WidgetAreaResolver = (widgetId: string, requestedArea: ApplicationShell.Area) => ApplicationShell.Area | undefined;
 
+/**
+ * The namespace for `ApplicationShell` class statics.
+ */
 export namespace ApplicationShell {
     /**
      * The areas of the application shell where widgets can reside.

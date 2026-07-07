@@ -37,6 +37,7 @@ describe('PerspectiveService', () => {
     let setMenuBarHiddenByPerspectiveStub: sinon.SinonStub;
     let setStatusBarHiddenByPerspectiveStub: sinon.SinonStub;
     let setWidgetAreaResolverStub: sinon.SinonStub;
+    let mockLogger: { debug: sinon.SinonStub };
     let testWidget: Widget;
     let toTearDown: () => void;
 
@@ -57,6 +58,7 @@ describe('PerspectiveService', () => {
         setMenuBarHiddenByPerspectiveStub = sinon.stub();
         setStatusBarHiddenByPerspectiveStub = sinon.stub();
         setWidgetAreaResolverStub = sinon.stub();
+        mockLogger = { debug: sinon.stub() };
 
         const mockShell = {
             addWidget: addWidgetStub,
@@ -78,6 +80,7 @@ describe('PerspectiveService', () => {
         // Assign mocks via property access since we can't use DI in tests
         (service as unknown as Record<string, unknown>)['shell'] = mockShell;
         (service as unknown as Record<string, unknown>)['widgetManager'] = mockWidgetManager;
+        (service as unknown as Record<string, unknown>)['logger'] = mockLogger;
     });
 
     afterEach(() => {
@@ -673,5 +676,91 @@ describe('PerspectiveService', () => {
         const resolver = setWidgetAreaResolverStub.firstCall.args[0] as (widgetId: string, requestedArea: ApplicationShell.Area) => ApplicationShell.Area | undefined;
         // Default perspective has empty viewPlacements
         expect(resolver('any-widget', 'main')).to.be.undefined;
+    });
+
+    // --- Logger tests ---
+
+    it('should log debug when widget creation fails during switchPerspective', async () => {
+        const widgetError = new Error('No factory registered');
+        getOrCreateWidgetStub.rejects(widgetError);
+
+        service.registerPerspective({
+            id: 'fail-test',
+            label: 'Fail Test',
+            viewPlacements: new Map([['missing-widget', 'main' as ApplicationShell.Area]])
+        });
+
+        await service.switchPerspective('fail-test');
+
+        expect(mockLogger.debug.calledOnce).to.be.true;
+        expect(mockLogger.debug.firstCall.args[0]).to.equal('Failed to create or place widget for perspective');
+        expect(mockLogger.debug.firstCall.args[1]).to.equal(widgetError);
+    });
+
+    it('should log debug when widget activation fails during switchPerspective', async () => {
+        const activationError = new Error('Activation failed');
+        activateWidgetStub.rejects(activationError);
+
+        service.registerPerspective({
+            id: 'activate-fail',
+            label: 'Activate Fail',
+            viewPlacements: new Map([['test-widget', 'main' as ApplicationShell.Area]])
+        });
+
+        await service.switchPerspective('activate-fail');
+
+        expect(mockLogger.debug.called).to.be.true;
+        const activateCall = mockLogger.debug.getCalls().find(
+            (c: sinon.SinonSpyCall) => c.args[0] === 'Failed to activate widget for perspective'
+        );
+        expect(activateCall).to.not.be.undefined;
+        expect(activateCall!.args[1]).to.equal(activationError);
+    });
+
+    // --- Reentrancy guard tests ---
+
+    it('should handle two rapid switchPerspective calls without interleaving', async () => {
+        service.registerPerspective({
+            id: 'first',
+            label: 'First',
+            viewPlacements: new Map()
+        });
+        service.registerPerspective({
+            id: 'second',
+            label: 'Second',
+            viewPlacements: new Map()
+        });
+
+        const promise1 = service.switchPerspective('first');
+        const promise2 = service.switchPerspective('second');
+
+        await Promise.all([promise1, promise2]);
+
+        expect(service.getActivePerspective()?.id).to.equal('second');
+    });
+
+    it('should serialize perspective switches with reentrancy guard', async () => {
+        const callOrder: string[] = [];
+
+        service.registerPerspective({
+            id: 'perspA',
+            label: 'A',
+            viewPlacements: new Map(),
+            onActivate: () => callOrder.push('activate-A')
+        });
+        service.registerPerspective({
+            id: 'perspB',
+            label: 'B',
+            viewPlacements: new Map(),
+            onActivate: () => callOrder.push('activate-B')
+        });
+
+        const p1 = service.switchPerspective('perspA');
+        const p2 = service.switchPerspective('perspB');
+
+        await Promise.all([p1, p2]);
+
+        expect(callOrder).to.deep.equal(['activate-A', 'activate-B']);
+        expect(service.getActivePerspective()?.id).to.equal('perspB');
     });
 });
