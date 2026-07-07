@@ -38,6 +38,8 @@ import { bindOriginalStateTestAgentContribution } from './chat/original-state-te
 import { bindCustomResponseContentRendererContribution } from './chat/custom-response-content-agent-contribution';
 import { bindSampleChatCommandContribution } from './chat/sample-chat-command-contribution';
 import { bindSampleCodeCompletionVariableContribution } from './ai-code-completion/sample-code-completion-variable-contribution';
+import { bindSampleReviewBotConfigurationCategory } from './ai-configuration/sample-review-bot-configuration-category';
+import { bindSampleReviewBotPreferences } from './ai-configuration/sample-review-bot-preferences';
 import { bindSamplePreferenceContribution } from './preferences/sample-preferences-contribution';
 import { MCPFrontendContribution } from '@theia/ai-mcp-server/lib/browser/mcp-frontend-contribution';
 import { SampleFrontendMCPContribution } from './mcp/sample-frontend-mcp-contribution';
@@ -71,6 +73,8 @@ export default new ContainerModule((
     bindSampleFileSystemCapabilitiesCommands(bind);
     rebindOVSXClientFactory(rebind);
     bindSampleCodeCompletionVariableContribution(bind);
+    bindSampleReviewBotPreferences(bind);
+    bindSampleReviewBotConfigurationCategory(bind);
     bindSamplePreferenceContribution(bind);
     bind(MCPFrontendContribution).to(SampleFrontendMCPContribution).inSingletonScope();
     bind(ResolveMcpFrontendContribution).toSelf().inSingletonScope();
