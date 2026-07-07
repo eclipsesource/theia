@@ -68,6 +68,8 @@ import { GitHubChatAgent } from './github-chat-agent';
 import { CommandChatAgent } from '../common/command-chat-agents';
 import { ListChatContext, ResolveChatContext, AddFileToChatContext } from './context-functions';
 import { AIAgentConfigurationWidget } from './ai-configuration/agent-configuration-widget';
+import { AgentsConfigurationCategory } from './ai-configuration/categories/agents-configuration-category';
+import { AiConfigurationCategory } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AIConfigurationSelectionService } from './ai-configuration/ai-configuration-service';
 import { AIAgentConfigurationViewContribution } from './ai-configuration/ai-configuration-view-contribution';
 import { AIConfigurationContainerWidget } from './ai-configuration/ai-configuration-widget';
@@ -269,6 +271,9 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
             createWidget: () => ctx.container.get(AIAgentConfigurationWidget)
         }))
         .inSingletonScope();
+
+    bind(AgentsConfigurationCategory).toSelf().inSingletonScope();
+    bind(AiConfigurationCategory).toService(AgentsConfigurationCategory);
 
     bind(ModelAliasesConfigurationWidget).toSelf();
     bind(WidgetFactory)
