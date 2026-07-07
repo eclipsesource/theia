@@ -23,6 +23,14 @@ import { inject, injectable } from '@theia/core/shared/inversify';
 import type { SelectOption } from '@theia/core/lib/browser/widgets/select-component';
 import { AiConfigurationScope } from '../ai-configuration-category';
 
+/** Describes which control an `AiSettingsRow` renders for a preference value. */
+export type AiSettingsControl =
+    | { readonly type: 'boolean' }
+    | { readonly type: 'string'; readonly placeholder?: string }
+    | { readonly type: 'number'; readonly min?: number; readonly max?: number; readonly step?: number }
+    | { readonly type: 'select'; readonly options: SelectOption[] }
+    | { readonly type: 'array'; readonly placeholder?: string };
+
 /**
  * The value of a single preference as seen from a particular {@link AiConfigurationScope},
  * together with the information the {@link AiSettingsRow} needs to render the
@@ -129,6 +137,33 @@ export class AiSettingsRowService {
         }
         const labels = property?.enumItemLabels ?? property?.enumDescriptions;
         return values.map((value, index) => ({ value: String(value), label: labels?.[index] ?? String(value) }));
+    }
+
+    /** All registered preference ids, e.g. to discover a provider's `ai-features.<provider>.*` block. */
+    preferenceIds(): string[] {
+        return Array.from(this.schemaService.getSchemaProperties().keys());
+    }
+
+    /**
+     * Infers a sensible {@link AiSettingsControl} for a preference from its schema `type`
+     * (a `select` when it declares an `enum`). Falls back to a text input for unknown types.
+     */
+    controlFor(preferenceId: string): AiSettingsControl {
+        const property = this.schemaService.getSchemaProperty(preferenceId);
+        if (property?.enum) {
+            return { type: 'select', options: this.enumOptions(preferenceId) };
+        }
+        switch (property?.type) {
+            case 'boolean':
+                return { type: 'boolean' };
+            case 'number':
+            case 'integer':
+                return { type: 'number', min: property.minimum, max: property.maximum };
+            case 'array':
+                return { type: 'array' };
+            default:
+                return { type: 'string' };
+        }
     }
 
     protected toPreferenceScope(scope: AiConfigurationScope): PreferenceScope {

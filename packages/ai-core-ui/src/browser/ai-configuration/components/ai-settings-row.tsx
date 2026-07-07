@@ -15,19 +15,14 @@
 // *****************************************************************************
 
 import { codicon } from '@theia/core/lib/browser';
-import { SelectComponent, SelectOption } from '@theia/core/lib/browser/widgets/select-component';
+import { SelectComponent } from '@theia/core/lib/browser/widgets/select-component';
 import { nls } from '@theia/core';
 import * as React from '@theia/core/shared/react';
 import { AiConfigurationScope } from '../ai-configuration-category';
-import { AiSettingsRowService } from './ai-settings-row-service';
+import { AiSettingsControl, AiSettingsRowService } from './ai-settings-row-service';
 
-/** Describes which control the {@link AiSettingsRow} renders for a preference value. */
-export type AiSettingsControl =
-    | { readonly type: 'boolean' }
-    | { readonly type: 'string'; readonly placeholder?: string }
-    | { readonly type: 'number'; readonly min?: number; readonly max?: number; readonly step?: number }
-    | { readonly type: 'select'; readonly options: SelectOption[] }
-    | { readonly type: 'array'; readonly placeholder?: string };
+// Re-exported from its natural home on the service so existing importers keep working.
+export { AiSettingsControl } from './ai-settings-row-service';
 
 export interface AiSettingsRowProps {
     /** Service wrapping preference read/write and markdown rendering (injected by the owning widget). */
