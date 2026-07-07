@@ -14,42 +14,53 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { BaseWidget, BoxLayout, codicon, DockPanel, WidgetManager } from '@theia/core/lib/browser';
-import { TheiaDockPanel } from '@theia/core/lib/browser/shell/theia-dock-panel';
-import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
-import { AIAgentConfigurationWidget } from './agent-configuration-widget';
-import { AIVariableConfigurationWidget } from './variable-configuration-widget';
-import { AIToolsConfigurationWidget } from './tools-configuration-widget';
-import { AISkillsConfigurationWidget } from './skills-configuration-widget';
-import { AIConfigurationSelectionService } from './ai-configuration-service';
 import { nls } from '@theia/core';
-import { AIMCPConfigurationWidget } from '@theia/ai-mcp/lib/browser/mcp-configuration-widget';
-import { AITokenUsageConfigurationWidget } from './token-usage-configuration-widget';
-import { AIPromptFragmentsConfigurationWidget } from './prompt-fragments-configuration-widget';
-import { ModelAliasesConfigurationWidget } from './model-aliases-configuration-widget';
+import { BaseWidget, BoxLayout, codicon, Message, SplitPanel } from '@theia/core/lib/browser';
+import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
+import { AiConfigurationCategoryId } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
+import { AiConfigurationCategoryRegistry } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category-registry';
+import { AiConfigurationSelectionModel } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-selection-model';
+import { AIConfigurationSelectionService } from './ai-configuration-service';
+import { AiConfigurationTreeWidget } from './ai-configuration-tree-widget';
+import { AiConfigurationDetailWidget } from './ai-configuration-detail-widget';
+import { AiConfigurationTitleBarWidget } from './ai-configuration-title-bar-widget';
+
+/**
+ * Maps the legacy per-tab widget ids (still accepted by the `OPEN_AI_CONFIG_VIEW`
+ * command and the chat toolbar button) onto the new category ids, so those entry
+ * points keep working with the master–detail shell.
+ */
+const LEGACY_WIDGET_TO_CATEGORY_ID: Record<string, string> = {
+    'ai-agent-configuration-container-widget': AiConfigurationCategoryId.AGENTS,
+    'ai-variable-configuration-container-widget': AiConfigurationCategoryId.VARIABLES,
+    'ai-mcp-configuration-container-widget': AiConfigurationCategoryId.MCP_SERVERS,
+    'ai-token-usage-configuration-container-widget': AiConfigurationCategoryId.TOKEN_USAGE,
+    'ai-prompt-fragments-configuration': AiConfigurationCategoryId.PROMPTS_AND_SKILLS,
+    'ai-tools-configuration-widget': AiConfigurationCategoryId.TOOLS,
+    'ai-skills-configuration-widget': AiConfigurationCategoryId.PROMPTS_AND_SKILLS,
+    'ai-model-aliases-configuration-widget': AiConfigurationCategoryId.MODEL_ALIASES
+};
 
 @injectable()
 export class AIConfigurationContainerWidget extends BaseWidget {
 
     static readonly ID = 'ai-configuration';
     static readonly LABEL = nls.localize('theia/ai/core/aiConfiguration/label', 'AI Configuration');
-    protected dockpanel: DockPanel;
 
-    @inject(TheiaDockPanel.Factory)
-    protected readonly dockPanelFactory: TheiaDockPanel.Factory;
-    @inject(WidgetManager)
-    protected readonly widgetManager: WidgetManager;
+    @inject(AiConfigurationTitleBarWidget)
+    protected readonly titleBarWidget: AiConfigurationTitleBarWidget;
+    @inject(AiConfigurationTreeWidget)
+    protected readonly treeWidget: AiConfigurationTreeWidget;
+    @inject(AiConfigurationDetailWidget)
+    protected readonly detailWidget: AiConfigurationDetailWidget;
+    @inject(AiConfigurationCategoryRegistry)
+    protected readonly registry: AiConfigurationCategoryRegistry;
+    @inject(AiConfigurationSelectionModel)
+    protected readonly selectionModel: AiConfigurationSelectionModel;
     @inject(AIConfigurationSelectionService)
     protected readonly aiConfigurationSelectionService: AIConfigurationSelectionService;
 
-    protected agentsWidget: AIAgentConfigurationWidget;
-    protected variablesWidget: AIVariableConfigurationWidget;
-    protected mcpWidget: AIMCPConfigurationWidget;
-    protected tokenUsageWidget: AITokenUsageConfigurationWidget;
-    protected promptFragmentsWidget: AIPromptFragmentsConfigurationWidget;
-    protected toolsWidget: AIToolsConfigurationWidget;
-    protected skillsWidget: AISkillsConfigurationWidget;
-    protected modelAliasesWidget: ModelAliasesConfigurationWidget;
+    protected bodyPanel: SplitPanel;
 
     @postConstruct()
     protected init(): void {
@@ -57,62 +68,51 @@ export class AIConfigurationContainerWidget extends BaseWidget {
         this.title.label = AIConfigurationContainerWidget.LABEL;
         this.title.caption = AIConfigurationContainerWidget.LABEL;
         this.title.closable = true;
-        this.addClass('theia-settings-container');
         this.title.iconClass = codicon('hubot');
-        this.initUI();
+        this.addClass('ai-configuration-shell');
+        this.initLayout();
         this.initListeners();
     }
 
-    protected async initUI(): Promise<void> {
-        const layout = (this.layout = new BoxLayout({ direction: 'top-to-bottom', spacing: 0 }));
-        this.dockpanel = this.dockPanelFactory({
-            mode: 'multiple-document',
-            spacing: 0
-        });
-        BoxLayout.setStretch(this.dockpanel, 1);
-        layout.addWidget(this.dockpanel);
-        this.dockpanel.addClass('ai-configuration-widget');
+    protected initLayout(): void {
+        const layout = this.layout = new BoxLayout({ direction: 'top-to-bottom', spacing: 0 });
 
-        this.agentsWidget = await this.widgetManager.getOrCreateWidget(AIAgentConfigurationWidget.ID);
-        this.variablesWidget = await this.widgetManager.getOrCreateWidget(AIVariableConfigurationWidget.ID);
-        this.mcpWidget = await this.widgetManager.getOrCreateWidget(AIMCPConfigurationWidget.ID);
-        this.tokenUsageWidget = await this.widgetManager.getOrCreateWidget(AITokenUsageConfigurationWidget.ID);
-        this.promptFragmentsWidget = await this.widgetManager.getOrCreateWidget(AIPromptFragmentsConfigurationWidget.ID);
-        this.toolsWidget = await this.widgetManager.getOrCreateWidget(AIToolsConfigurationWidget.ID);
-        this.skillsWidget = await this.widgetManager.getOrCreateWidget(AISkillsConfigurationWidget.ID);
-        this.modelAliasesWidget = await this.widgetManager.getOrCreateWidget(ModelAliasesConfigurationWidget.ID);
+        BoxLayout.setStretch(this.titleBarWidget, 0);
+        layout.addWidget(this.titleBarWidget);
 
-        this.dockpanel.addWidget(this.agentsWidget);
-        this.dockpanel.addWidget(this.variablesWidget, { mode: 'tab-after', ref: this.agentsWidget });
-        this.dockpanel.addWidget(this.mcpWidget, { mode: 'tab-after', ref: this.variablesWidget });
-        this.dockpanel.addWidget(this.tokenUsageWidget, { mode: 'tab-after', ref: this.mcpWidget });
-        this.dockpanel.addWidget(this.promptFragmentsWidget, { mode: 'tab-after', ref: this.tokenUsageWidget });
-        this.dockpanel.addWidget(this.toolsWidget, { mode: 'tab-after', ref: this.promptFragmentsWidget });
-        this.dockpanel.addWidget(this.skillsWidget, { mode: 'tab-after', ref: this.toolsWidget });
-        this.dockpanel.addWidget(this.modelAliasesWidget, { mode: 'tab-after', ref: this.skillsWidget });
-
-        this.update();
+        this.bodyPanel = new SplitPanel({ orientation: 'horizontal', spacing: 1 });
+        this.bodyPanel.addClass('ai-configuration-body');
+        this.bodyPanel.addWidget(this.treeWidget);
+        this.bodyPanel.addWidget(this.detailWidget);
+        BoxLayout.setStretch(this.bodyPanel, 1);
+        layout.addWidget(this.bodyPanel);
     }
 
     protected initListeners(): void {
-        this.aiConfigurationSelectionService.onDidSelectConfiguration(widgetId => {
-            if (widgetId === AIAgentConfigurationWidget.ID) {
-                this.dockpanel.activateWidget(this.agentsWidget);
-            } else if (widgetId === AIVariableConfigurationWidget.ID) {
-                this.dockpanel.activateWidget(this.variablesWidget);
-            } else if (widgetId === AIMCPConfigurationWidget.ID) {
-                this.dockpanel.activateWidget(this.mcpWidget);
-            } else if (widgetId === AITokenUsageConfigurationWidget.ID) {
-                this.dockpanel.activateWidget(this.tokenUsageWidget);
-            } else if (widgetId === AIPromptFragmentsConfigurationWidget.ID) {
-                this.dockpanel.activateWidget(this.promptFragmentsWidget);
-            } else if (widgetId === AIToolsConfigurationWidget.ID) {
-                this.dockpanel.activateWidget(this.toolsWidget);
-            } else if (widgetId === AISkillsConfigurationWidget.ID) {
-                this.dockpanel.activateWidget(this.skillsWidget);
-            } else if (widgetId === ModelAliasesConfigurationWidget.ID) {
-                this.dockpanel.activateWidget(this.modelAliasesWidget);
+        // Bridge the legacy selection service (driven by OPEN_AI_CONFIG_VIEW) onto the new selection model.
+        this.toDispose.push(this.aiConfigurationSelectionService.onDidSelectConfiguration(widgetId => {
+            const categoryId = LEGACY_WIDGET_TO_CATEGORY_ID[widgetId] ?? widgetId;
+            this.selectionModel.select({ categoryId });
+        }));
+    }
+
+    protected override onAfterAttach(msg: Message): void {
+        super.onAfterAttach(msg);
+        this.bodyPanel.setRelativeSizes([1, 3]);
+        this.selectInitialCategory();
+    }
+
+    protected selectInitialCategory(): void {
+        if (!this.selectionModel.getSelection()) {
+            const first = this.registry.getCategories()[0];
+            if (first) {
+                this.selectionModel.select({ categoryId: first.id });
             }
-        });
+        }
+    }
+
+    protected override onActivateRequest(msg: Message): void {
+        super.onActivateRequest(msg);
+        this.treeWidget.activate();
     }
 }

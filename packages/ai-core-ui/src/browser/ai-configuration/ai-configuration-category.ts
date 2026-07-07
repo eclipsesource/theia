@@ -51,6 +51,23 @@ export namespace AiConfigurationCategoryOrder {
 }
 
 /**
+ * Canonical ids of the built-in categories. Shared so that the categories
+ * (contributed from `ai-ide` and `ai-mcp`), navigation targets, and the legacy
+ * `OPEN_AI_CONFIG_VIEW` tab-id mapping all reference the same stable strings.
+ */
+export namespace AiConfigurationCategoryId {
+    export const GENERAL = 'general';
+    export const MODELS = 'models';
+    export const MODEL_ALIASES = 'model-aliases';
+    export const AGENTS = 'agents';
+    export const PROMPTS_AND_SKILLS = 'prompts-and-skills';
+    export const VARIABLES = 'variables';
+    export const MCP_SERVERS = 'mcp-servers';
+    export const TOOLS = 'tools';
+    export const TOKEN_USAGE = 'token-usage';
+}
+
+/**
  * The scope a category's settings are read from and written to.
  *
  * Render-only in this iteration; per-scope read/write behaviour is wired later.
