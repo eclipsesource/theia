@@ -36,6 +36,7 @@ describe('PerspectiveService', () => {
     let collapsePanelStub: sinon.SinonStub;
     let setMenuBarHiddenByPerspectiveStub: sinon.SinonStub;
     let setStatusBarHiddenByPerspectiveStub: sinon.SinonStub;
+    let setWidgetAreaResolverStub: sinon.SinonStub;
     let testWidget: Widget;
     let toTearDown: () => void;
 
@@ -55,6 +56,7 @@ describe('PerspectiveService', () => {
         collapsePanelStub = sinon.stub().resolves();
         setMenuBarHiddenByPerspectiveStub = sinon.stub();
         setStatusBarHiddenByPerspectiveStub = sinon.stub();
+        setWidgetAreaResolverStub = sinon.stub();
 
         const mockShell = {
             addWidget: addWidgetStub,
@@ -65,7 +67,8 @@ describe('PerspectiveService', () => {
             setLayoutData: setLayoutDataStub,
             collapsePanel: collapsePanelStub,
             setMenuBarHiddenByPerspective: setMenuBarHiddenByPerspectiveStub,
-            setStatusBarHiddenByPerspective: setStatusBarHiddenByPerspectiveStub
+            setStatusBarHiddenByPerspective: setStatusBarHiddenByPerspectiveStub,
+            setWidgetAreaResolver: setWidgetAreaResolverStub
         };
 
         const mockWidgetManager = {
@@ -623,5 +626,52 @@ describe('PerspectiveService', () => {
         await service.switchPerspective('no-collapse');
 
         expect(collapsePanelStub.called).to.be.false;
+    });
+
+    // --- WidgetAreaResolver registration tests ---
+
+    it('should register a widget area resolver on the shell during initialize', () => {
+        service.initialize();
+
+        expect(setWidgetAreaResolverStub.calledOnce).to.be.true;
+        expect(typeof setWidgetAreaResolverStub.firstCall.args[0]).to.equal('function');
+    });
+
+    it('should resolve widget area from active perspective via the registered resolver', async () => {
+        service.initialize();
+
+        service.registerPerspective({
+            id: 'resolver-test',
+            label: 'Resolver Test',
+            viewPlacements: new Map([['my-widget', 'right' as ApplicationShell.Area]])
+        });
+
+        await service.switchPerspective('resolver-test');
+
+        const resolver = setWidgetAreaResolverStub.firstCall.args[0] as (widgetId: string, requestedArea: ApplicationShell.Area) => ApplicationShell.Area | undefined;
+        expect(resolver('my-widget', 'left')).to.equal('right');
+    });
+
+    it('should return undefined from the resolver for unmapped widgets', async () => {
+        service.initialize();
+
+        service.registerPerspective({
+            id: 'resolver-test',
+            label: 'Resolver Test',
+            viewPlacements: new Map([['my-widget', 'right' as ApplicationShell.Area]])
+        });
+
+        await service.switchPerspective('resolver-test');
+
+        const resolver = setWidgetAreaResolverStub.firstCall.args[0] as (widgetId: string, requestedArea: ApplicationShell.Area) => ApplicationShell.Area | undefined;
+        expect(resolver('unknown-widget', 'main')).to.be.undefined;
+    });
+
+    it('should return undefined from the resolver when default perspective is active', () => {
+        service.initialize();
+
+        const resolver = setWidgetAreaResolverStub.firstCall.args[0] as (widgetId: string, requestedArea: ApplicationShell.Area) => ApplicationShell.Area | undefined;
+        // Default perspective has empty viewPlacements
+        expect(resolver('any-widget', 'main')).to.be.undefined;
     });
 });

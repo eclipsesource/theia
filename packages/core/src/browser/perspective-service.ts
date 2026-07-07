@@ -93,6 +93,14 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
         });
         this.activePerspectiveId = PerspectiveService.DEFAULT_PERSPECTIVE_ID;
 
+        this.shell.setWidgetAreaResolver((widgetId, requestedArea) => {
+            const active = this.getActivePerspective();
+            if (active) {
+                return active.viewPlacements.get(widgetId);
+            }
+            return undefined;
+        });
+
         if (this.contributions) {
             for (const contribution of this.contributions.getContributions()) {
                 contribution.registerPerspectives(this);

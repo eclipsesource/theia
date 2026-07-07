@@ -988,12 +988,30 @@ export class ApplicationShell extends Widget {
      *
      * Widgets added to the top area are not tracked regarding the _current_ and _active_ states.
      */
+    protected widgetAreaResolver?: WidgetAreaResolver;
+
+    setWidgetAreaResolver(resolver: WidgetAreaResolver | undefined): void {
+        this.widgetAreaResolver = resolver;
+    }
+
+    protected resolveWidgetArea(widget: Widget, options?: Readonly<ApplicationShell.WidgetOptions>): Readonly<ApplicationShell.WidgetOptions> | undefined {
+        if (this.widgetAreaResolver && !options?.ref) {
+            const requestedArea = options?.area || 'main';
+            const resolvedArea = this.widgetAreaResolver(widget.id, requestedArea);
+            if (resolvedArea && resolvedArea !== requestedArea) {
+                return { ...options, area: resolvedArea };
+            }
+        }
+        return options;
+    }
+
     async addWidget(widget: Widget, options?: Readonly<ApplicationShell.WidgetOptions>): Promise<void> {
         if (!widget.id) {
             this.logger.error('Widgets added to the application shell must have a unique id property.');
             return;
         }
-        const { area, addOptions } = this.getInsertionOptions(options);
+        const resolvedOptions = this.resolveWidgetArea(widget, options);
+        const { area, addOptions } = this.getInsertionOptions(resolvedOptions);
         const sidePanelOptions: SidePanel.WidgetOptions = { rank: options?.rank };
         switch (area) {
             case 'main':
@@ -2237,6 +2255,12 @@ export class ApplicationShell extends Widget {
 /**
  * The namespace for `ApplicationShell` class statics.
  */
+/**
+ * A function that can override the shell area for a widget.
+ * Returns a new area to use, or `undefined` to keep the original.
+ */
+export type WidgetAreaResolver = (widgetId: string, requestedArea: ApplicationShell.Area) => ApplicationShell.Area | undefined;
+
 export namespace ApplicationShell {
     /**
      * The areas of the application shell where widgets can reside.
