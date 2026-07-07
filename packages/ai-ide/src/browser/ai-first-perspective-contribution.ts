@@ -27,7 +27,6 @@ export class AIFirstPerspectiveContribution implements PerspectiveContribution {
 
     registerPerspectives(service: PerspectiveService): void {
         const chromeOptions: PerspectiveChromeOptions = {
-            hideMenuBar: true,
             hideStatusBar: true,
             collapseAreas: ['left', 'bottom']
         };

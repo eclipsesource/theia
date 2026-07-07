@@ -28,8 +28,6 @@ import { DisposableCollection } from '../common/disposable';
 import { CommonCommands } from './common-commands';
 
 export interface PerspectiveChromeOptions {
-    /** Hide the top menu bar. Default: false. */
-    hideMenuBar?: boolean;
     /** Hide the status bar. Default: false. */
     hideStatusBar?: boolean;
     /** Areas to collapse on first activation. User can re-expand freely. */
@@ -193,7 +191,6 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     }
 
     protected applyChrome(descriptor: PerspectiveDescriptor): void {
-        this.shell.setMenuBarHiddenByPerspective(descriptor.chromeOptions?.hideMenuBar ?? false);
         this.shell.setStatusBarHiddenByPerspective(descriptor.chromeOptions?.hideStatusBar ?? false);
     }
 

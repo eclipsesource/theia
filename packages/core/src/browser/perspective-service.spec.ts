@@ -34,7 +34,6 @@ describe('PerspectiveService', () => {
     let getLayoutDataStub: sinon.SinonStub;
     let setLayoutDataStub: sinon.SinonStub;
     let collapsePanelStub: sinon.SinonStub;
-    let setMenuBarHiddenByPerspectiveStub: sinon.SinonStub;
     let setStatusBarHiddenByPerspectiveStub: sinon.SinonStub;
     let setWidgetAreaResolverStub: sinon.SinonStub;
     let mockLogger: { debug: sinon.SinonStub };
@@ -55,7 +54,6 @@ describe('PerspectiveService', () => {
         getLayoutDataStub = sinon.stub().returns({ mainPanel: {}, bottomPanel: {} });
         setLayoutDataStub = sinon.stub().resolves();
         collapsePanelStub = sinon.stub().resolves();
-        setMenuBarHiddenByPerspectiveStub = sinon.stub();
         setStatusBarHiddenByPerspectiveStub = sinon.stub();
         setWidgetAreaResolverStub = sinon.stub();
         mockLogger = { debug: sinon.stub() };
@@ -68,7 +66,6 @@ describe('PerspectiveService', () => {
             getLayoutData: getLayoutDataStub,
             setLayoutData: setLayoutDataStub,
             collapsePanel: collapsePanelStub,
-            setMenuBarHiddenByPerspective: setMenuBarHiddenByPerspectiveStub,
             setStatusBarHiddenByPerspective: setStatusBarHiddenByPerspectiveStub,
             setWidgetAreaResolver: setWidgetAreaResolverStub
         };
@@ -491,31 +488,6 @@ describe('PerspectiveService', () => {
 
     // --- Chrome control options tests ---
 
-    it('should hide menu bar when perspective has hideMenuBar', async () => {
-        service.registerPerspective({
-            id: 'chrome-test',
-            label: 'Chrome Test',
-            viewPlacements: new Map(),
-            chromeOptions: { hideMenuBar: true }
-        });
-
-        await service.switchPerspective('chrome-test');
-
-        expect(setMenuBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
-    });
-
-    it('should show menu bar when perspective does not hide it', async () => {
-        service.registerPerspective({
-            id: 'no-chrome',
-            label: 'No Chrome',
-            viewPlacements: new Map()
-        });
-
-        await service.switchPerspective('no-chrome');
-
-        expect(setMenuBarHiddenByPerspectiveStub.calledWith(false)).to.be.true;
-    });
-
     it('should hide status bar when perspective has hideStatusBar', async () => {
         service.registerPerspective({
             id: 'chrome-test',
@@ -576,7 +548,7 @@ describe('PerspectiveService', () => {
             id: 'chrome-test',
             label: 'Chrome Test',
             viewPlacements: new Map(),
-            chromeOptions: { hideMenuBar: true, hideStatusBar: true }
+            chromeOptions: { hideStatusBar: true }
         });
         service.registerPerspective({
             id: 'other',
@@ -586,21 +558,17 @@ describe('PerspectiveService', () => {
 
         // First activation
         await service.switchPerspective('chrome-test');
-        expect(setMenuBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
         expect(setStatusBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
 
-        setMenuBarHiddenByPerspectiveStub.resetHistory();
         setStatusBarHiddenByPerspectiveStub.resetHistory();
 
         // Switch away (saves layout)
         await service.switchPerspective('other');
 
-        setMenuBarHiddenByPerspectiveStub.resetHistory();
         setStatusBarHiddenByPerspectiveStub.resetHistory();
 
         // Switch back (restores saved layout) — chrome should still be applied
         await service.switchPerspective('chrome-test');
-        expect(setMenuBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
         expect(setStatusBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
     });
 

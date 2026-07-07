@@ -414,20 +414,13 @@ export class ApplicationShell extends Widget {
         this.onDidChangeActiveWidget(updateFocusContextKeys);
     }
 
-    protected perspectiveHidesTopPanel = false;
-
-    setMenuBarHiddenByPerspective(hidden: boolean): void {
-        this.perspectiveHidesTopPanel = hidden;
-        this.setTopPanelVisibility(this.corePreferences['window.menuBarVisibility']);
-    }
-
     setStatusBarHiddenByPerspective(hidden: boolean): void {
         this.statusBar.setHiddenByPerspective(hidden);
     }
 
     protected setTopPanelVisibility(preference: string): void {
         const hiddenPreferences = ['compact', 'hidden'];
-        this.topPanel.setHidden(this.perspectiveHidesTopPanel || hiddenPreferences.includes(preference));
+        this.topPanel.setHidden(hiddenPreferences.includes(preference));
     }
 
     protected override onBeforeAttach(msg: Message): void {
