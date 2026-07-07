@@ -40,6 +40,8 @@ import { MCPServerEditor, MCPServerEditorImpl, MCPServerEditDialogFactory, MCPSe
 import { MCPServerEditDialog, DEFAULT_MCP_SERVER_FORM_DATA } from './mcp-server-edit-dialog';
 import { MCPServerInstallDialog, MCPServerInstallDialogFactory, MCPServerInstallDialogOptions } from './mcp-server-install-dialog';
 import { AIMCPConfigurationWidget } from './mcp-configuration-widget';
+import { McpServersConfigurationCategory } from './mcp-servers-configuration-category';
+import { AiConfigurationCategory } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { MCPConfigurationCommandContribution } from './mcp-configuration-command-contribution';
 import { MCPInstallUriConfiguration } from './mcp-install-uri-configuration';
 import { InstallMcpUriHandler } from './install-mcp-uri-handler';
@@ -72,6 +74,9 @@ export default new ContainerModule(bind => {
         id: AIMCPConfigurationWidget.ID,
         createWidget: () => ctx.container.get(AIMCPConfigurationWidget)
     })).inSingletonScope();
+
+    bind(McpServersConfigurationCategory).toSelf().inSingletonScope();
+    bind(AiConfigurationCategory).toService(McpServersConfigurationCategory);
     bind(MCPConfigurationCommandContribution).toSelf().inSingletonScope();
     bind(CommandContribution).toService(MCPConfigurationCommandContribution);
 
