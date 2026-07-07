@@ -291,13 +291,13 @@ describe('PerspectiveService', () => {
 
     // --- New tests for no-op guard, layout save/restore, and default perspective ---
 
-    it('should register the default "Theia IDE" perspective on initialize', () => {
+    it('should register the default perspective on initialize', () => {
         service.initialize();
 
         const perspectives = service.getRegisteredPerspectives();
         const defaultPerspective = perspectives.find(p => p.id === PerspectiveService.DEFAULT_PERSPECTIVE_ID);
         expect(defaultPerspective).to.not.be.undefined;
-        expect(defaultPerspective!.label).to.equal('Theia IDE');
+        expect(defaultPerspective!.label).to.equal('Default');
         expect(defaultPerspective!.viewPlacements.size).to.equal(0);
     });
 
@@ -470,7 +470,7 @@ describe('PerspectiveService', () => {
             viewPlacements: new Map([['test-widget', 'left' as ApplicationShell.Area]])
         });
 
-        // Start in theia-ide (set by initialize)
+        // Start in default (set by initialize)
         expect(service.getActivePerspective()?.id).to.equal(PerspectiveService.DEFAULT_PERSPECTIVE_ID);
 
         const defaultLayout = { mainPanel: { widgets: ['default-editor'] }, bottomPanel: {} };

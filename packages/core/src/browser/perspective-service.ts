@@ -84,7 +84,7 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     @inject(StatusBarImpl)
     protected readonly statusBar: StatusBarImpl;
 
-    static readonly DEFAULT_PERSPECTIVE_ID = 'theia-ide';
+    static readonly DEFAULT_PERSPECTIVE_ID = 'default';
 
     protected readonly perspectives = new Map<string, PerspectiveDescriptor>();
     protected activePerspectiveId: string | undefined;
@@ -96,7 +96,7 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     initialize(): void {
         this.registerPerspective({
             id: PerspectiveService.DEFAULT_PERSPECTIVE_ID,
-            label: nls.localize('theia/core/perspective/theiaIde', 'Theia IDE'),
+            label: nls.localizeByDefault('Default'),
             viewPlacements: new Map()
         });
         this.activePerspectiveId = PerspectiveService.DEFAULT_PERSPECTIVE_ID;
