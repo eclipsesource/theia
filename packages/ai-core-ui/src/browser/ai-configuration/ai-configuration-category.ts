@@ -33,6 +33,24 @@ export const AiConfigurationCategory = Symbol('AiConfigurationCategory');
 export type AiConfigurationCategoryKind = 'single-page' | 'collection';
 
 /**
+ * Spaced ordering scale for the built-in categories, leaving room for
+ * future built-ins and extensions to slot in between. Assigned to
+ * {@link AiConfigurationCategory.order}. Categories with `contributed: true`
+ * always sort after all built-ins, regardless of their `order`.
+ */
+export namespace AiConfigurationCategoryOrder {
+    export const GENERAL = 100;
+    export const MODELS = 200;
+    export const MODEL_ALIASES = 300;
+    export const AGENTS = 400;
+    export const PROMPTS_AND_SKILLS = 500;
+    export const VARIABLES = 600;
+    export const MCP_SERVERS = 700;
+    export const TOOLS = 800;
+    export const TOKEN_USAGE = 900;
+}
+
+/**
  * The scope a category's settings are read from and written to.
  *
  * Render-only in this iteration; per-scope read/write behaviour is wired later.
