@@ -15,11 +15,18 @@
 // *****************************************************************************
 
 import { ContainerModule } from '@theia/core/shared/inversify';
-import { PreferenceContribution } from '@theia/core';
+import { bindRootContributionProvider, PreferenceContribution } from '@theia/core';
 import { AgentSettingsPreferenceSchema } from '@theia/ai-core/lib/common/agent-preferences';
 import { aiCorePreferenceSchema } from '@theia/ai-core/lib/common/ai-core-preferences';
+import { AiConfigurationCategory } from './ai-configuration/ai-configuration-category';
+import { AiConfigurationCategoryRegistry } from './ai-configuration/ai-configuration-category-registry';
+import { AiConfigurationSelectionModel } from './ai-configuration/ai-configuration-selection-model';
 
 export default new ContainerModule(bind => {
     bind(PreferenceContribution).toConstantValue({ schema: AgentSettingsPreferenceSchema });
     bind(PreferenceContribution).toConstantValue({ schema: aiCorePreferenceSchema });
+
+    bindRootContributionProvider(bind, AiConfigurationCategory);
+    bind(AiConfigurationCategoryRegistry).toSelf().inSingletonScope();
+    bind(AiConfigurationSelectionModel).toSelf().inSingletonScope();
 });
