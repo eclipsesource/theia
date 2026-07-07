@@ -1,0 +1,84 @@
+// *****************************************************************************
+// Copyright (C) 2025 EclipseSource GmbH.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0.
+//
+// This Source Code may also be made available under the following Secondary
+// Licenses when the conditions for such availability set forth in the Eclipse
+// Public License v. 2.0 are satisfied: GNU General Public License, version 2
+// with the GNU Classpath Exception which is available at
+// https://www.gnu.org/software/classpath/license.html.
+//
+// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
+// *****************************************************************************
+
+import { enableJSDOM } from '@theia/core/lib/browser/test/jsdom';
+let disableJSDOM = enableJSDOM();
+
+import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/frontend-application-config-provider';
+FrontendApplicationConfigProvider.set({});
+
+import { expect } from 'chai';
+import * as React from '@theia/core/shared/react';
+import {
+    AiConfigurationCategory, AiConfigurationRenderContext, AiConfigurationSelection
+} from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
+import { AiConfigurationDetailWidget } from './ai-configuration-detail-widget';
+
+disableJSDOM();
+
+/**
+ * Exercises the selection → detail dispatch logic of {@link AiConfigurationDetailWidget#renderBody}
+ * in isolation. `renderBody` only consumes its arguments (not the injected registry/selection model),
+ * so we invoke it on a prototype instance without spinning up the DI container or a DOM.
+ */
+describe('AiConfigurationDetailWidget dispatch', () => {
+
+    before(() => disableJSDOM = enableJSDOM());
+    after(() => disableJSDOM());
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const widget = Object.create(AiConfigurationDetailWidget.prototype) as any;
+    const ctx = {} as AiConfigurationRenderContext;
+
+    function category(kind: 'single-page' | 'collection', renderer: AiConfigurationCategory['renderer']): AiConfigurationCategory {
+        return { id: 'c', label: 'C', iconClass: 'codicon codicon-gear', kind, renderer };
+    }
+
+    function renderBody(cat: AiConfigurationCategory, selection: AiConfigurationSelection): React.ReactNode {
+        return widget.renderBody(cat, selection, ctx);
+    }
+
+    it('renders the item detail when an item is selected and the renderer supports it', () => {
+        const cat = category('collection', {
+            renderItemDetail: itemId => `detail:${itemId}`,
+            renderOverview: () => 'overview'
+        });
+        expect(renderBody(cat, { categoryId: 'c', itemId: 'a' })).to.equal('detail:a');
+    });
+
+    it('falls back to the overview when an item is selected but the renderer has no item detail', () => {
+        const cat = category('collection', { renderOverview: () => 'overview' });
+        expect(renderBody(cat, { categoryId: 'c', itemId: 'a' })).to.equal('overview');
+    });
+
+    it('renders the overview for a collection without an item selection', () => {
+        const cat = category('collection', { renderOverview: () => 'overview', renderPage: () => 'page' });
+        expect(renderBody(cat, { categoryId: 'c' })).to.equal('overview');
+    });
+
+    it('renders the page for a single-page category', () => {
+        const cat = category('single-page', { renderPage: () => 'page' });
+        expect(renderBody(cat, { categoryId: 'c' })).to.equal('page');
+    });
+
+    it('shows the coming-soon placeholder when the renderer provides no applicable method', () => {
+        const cat = category('single-page', {});
+        const result = renderBody(cat, { categoryId: 'c' });
+        // The placeholder is a <div> element rather than a plain renderer return value.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect((result as any).type).to.equal('div');
+    });
+});

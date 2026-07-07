@@ -21,7 +21,7 @@ import { FrontendApplication } from '@theia/core/lib/browser';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { AIConfigurationContainerWidget } from './ai-configuration-widget';
 import { AIConfigurationSelectionService } from './ai-configuration-service';
-import { AIToolsConfigurationWidget } from './tools-configuration-widget';
+import { AiConfigurationCategoryId } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 
 export const AI_CONFIGURATION_TOGGLE_COMMAND_ID = 'aiConfiguration:toggle';
 export const OPEN_AI_CONFIG_VIEW = Command.toLocalizedCommand({
@@ -72,7 +72,7 @@ export class AIAgentConfigurationViewContribution extends AIViewContribution<AIC
             },
         });
         commands.registerCommand(OPEN_AI_CONFIG_VIEW_TOOLS, {
-            execute: () => commands.executeCommand(OPEN_AI_CONFIG_VIEW.id, AIToolsConfigurationWidget.ID),
+            execute: () => commands.executeCommand(OPEN_AI_CONFIG_VIEW.id, AiConfigurationCategoryId.TOOLS),
         });
     }
 
