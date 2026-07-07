@@ -25,6 +25,7 @@ import { AiConfigurationSelectionModel } from '@theia/ai-core-ui/lib/browser/ai-
 import { AiConfigurationSelection } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AiConfigurationTreeModel } from './ai-configuration-tree-model';
 import { AiConfigurationCategoryNode, AiConfigurationItemNode, AiConfigurationSeparatorNode, AiConfigurationTree } from './ai-configuration-tree-nodes';
+import { AiConfigurationSearch } from './ai-configuration-search';
 
 @injectable()
 export class AiConfigurationTreeWidget extends TreeWidget {
@@ -42,6 +43,11 @@ export class AiConfigurationTreeWidget extends TreeWidget {
     /** Set while a rebuild is in flight, so selection is restored once the tree is refreshed. */
     protected pendingSelectionRestore = false;
     protected expansionState = new Map<string, boolean>();
+
+    /** Active live-filter terms (empty => no filtering). */
+    protected filterTerms: string[] = [];
+    /** Expansion snapshot captured when filtering starts, restored when it ends. */
+    protected preFilterExpansion: Map<string, boolean> | undefined;
 
     constructor(
         @inject(TreeProps) props: TreeProps,
@@ -153,6 +159,89 @@ export class AiConfigurationTreeWidget extends TreeWidget {
         return selection.itemId
             ? AiConfigurationTree.itemNodeId(selection.categoryId, selection.itemId)
             : AiConfigurationTree.categoryNodeId(selection.categoryId);
+    }
+
+    /**
+     * Live tree filter driven by the search box: hides non-matching category/item
+     * nodes and the separator, and (un)expands categories so matches stay visible.
+     */
+    setFilter(text: string): void {
+        const terms = AiConfigurationSearch.terms(text);
+        const wasFiltering = this.filterTerms.length > 0;
+        const nowFiltering = terms.length > 0;
+        this.filterTerms = terms;
+        if (nowFiltering) {
+            if (!wasFiltering) {
+                this.preFilterExpansion = this.captureExpansion();
+            }
+            this.expandMatchingCategories();
+        } else if (wasFiltering) {
+            this.restoreExpansion();
+        }
+        this.updateRows();
+    }
+
+    protected expandMatchingCategories(): void {
+        const root = this.model.root;
+        if (!CompositeTreeNode.is(root)) {
+            return;
+        }
+        for (const child of root.children) {
+            if (AiConfigurationCategoryNode.is(child) && ExpandableTreeNode.is(child) && !child.expanded && this.matchesFilter(child)) {
+                this.model.expandNode(child);
+            }
+        }
+    }
+
+    protected restoreExpansion(): void {
+        const state = this.preFilterExpansion;
+        this.preFilterExpansion = undefined;
+        const root = this.model.root;
+        if (!state || !CompositeTreeNode.is(root)) {
+            return;
+        }
+        for (const child of root.children) {
+            if (AiConfigurationCategoryNode.is(child) && ExpandableTreeNode.is(child)) {
+                const wasExpanded = state.get(child.categoryId) ?? false;
+                if (wasExpanded && !child.expanded) {
+                    this.model.expandNode(child);
+                } else if (!wasExpanded && child.expanded) {
+                    this.model.collapseNode(child);
+                }
+            }
+        }
+    }
+
+    protected override shouldDisplayNode(node: TreeNode): boolean {
+        if (!super.shouldDisplayNode(node)) {
+            return false;
+        }
+        if (this.filterTerms.length === 0) {
+            return true;
+        }
+        if (AiConfigurationSeparatorNode.is(node)) {
+            return false;
+        }
+        return this.matchesFilter(node);
+    }
+
+    /** A category matches if its own label or any child matches; an item matches if its label or its category's label matches. */
+    protected matchesFilter(node: TreeNode): boolean {
+        if (AiConfigurationCategoryNode.is(node)) {
+            return this.labelMatches(node.name) || node.children.some(child => this.labelMatches(child.name));
+        }
+        if (AiConfigurationItemNode.is(node)) {
+            return this.labelMatches(node.name)
+                || (AiConfigurationCategoryNode.is(node.parent) && this.labelMatches(node.parent.name));
+        }
+        return false;
+    }
+
+    protected labelMatches(label: string | undefined): boolean {
+        if (!label) {
+            return false;
+        }
+        return AiConfigurationSearch.matchesTerms(label.toLowerCase(), this.filterTerms);
     }
 
     protected override renderIcon(node: TreeNode, props: NodeProps): React.ReactNode {

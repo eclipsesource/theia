@@ -74,6 +74,7 @@ import { AIConfigurationContainerWidget } from './ai-configuration/ai-configurat
 import { AiConfigurationTitleBarWidget } from './ai-configuration/ai-configuration-title-bar-widget';
 import { AiConfigurationDetailWidget } from './ai-configuration/ai-configuration-detail-widget';
 import { AiConfigurationTreeWidget, createAiConfigurationTreeContainer } from './ai-configuration/ai-configuration-tree-widget';
+import { AiConfigurationSearchWidget } from './ai-configuration/ai-configuration-search-widget';
 import { AIVariableConfigurationWidget } from './ai-configuration/variable-configuration-widget';
 import { ContextFilesVariableContribution } from '../common/context-files-variable';
 import { AIToolsConfigurationWidget } from './ai-configuration/tools-configuration-widget';
@@ -232,6 +233,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bindToolProvider(ResolveChatContext, bind);
     bind(AIConfigurationSelectionService).toSelf().inSingletonScope();
     bind(AiConfigurationTitleBarWidget).toSelf().inSingletonScope();
+    bind(AiConfigurationSearchWidget).toSelf().inSingletonScope();
     bind(AiConfigurationDetailWidget).toSelf().inSingletonScope();
     bind(AiConfigurationTreeWidget)
         .toDynamicValue(({ container }) => createAiConfigurationTreeContainer(container).get(AiConfigurationTreeWidget))

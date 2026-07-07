@@ -99,12 +99,111 @@
   min-height: 0;
 }
 
+/* Tree column: search box + category tree */
+.ai-configuration-tree-column {
+  border-right: var(--theia-border-width) solid var(--theia-widget-border);
+  background-color: var(--theia-sideBar-background, var(--theia-editor-background));
+}
+
+/* Search box + deep-results dropdown */
+.ai-configuration-search {
+  min-height: fit-content;
+}
+
+.ai-configuration-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: var(--theia-ui-padding) calc(var(--theia-ui-padding) * 1.5);
+}
+
+.ai-configuration-search-icon {
+  position: absolute;
+  left: calc(var(--theia-ui-padding) * 1.5 + 6px);
+  color: var(--theia-descriptionForeground);
+  pointer-events: none;
+}
+
+.ai-configuration-search-input {
+  width: 100%;
+  padding-left: 24px;
+}
+
+.ai-configuration-search-results {
+  position: absolute;
+  top: calc(100% - var(--theia-ui-padding) / 2);
+  left: calc(var(--theia-ui-padding) * 1.5);
+  right: calc(var(--theia-ui-padding) * 1.5);
+  z-index: 900;
+  max-height: 380px;
+  overflow-y: auto;
+  padding: calc(var(--theia-ui-padding) / 2);
+  background-color: var(--theia-editorWidget-background);
+  border: var(--theia-border-width) solid var(--theia-dropdown-border, var(--theia-widget-border));
+  border-radius: 4px;
+  box-shadow: 0 6px 18px var(--theia-widget-shadow);
+}
+
+.ai-configuration-search-result {
+  display: flex;
+  align-items: center;
+  gap: var(--theia-ui-padding);
+  padding: calc(var(--theia-ui-padding) / 2) var(--theia-ui-padding);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.ai-configuration-search-result:hover,
+.ai-configuration-search-result.focused {
+  background-color: var(--theia-list-activeSelectionBackground);
+  color: var(--theia-list-activeSelectionForeground);
+}
+
+.ai-configuration-search-result-type {
+  flex: none;
+  padding: 0 calc(var(--theia-ui-padding) / 2);
+  border: var(--theia-border-width) solid var(--theia-badge-background);
+  border-radius: 8px;
+  font-size: var(--theia-ui-font-size0);
+  color: var(--theia-descriptionForeground);
+  white-space: nowrap;
+}
+
+.ai-configuration-search-result-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-configuration-search-result-label b {
+  color: var(--theia-textLink-foreground);
+  font-weight: 600;
+}
+
+.ai-configuration-search-result-category {
+  margin-left: auto;
+  flex: none;
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size0);
+}
+
+.ai-configuration-search-result:hover .ai-configuration-search-result-category,
+.ai-configuration-search-result.focused .ai-configuration-search-result-category {
+  color: inherit;
+}
+
+.ai-configuration-search-empty {
+  padding: var(--theia-ui-padding);
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size1);
+  text-align: center;
+}
+
 /* Category tree */
 .ai-configuration-tree {
   height: 100%;
   overflow: auto;
-  background-color: var(--theia-sideBar-background, var(--theia-editor-background));
-  border-right: var(--theia-border-width) solid var(--theia-widget-border);
+  background-color: transparent;
 }
 
 .ai-configuration-tree-node-icon {

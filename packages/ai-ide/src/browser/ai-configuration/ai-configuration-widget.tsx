@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { nls } from '@theia/core';
-import { BaseWidget, BoxLayout, codicon, Message, SplitPanel } from '@theia/core/lib/browser';
+import { BaseWidget, BoxLayout, BoxPanel, codicon, Message, SplitPanel } from '@theia/core/lib/browser';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import { AiConfigurationCategoryId } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AiConfigurationCategoryRegistry } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category-registry';
@@ -24,6 +24,7 @@ import { AIConfigurationSelectionService } from './ai-configuration-service';
 import { AiConfigurationTreeWidget } from './ai-configuration-tree-widget';
 import { AiConfigurationDetailWidget } from './ai-configuration-detail-widget';
 import { AiConfigurationTitleBarWidget } from './ai-configuration-title-bar-widget';
+import { AiConfigurationSearchWidget } from './ai-configuration-search-widget';
 
 /**
  * Maps the legacy per-tab widget ids (still accepted by the `OPEN_AI_CONFIG_VIEW`
@@ -49,6 +50,8 @@ export class AIConfigurationContainerWidget extends BaseWidget {
 
     @inject(AiConfigurationTitleBarWidget)
     protected readonly titleBarWidget: AiConfigurationTitleBarWidget;
+    @inject(AiConfigurationSearchWidget)
+    protected readonly searchWidget: AiConfigurationSearchWidget;
     @inject(AiConfigurationTreeWidget)
     protected readonly treeWidget: AiConfigurationTreeWidget;
     @inject(AiConfigurationDetailWidget)
@@ -80,9 +83,17 @@ export class AIConfigurationContainerWidget extends BaseWidget {
         BoxLayout.setStretch(this.titleBarWidget, 0);
         layout.addWidget(this.titleBarWidget);
 
+        // Tree column: search box above the category tree.
+        const treeColumn = new BoxPanel({ direction: 'top-to-bottom', spacing: 0 });
+        treeColumn.addClass('ai-configuration-tree-column');
+        BoxPanel.setStretch(this.searchWidget, 0);
+        treeColumn.addWidget(this.searchWidget);
+        BoxPanel.setStretch(this.treeWidget, 1);
+        treeColumn.addWidget(this.treeWidget);
+
         this.bodyPanel = new SplitPanel({ orientation: 'horizontal', spacing: 1 });
         this.bodyPanel.addClass('ai-configuration-body');
-        this.bodyPanel.addWidget(this.treeWidget);
+        this.bodyPanel.addWidget(treeColumn);
         this.bodyPanel.addWidget(this.detailWidget);
         BoxLayout.setStretch(this.bodyPanel, 1);
         layout.addWidget(this.bodyPanel);
@@ -94,6 +105,8 @@ export class AIConfigurationContainerWidget extends BaseWidget {
             const categoryId = LEGACY_WIDGET_TO_CATEGORY_ID[widgetId] ?? widgetId;
             this.selectionModel.select({ categoryId });
         }));
+        // The search box drives the live tree filter.
+        this.toDispose.push(this.searchWidget.onDidChangeFilter(text => this.treeWidget.setFilter(text)));
     }
 
     protected override onAfterAttach(msg: Message): void {
