@@ -14,6 +14,8 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
+import '../../src/browser/style/index.css';
+
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { bindRootContributionProvider, PreferenceContribution } from '@theia/core';
 import { AgentSettingsPreferenceSchema } from '@theia/ai-core/lib/common/agent-preferences';
@@ -21,6 +23,7 @@ import { aiCorePreferenceSchema } from '@theia/ai-core/lib/common/ai-core-prefer
 import { AiConfigurationCategory } from './ai-configuration/ai-configuration-category';
 import { AiConfigurationCategoryRegistry } from './ai-configuration/ai-configuration-category-registry';
 import { AiConfigurationSelectionModel } from './ai-configuration/ai-configuration-selection-model';
+import { AiSettingsRowService } from './ai-configuration/components/ai-settings-row-service';
 
 export default new ContainerModule(bind => {
     bind(PreferenceContribution).toConstantValue({ schema: AgentSettingsPreferenceSchema });
@@ -29,4 +32,5 @@ export default new ContainerModule(bind => {
     bindRootContributionProvider(bind, AiConfigurationCategory);
     bind(AiConfigurationCategoryRegistry).toSelf().inSingletonScope();
     bind(AiConfigurationSelectionModel).toSelf().inSingletonScope();
+    bind(AiSettingsRowService).toSelf().inSingletonScope();
 });
