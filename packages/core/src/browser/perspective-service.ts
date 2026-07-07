@@ -19,13 +19,12 @@ import { ApplicationShell } from './shell/application-shell';
 import { FrontendApplicationContribution } from './frontend-application-contribution';
 import { WidgetManager } from './widget-manager';
 import { ContributionProvider } from '../common/contribution-provider';
-import { CommandContribution, CommandRegistry } from '../common/command';
+import { Command, CommandContribution, CommandRegistry } from '../common/command';
 import { Emitter, Event } from '../common/event';
 import { QuickInputService, QuickPickItem } from '../common/quick-pick-service';
 import { nls } from '../common/nls';
-import { CorePreferences } from '../common/core-preferences';
-import { PreferenceService } from '../common/preferences';
-import { StatusBarImpl } from './status-bar/status-bar';
+import { DisposableCollection } from '../common/disposable';
+import { CommonCommands } from './common-commands';
 
 export interface PerspectiveChromeOptions {
     /** Hide the top menu bar. Default: false. */
@@ -57,11 +56,11 @@ export interface PerspectiveContribution {
 @injectable()
 export class PerspectiveService implements FrontendApplicationContribution, CommandContribution {
 
-    static readonly SWITCH_PERSPECTIVE_COMMAND = {
+    static readonly SWITCH_PERSPECTIVE_COMMAND = Command.toLocalizedCommand({
         id: 'perspective.switch',
-        category: nls.localizeByDefault('View'),
-        label: nls.localize('theia/core/perspective/switchPerspective', 'Switch Perspective')
-    };
+        category: 'View',
+        label: 'Switch Perspective'
+    }, 'theia/core/perspective/switchPerspective', CommonCommands.VIEW_CATEGORY_KEY);
 
     @inject(ApplicationShell)
     protected readonly shell: ApplicationShell;
@@ -75,15 +74,6 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     @inject(QuickInputService) @optional()
     protected readonly quickInputService: QuickInputService | undefined;
 
-    @inject(CorePreferences)
-    protected readonly corePreferences: CorePreferences;
-
-    @inject(PreferenceService)
-    protected readonly preferenceService: PreferenceService;
-
-    @inject(StatusBarImpl)
-    protected readonly statusBar: StatusBarImpl;
-
     static readonly DEFAULT_PERSPECTIVE_ID = 'default';
 
     protected readonly perspectives = new Map<string, PerspectiveDescriptor>();
@@ -92,6 +82,8 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
 
     protected readonly onDidChangePerspectiveEmitter = new Emitter<string>();
     readonly onDidChangePerspective: Event<string> = this.onDidChangePerspectiveEmitter.event;
+
+    protected readonly toDispose = new DisposableCollection();
 
     initialize(): void {
         this.registerPerspective({
@@ -107,15 +99,7 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
             }
         }
 
-        this.corePreferences.onPreferenceChanged(pref => {
-            if (pref.preferenceName === 'window.menuBarVisibility'
-                || pref.preferenceName === 'workbench.statusBar.visible') {
-                const active = this.getActivePerspective();
-                if (active) {
-                    this.applyChrome(active);
-                }
-            }
-        });
+        this.toDispose.push(this.onDidChangePerspectiveEmitter);
     }
 
     registerPerspective(descriptor: PerspectiveDescriptor): void {
@@ -188,17 +172,8 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     }
 
     protected applyChrome(descriptor: PerspectiveDescriptor): void {
-        const perspectiveHidesMenu = descriptor.chromeOptions?.hideMenuBar ?? false;
-        const prefHidesMenu = ['compact', 'hidden'].includes(
-            this.corePreferences['window.menuBarVisibility']
-        );
-        this.shell.topPanel.setHidden(perspectiveHidesMenu || prefHidesMenu);
-
-        const perspectiveHidesStatus = descriptor.chromeOptions?.hideStatusBar ?? false;
-        const prefHidesStatus = !this.preferenceService.get<boolean>(
-            'workbench.statusBar.visible', true
-        );
-        this.statusBar.setHidden(perspectiveHidesStatus || prefHidesStatus);
+        this.shell.setMenuBarHiddenByPerspective(descriptor.chromeOptions?.hideMenuBar ?? false);
+        this.shell.setStatusBarHiddenByPerspective(descriptor.chromeOptions?.hideStatusBar ?? false);
     }
 
     getActivePerspective(): PerspectiveDescriptor | undefined {

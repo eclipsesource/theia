@@ -18,10 +18,10 @@ import { injectable } from '@theia/core/shared/inversify';
 import { nls } from '@theia/core';
 import { PerspectiveContribution, PerspectiveChromeOptions, PerspectiveService } from '@theia/core/lib/browser/perspective-service';
 import { ApplicationShell } from '@theia/core/lib/browser/shell/application-shell';
+import { EXPLORER_VIEW_CONTAINER_ID } from '@theia/navigator/lib/browser';
+import { SCM_VIEW_CONTAINER_ID } from '@theia/scm/lib/browser/scm-contribution';
 
 const CHAT_VIEW_WIDGET_ID = 'chat-view-widget';
-const EXPLORER_VIEW_CONTAINER_ID = 'explorer-view-container';
-const SCM_VIEW_CONTAINER_ID = 'scm-view-container';
 
 @injectable()
 export class AIFirstPerspectiveContribution implements PerspectiveContribution {

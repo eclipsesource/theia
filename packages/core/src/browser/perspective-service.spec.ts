@@ -22,8 +22,6 @@ import * as sinon from 'sinon';
 import { PerspectiveService, PerspectiveDescriptor } from './perspective-service';
 import { ApplicationShell } from './shell/application-shell';
 import { Widget } from '@lumino/widgets';
-import { Emitter } from '../common/event';
-
 disableJSDOM();
 
 describe('PerspectiveService', () => {
@@ -36,12 +34,10 @@ describe('PerspectiveService', () => {
     let getLayoutDataStub: sinon.SinonStub;
     let setLayoutDataStub: sinon.SinonStub;
     let collapsePanelStub: sinon.SinonStub;
-    let topPanelSetHiddenStub: sinon.SinonStub;
-    let statusBarSetHiddenStub: sinon.SinonStub;
+    let setMenuBarHiddenByPerspectiveStub: sinon.SinonStub;
+    let setStatusBarHiddenByPerspectiveStub: sinon.SinonStub;
     let testWidget: Widget;
     let toTearDown: () => void;
-    let mockCorePreferences: Record<string, unknown> & { onPreferenceChanged: sinon.SinonStub };
-    let mockPreferenceService: { get: sinon.SinonStub };
 
     beforeEach(() => {
         toTearDown = enableJSDOM();
@@ -57,8 +53,8 @@ describe('PerspectiveService', () => {
         getLayoutDataStub = sinon.stub().returns({ mainPanel: {}, bottomPanel: {} });
         setLayoutDataStub = sinon.stub().resolves();
         collapsePanelStub = sinon.stub().resolves();
-        topPanelSetHiddenStub = sinon.stub();
-        statusBarSetHiddenStub = sinon.stub();
+        setMenuBarHiddenByPerspectiveStub = sinon.stub();
+        setStatusBarHiddenByPerspectiveStub = sinon.stub();
 
         const mockShell = {
             addWidget: addWidgetStub,
@@ -68,32 +64,17 @@ describe('PerspectiveService', () => {
             getLayoutData: getLayoutDataStub,
             setLayoutData: setLayoutDataStub,
             collapsePanel: collapsePanelStub,
-            topPanel: { setHidden: topPanelSetHiddenStub }
-        };
-
-        const mockStatusBar = {
-            setHidden: statusBarSetHiddenStub
+            setMenuBarHiddenByPerspective: setMenuBarHiddenByPerspectiveStub,
+            setStatusBarHiddenByPerspective: setStatusBarHiddenByPerspectiveStub
         };
 
         const mockWidgetManager = {
             getOrCreateWidget: getOrCreateWidgetStub
         };
 
-        mockCorePreferences = {
-            'window.menuBarVisibility': 'classic',
-            onPreferenceChanged: sinon.stub().returns({ dispose: () => { } })
-        };
-
-        mockPreferenceService = {
-            get: sinon.stub().returns(true)
-        };
-
         // Assign mocks via property access since we can't use DI in tests
         (service as unknown as Record<string, unknown>)['shell'] = mockShell;
         (service as unknown as Record<string, unknown>)['widgetManager'] = mockWidgetManager;
-        (service as unknown as Record<string, unknown>)['corePreferences'] = mockCorePreferences;
-        (service as unknown as Record<string, unknown>)['preferenceService'] = mockPreferenceService;
-        (service as unknown as Record<string, unknown>)['statusBar'] = mockStatusBar;
     });
 
     afterEach(() => {
@@ -514,12 +495,10 @@ describe('PerspectiveService', () => {
 
         await service.switchPerspective('chrome-test');
 
-        expect(topPanelSetHiddenStub.calledWith(true)).to.be.true;
+        expect(setMenuBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
     });
 
-    it('should show menu bar when perspective does not hide it and preference allows', async () => {
-        mockCorePreferences['window.menuBarVisibility'] = 'classic';
-
+    it('should show menu bar when perspective does not hide it', async () => {
         service.registerPerspective({
             id: 'no-chrome',
             label: 'No Chrome',
@@ -528,21 +507,7 @@ describe('PerspectiveService', () => {
 
         await service.switchPerspective('no-chrome');
 
-        expect(topPanelSetHiddenStub.calledWith(false)).to.be.true;
-    });
-
-    it('should keep menu bar hidden when preference hides it even if perspective does not', async () => {
-        mockCorePreferences['window.menuBarVisibility'] = 'hidden';
-
-        service.registerPerspective({
-            id: 'no-chrome',
-            label: 'No Chrome',
-            viewPlacements: new Map()
-        });
-
-        await service.switchPerspective('no-chrome');
-
-        expect(topPanelSetHiddenStub.calledWith(true)).to.be.true;
+        expect(setMenuBarHiddenByPerspectiveStub.calledWith(false)).to.be.true;
     });
 
     it('should hide status bar when perspective has hideStatusBar', async () => {
@@ -555,12 +520,10 @@ describe('PerspectiveService', () => {
 
         await service.switchPerspective('chrome-test');
 
-        expect(statusBarSetHiddenStub.calledWith(true)).to.be.true;
+        expect(setStatusBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
     });
 
-    it('should restore status bar based on preference when perspective does not hide it', async () => {
-        mockPreferenceService.get.returns(true);
-
+    it('should not hide status bar when perspective does not hide it', async () => {
         service.registerPerspective({
             id: 'no-chrome',
             label: 'No Chrome',
@@ -569,7 +532,7 @@ describe('PerspectiveService', () => {
 
         await service.switchPerspective('no-chrome');
 
-        expect(statusBarSetHiddenStub.calledWith(false)).to.be.true;
+        expect(setStatusBarHiddenByPerspectiveStub.calledWith(false)).to.be.true;
     });
 
     it('should collapse areas on first activation only', async () => {
@@ -617,64 +580,22 @@ describe('PerspectiveService', () => {
 
         // First activation
         await service.switchPerspective('chrome-test');
-        expect(topPanelSetHiddenStub.calledWith(true)).to.be.true;
-        expect(statusBarSetHiddenStub.calledWith(true)).to.be.true;
+        expect(setMenuBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
+        expect(setStatusBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
 
-        topPanelSetHiddenStub.resetHistory();
-        statusBarSetHiddenStub.resetHistory();
+        setMenuBarHiddenByPerspectiveStub.resetHistory();
+        setStatusBarHiddenByPerspectiveStub.resetHistory();
 
         // Switch away (saves layout)
         await service.switchPerspective('other');
 
-        topPanelSetHiddenStub.resetHistory();
-        statusBarSetHiddenStub.resetHistory();
+        setMenuBarHiddenByPerspectiveStub.resetHistory();
+        setStatusBarHiddenByPerspectiveStub.resetHistory();
 
         // Switch back (restores saved layout) — chrome should still be applied
         await service.switchPerspective('chrome-test');
-        expect(topPanelSetHiddenStub.calledWith(true)).to.be.true;
-        expect(statusBarSetHiddenStub.calledWith(true)).to.be.true;
-    });
-
-    it('should re-evaluate chrome when preference changes', () => {
-        const prefEmitter = new Emitter<{ preferenceName: string }>();
-        mockCorePreferences.onPreferenceChanged = sinon.stub().callsFake(
-            (listener: (e: { preferenceName: string }) => void) => prefEmitter.event(listener)
-        );
-
-        service.registerPerspective({
-            id: 'chrome-test',
-            label: 'Chrome Test',
-            viewPlacements: new Map(),
-            chromeOptions: { hideMenuBar: true }
-        });
-
-        service.initialize();
-
-        // Manually set active perspective
-        (service as unknown as Record<string, unknown>)['activePerspectiveId'] = 'chrome-test';
-
-        topPanelSetHiddenStub.resetHistory();
-        statusBarSetHiddenStub.resetHistory();
-
-        // Fire a preference change
-        prefEmitter.fire({ preferenceName: 'window.menuBarVisibility' });
-
-        expect(topPanelSetHiddenStub.called).to.be.true;
-        expect(topPanelSetHiddenStub.calledWith(true)).to.be.true;
-    });
-
-    it('should keep status bar hidden when preference hides it even if perspective does not', async () => {
-        mockPreferenceService.get.returns(false);
-
-        service.registerPerspective({
-            id: 'no-chrome',
-            label: 'No Chrome',
-            viewPlacements: new Map()
-        });
-
-        await service.switchPerspective('no-chrome');
-
-        expect(statusBarSetHiddenStub.calledWith(true)).to.be.true;
+        expect(setMenuBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
+        expect(setStatusBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
     });
 
     it('should collapse multiple areas on first activation', async () => {
