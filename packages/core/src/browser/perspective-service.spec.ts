@@ -36,7 +36,7 @@ describe('PerspectiveService', () => {
     let collapsePanelStub: sinon.SinonStub;
     let setStatusBarHiddenByPerspectiveStub: sinon.SinonStub;
     let setWidgetAreaResolverStub: sinon.SinonStub;
-    let mockLogger: { debug: sinon.SinonStub };
+    let mockLogger: { debug: sinon.SinonStub; warn: sinon.SinonStub };
     let testWidget: Widget;
     let toTearDown: () => void;
 
@@ -56,7 +56,7 @@ describe('PerspectiveService', () => {
         collapsePanelStub = sinon.stub().resolves();
         setStatusBarHiddenByPerspectiveStub = sinon.stub();
         setWidgetAreaResolverStub = sinon.stub();
-        mockLogger = { debug: sinon.stub() };
+        mockLogger = { debug: sinon.stub(), warn: sinon.stub() };
 
         const mockShell = {
             addWidget: addWidgetStub,
@@ -762,5 +762,212 @@ describe('PerspectiveService', () => {
 
         expect(callOrder).to.deep.equal(['activate-A', 'activate-B', 'activate-C']);
         expect(service.getActivePerspective()?.id).to.equal('perspC');
+    });
+
+    // --- onStop() no-op test ---
+
+    it('should not persist layouts on onStop (handled by ShellLayoutRestorer)', () => {
+        service.initialize();
+
+        getLayoutDataStub.returns({ mainPanel: { widgets: ['editor1'] }, bottomPanel: {} });
+
+        service.onStop!({} as never);
+    });
+
+    // --- onLayoutRestored() tests ---
+
+    it('should apply chrome options when onLayoutRestored is called with a registered perspective', () => {
+        service.registerPerspective({
+            id: 'chrome-persp',
+            label: 'Chrome Persp',
+            viewPlacements: new Map(),
+            chromeOptions: { hideStatusBar: true }
+        });
+        service.initialize();
+
+        service.onLayoutRestored('chrome-persp');
+
+        expect(setStatusBarHiddenByPerspectiveStub.calledWith(true)).to.be.true;
+    });
+
+    it('should not hide status bar when restored perspective has no chrome options', () => {
+        service.registerPerspective({
+            id: 'no-chrome-persp',
+            label: 'No Chrome',
+            viewPlacements: new Map()
+        });
+        service.initialize();
+
+        service.onLayoutRestored('no-chrome-persp');
+
+        expect(setStatusBarHiddenByPerspectiveStub.calledWith(false)).to.be.true;
+    });
+
+    it('should not apply chrome when onLayoutRestored is called with an unregistered perspective', () => {
+        service.initialize();
+
+        service.onLayoutRestored('non-existent');
+
+        expect(setStatusBarHiddenByPerspectiveStub.called).to.be.false;
+    });
+
+    // --- Rejection resilience tests ---
+
+    it('should warn and continue when setLayoutData rejects during saved layout restore', async () => {
+        service.registerPerspective({
+            id: 'perspA',
+            label: 'A',
+            viewPlacements: new Map()
+        });
+        service.registerPerspective({
+            id: 'perspB',
+            label: 'B',
+            viewPlacements: new Map()
+        });
+
+        // Switch to A, then to B (saves A's layout)
+        await service.switchPerspective('perspA');
+        await service.switchPerspective('perspB');
+
+        // Make setLayoutData reject
+        setLayoutDataStub.rejects(new Error('layout error'));
+
+        const eventSpy = sinon.spy();
+        service.onDidChangePerspective(eventSpy);
+
+        // Switch back to A — should not throw
+        await service.switchPerspective('perspA');
+
+        expect(service.getActivePerspective()?.id).to.equal('perspA');
+        expect(eventSpy.calledOnce).to.be.true;
+        expect(eventSpy.calledWith('perspA')).to.be.true;
+        expect(mockLogger.warn.calledOnce).to.be.true;
+        expect(mockLogger.warn.firstCall.args[0]).to.equal('Failed to apply layout for perspective');
+    });
+
+    it('should warn and continue when collapsePanel rejects on first activation', async () => {
+        service.registerPerspective({
+            id: 'collapse-fail',
+            label: 'Collapse Fail',
+            viewPlacements: new Map(),
+            chromeOptions: { collapseAreas: ['left'] }
+        });
+
+        collapsePanelStub.rejects(new Error('collapse error'));
+
+        const eventSpy = sinon.spy();
+        service.onDidChangePerspective(eventSpy);
+
+        // Switch — should not throw
+        await service.switchPerspective('collapse-fail');
+
+        expect(service.getActivePerspective()?.id).to.equal('collapse-fail');
+        expect(setStatusBarHiddenByPerspectiveStub.called).to.be.true;
+        expect(eventSpy.calledOnce).to.be.true;
+        expect(mockLogger.warn.calledOnce).to.be.true;
+        expect(mockLogger.warn.firstCall.args[0]).to.equal('Failed to apply layout for perspective');
+    });
+
+    it('should not drop queued switches when layout application fails', async () => {
+        service.registerPerspective({
+            id: 'perspA',
+            label: 'A',
+            viewPlacements: new Map()
+        });
+        service.registerPerspective({
+            id: 'perspB',
+            label: 'B',
+            viewPlacements: new Map()
+        });
+        service.registerPerspective({
+            id: 'perspC',
+            label: 'C',
+            viewPlacements: new Map()
+        });
+
+        // Switch to A, then to B (saves A's layout)
+        await service.switchPerspective('perspA');
+        await service.switchPerspective('perspB');
+
+        // Make setLayoutData reject only on first call, then resolve
+        setLayoutDataStub.resetBehavior();
+        setLayoutDataStub.onFirstCall().rejects(new Error('layout error'));
+        setLayoutDataStub.onSecondCall().resolves();
+
+        // Queue: switch to A (will fail layout restore), then switch to C
+        const p1 = service.switchPerspective('perspA');
+        const p2 = service.switchPerspective('perspC');
+
+        await Promise.all([p1, p2]);
+
+        expect(service.getActivePerspective()?.id).to.equal('perspC');
+    });
+
+    // --- PerspectiveLayoutProvider interface tests ---
+
+    describe('PerspectiveLayoutProvider implementation', () => {
+        it('should return default perspective ID when none is set', () => {
+            expect(service.getActivePerspectiveId()).to.equal(PerspectiveService.DEFAULT_PERSPECTIVE_ID);
+        });
+
+        it('should return active perspective ID after switching', async () => {
+            service.registerPerspective({
+                id: 'test-persp',
+                label: 'Test',
+                viewPlacements: new Map()
+            });
+            await service.switchPerspective('test-persp');
+            expect(service.getActivePerspectiveId()).to.equal('test-persp');
+        });
+
+        it('should round-trip getSavedLayout/setSavedLayout', () => {
+            const layout = { mainPanel: { widgets: ['w1'] }, bottomPanel: {} } as unknown as ApplicationShell.LayoutData;
+            service.setSavedLayout('persp-x', layout);
+
+            expect(service.getSavedLayout('persp-x')).to.equal(layout);
+        });
+
+        it('should return undefined for non-existent saved layout', () => {
+            expect(service.getSavedLayout('no-such-persp')).to.be.undefined;
+        });
+
+        it('should return correct saved perspective IDs', () => {
+            const layout1 = { mainPanel: {} } as unknown as ApplicationShell.LayoutData;
+            const layout2 = { mainPanel: {} } as unknown as ApplicationShell.LayoutData;
+            service.setSavedLayout('a', layout1);
+            service.setSavedLayout('b', layout2);
+
+            const ids = service.getSavedPerspectiveIds();
+            expect(ids).to.include('a');
+            expect(ids).to.include('b');
+            expect(ids).to.have.lengthOf(2);
+        });
+
+        it('should set active perspective ID only for registered perspectives', () => {
+            service.registerPerspective({
+                id: 'registered',
+                label: 'Registered',
+                viewPlacements: new Map()
+            });
+
+            service.setActivePerspectiveId('registered');
+            expect(service.getActivePerspectiveId()).to.equal('registered');
+
+            // Should ignore unregistered perspective IDs
+            service.setActivePerspectiveId('unregistered');
+            expect(service.getActivePerspectiveId()).to.equal('registered');
+        });
+
+        it('should clear all saved layouts', () => {
+            const layout = { mainPanel: {} } as unknown as ApplicationShell.LayoutData;
+            service.setSavedLayout('a', layout);
+            service.setSavedLayout('b', layout);
+
+            service.clearSavedLayouts();
+
+            expect(service.getSavedPerspectiveIds()).to.have.lengthOf(0);
+            expect(service.getSavedLayout('a')).to.be.undefined;
+            expect(service.getSavedLayout('b')).to.be.undefined;
+        });
     });
 });

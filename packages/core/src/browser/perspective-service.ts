@@ -26,6 +26,7 @@ import { QuickInputService, QuickPickItem } from '../common/quick-pick-service';
 import { nls } from '../common/nls';
 import { DisposableCollection } from '../common/disposable';
 import { CommonCommands } from './common-commands';
+import { PerspectiveLayoutProvider } from './shell/shell-layout-restorer';
 
 export interface PerspectiveChromeOptions {
     /** Hide the status bar. Default: false. */
@@ -53,7 +54,7 @@ export interface PerspectiveContribution {
 }
 
 @injectable()
-export class PerspectiveService implements FrontendApplicationContribution, CommandContribution {
+export class PerspectiveService implements FrontendApplicationContribution, CommandContribution, PerspectiveLayoutProvider {
 
     static readonly SWITCH_PERSPECTIVE_COMMAND = Command.toLocalizedCommand({
         id: 'perspective.switch',
@@ -87,6 +88,13 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
 
     protected readonly toDispose = new DisposableCollection();
     protected switchInProgress: Promise<void> | undefined;
+
+    onLayoutRestored(activePerspectiveId: string): void {
+        const descriptor = this.perspectives.get(activePerspectiveId);
+        if (descriptor) {
+            this.applyChrome(descriptor);
+        }
+    }
 
     initialize(): void {
         this.registerPerspective({
@@ -147,39 +155,43 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
 
         this.activePerspectiveId = id;
 
-        const savedLayout = this.savedLayouts.get(id);
-        if (savedLayout) {
-            await this.shell.setLayoutData(savedLayout);
-        } else {
-            for (const [viewId, area] of descriptor.viewPlacements) {
-                try {
-                    const widget = await this.widgetManager.getOrCreateWidget(viewId);
-                    const currentTabBar = this.shell.getTabBarFor(widget);
-                    if (currentTabBar) {
-                        const currentArea = this.shell.getAreaFor(widget);
-                        if (currentArea === area) {
-                            continue;
+        try {
+            const savedLayout = this.savedLayouts.get(id);
+            if (savedLayout) {
+                await this.shell.setLayoutData(savedLayout);
+            } else {
+                for (const [viewId, area] of descriptor.viewPlacements) {
+                    try {
+                        const widget = await this.widgetManager.getOrCreateWidget(viewId);
+                        const currentTabBar = this.shell.getTabBarFor(widget);
+                        if (currentTabBar) {
+                            const currentArea = this.shell.getAreaFor(widget);
+                            if (currentArea === area) {
+                                continue;
+                            }
                         }
+                        await this.shell.addWidget(widget, { area });
+                    } catch (error) {
+                        this.logger.debug('Failed to create or place widget for perspective', error);
                     }
-                    await this.shell.addWidget(widget, { area });
-                } catch (error) {
-                    this.logger.debug('Failed to create or place widget for perspective', error);
                 }
-            }
 
-            for (const [viewId] of descriptor.viewPlacements) {
-                try {
-                    await this.shell.activateWidget(viewId);
-                } catch (error) {
-                    this.logger.debug('Failed to activate widget for perspective', error);
+                for (const [viewId] of descriptor.viewPlacements) {
+                    try {
+                        await this.shell.activateWidget(viewId);
+                    } catch (error) {
+                        this.logger.debug('Failed to activate widget for perspective', error);
+                    }
                 }
-            }
 
-            if (descriptor.chromeOptions?.collapseAreas) {
-                for (const area of descriptor.chromeOptions.collapseAreas) {
-                    await this.shell.collapsePanel(area);
+                if (descriptor.chromeOptions?.collapseAreas) {
+                    for (const area of descriptor.chromeOptions.collapseAreas) {
+                        await this.shell.collapsePanel(area);
+                    }
                 }
             }
+        } catch (error) {
+            this.logger.warn('Failed to apply layout for perspective', error);
         }
 
         if (descriptor.onActivate) {
@@ -214,6 +226,34 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
         return Array.from(this.perspectives.values());
     }
 
+    // --- PerspectiveLayoutProvider implementation ---
+
+    getActivePerspectiveId(): string {
+        return this.activePerspectiveId ?? PerspectiveService.DEFAULT_PERSPECTIVE_ID;
+    }
+
+    getSavedPerspectiveIds(): string[] {
+        return Array.from(this.savedLayouts.keys());
+    }
+
+    getSavedLayout(perspectiveId: string): ApplicationShell.LayoutData | undefined {
+        return this.savedLayouts.get(perspectiveId);
+    }
+
+    setSavedLayout(perspectiveId: string, layout: ApplicationShell.LayoutData): void {
+        this.savedLayouts.set(perspectiveId, layout);
+    }
+
+    setActivePerspectiveId(id: string): void {
+        if (this.perspectives.has(id)) {
+            this.activePerspectiveId = id;
+        }
+    }
+
+    clearSavedLayouts(): void {
+        this.savedLayouts.clear();
+    }
+
     registerCommands(commands: CommandRegistry): void {
         commands.registerCommand(PerspectiveService.SWITCH_PERSPECTIVE_COMMAND, {
             execute: () => this.showPerspectivePicker(),
@@ -241,3 +281,4 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
         }
     }
 }
+

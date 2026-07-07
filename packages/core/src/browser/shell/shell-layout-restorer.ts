@@ -124,6 +124,24 @@ export interface ShellLayoutTransformer {
     transformLayoutOnRestore(layoutData: ApplicationShell.LayoutData): void;
 }
 
+export const PERSPECTIVE_LAYOUTS_STORAGE_KEY = 'layouts';
+
+export interface PersistedPerspectiveData {
+    activePerspectiveId: string;
+    layouts: Record<string, string>;
+}
+
+export const PerspectiveLayoutProvider = Symbol('PerspectiveLayoutProvider');
+export interface PerspectiveLayoutProvider {
+    getActivePerspectiveId(): string;
+    getSavedPerspectiveIds(): string[];
+    getSavedLayout(perspectiveId: string): ApplicationShell.LayoutData | undefined;
+    setSavedLayout(perspectiveId: string, layout: ApplicationShell.LayoutData): void;
+    setActivePerspectiveId(id: string): void;
+    clearSavedLayouts(): void;
+    onLayoutRestored(activePerspectiveId: string): void;
+}
+
 export const RESET_LAYOUT = Command.toLocalizedCommand({
     id: 'reset.layout',
     category: CommonCommands.VIEW_CATEGORY,
@@ -133,13 +151,16 @@ export const RESET_LAYOUT = Command.toLocalizedCommand({
 @injectable()
 export class ShellLayoutRestorer implements CommandContribution {
 
-    protected storageKey = 'layout';
+    protected readonly legacyStorageKey = 'layout';
     protected shouldStoreLayout: boolean = true;
 
     @inject(ContributionProvider) @named(ApplicationShellLayoutMigration) protected readonly migrations: ContributionProvider<ApplicationShellLayoutMigration>;
     @inject(ContributionProvider) @named(ShellLayoutTransformer) protected readonly transformations: ContributionProvider<ShellLayoutTransformer>;
     @inject(WindowService) protected readonly windowService: WindowService;
     @inject(ThemeService) protected readonly themeService: ThemeService;
+
+    @inject(PerspectiveLayoutProvider)
+    protected readonly perspectiveProvider: PerspectiveLayoutProvider;
 
     constructor(
         @inject(WidgetManager) protected widgetManager: WidgetManager,
@@ -156,7 +177,9 @@ export class ShellLayoutRestorer implements CommandContribution {
         if (await this.windowService.isSafeToShutDown(StopReason.Reload)) {
             this.logger.info('>>> Resetting layout...');
             this.shouldStoreLayout = false;
-            this.storageService.setData(this.storageKey, undefined);
+            this.storageService.setData(this.legacyStorageKey, undefined);
+            this.perspectiveProvider.clearSavedLayouts();
+            this.storageService.setData(PERSPECTIVE_LAYOUTS_STORAGE_KEY, undefined);
             this.themeService.reset();
             this.logger.info('<<< The layout has been successfully reset.');
             this.windowService.reload();
@@ -167,29 +190,95 @@ export class ShellLayoutRestorer implements CommandContribution {
         if (this.shouldStoreLayout) {
             try {
                 this.logger.info('>>> Storing the layout...');
-                const layoutData = app.shell.getLayoutData();
-                const serializedLayoutData = this.deflate(layoutData);
-                this.storageService.setData(this.storageKey, serializedLayoutData);
+                this.storePerspectiveLayouts(app);
                 this.logger.info('<<< The layout has been successfully stored.');
             } catch (error) {
-                this.storageService.setData(this.storageKey, undefined);
                 this.logger.error('Error during serialization of layout data', error);
             }
         }
     }
 
+    protected storePerspectiveLayouts(app: FrontendApplication): void {
+        const provider = this.perspectiveProvider;
+        const activeId = provider.getActivePerspectiveId();
+        const layouts: Record<string, string> = {};
+
+        // Snapshot current shell as the active perspective's layout
+        const currentLayout = app.shell.getLayoutData();
+        layouts[activeId] = this.deflate(currentLayout);
+
+        // Deflate all other saved (inactive) perspective layouts
+        for (const perspId of provider.getSavedPerspectiveIds()) {
+            if (perspId === activeId) {
+                continue; // already handled above from live shell
+            }
+            const layout = provider.getSavedLayout(perspId);
+            if (layout) {
+                layouts[perspId] = this.deflate(layout);
+            }
+        }
+
+        const data: PersistedPerspectiveData = { activePerspectiveId: activeId, layouts };
+        this.storageService.setData(PERSPECTIVE_LAYOUTS_STORAGE_KEY, data);
+    }
+
     async restoreLayout(app: FrontendApplication): Promise<boolean> {
         this.logger.info('>>> Restoring the layout state...');
-        const serializedLayoutData = await this.storageService.getData<string>(this.storageKey);
-        if (serializedLayoutData === undefined) {
-            this.logger.info('<<< Nothing to restore.');
-            return false;
+        return this.restorePerspectiveLayouts(app);
+    }
+
+    protected async restorePerspectiveLayouts(app: FrontendApplication): Promise<boolean> {
+        const persisted = await this.storageService.getData<PersistedPerspectiveData>(PERSPECTIVE_LAYOUTS_STORAGE_KEY);
+
+        let activeId: string | undefined;
+
+        if (persisted) {
+            activeId = persisted.activePerspectiveId;
+            // Inflate all perspective layouts and push to provider
+            for (const [perspId, deflated] of Object.entries(persisted.layouts)) {
+                try {
+                    const layout = await this.inflate(deflated);
+                    this.perspectiveProvider.setSavedLayout(perspId, layout);
+                } catch (error) {
+                    this.logger.warn(`Could not inflate layout for perspective '${perspId}'`, error);
+                }
+            }
+        } else {
+            // Migration: try legacy single-layout key
+            const legacyData = await this.storageService.getData<string>(this.legacyStorageKey);
+            if (legacyData) {
+                try {
+                    const layout = await this.inflate(legacyData);
+                    this.perspectiveProvider.setSavedLayout('default', layout);
+                } catch (error) {
+                    this.logger.warn('Could not inflate legacy layout for migration', error);
+                }
+                activeId = 'default';
+                this.storageService.setData(this.legacyStorageKey, undefined);
+            }
         }
-        const layoutData = await this.inflate(serializedLayoutData);
-        this.transformations.getContributions().forEach(transformation => transformation.transformLayoutOnRestore(layoutData));
-        await app.shell.setLayoutData(layoutData);
-        this.logger.info('<<< The layout has been successfully restored.');
-        return true;
+
+        if (activeId) {
+            this.perspectiveProvider.setActivePerspectiveId(activeId);
+        }
+
+        // Apply the active perspective's layout to the shell
+        const activeLayout = this.perspectiveProvider.getSavedLayout(
+            activeId ?? this.perspectiveProvider.getActivePerspectiveId()
+        );
+        if (activeLayout) {
+            this.transformations.getContributions()
+                .forEach(t => t.transformLayoutOnRestore(activeLayout));
+            await app.shell.setLayoutData(activeLayout);
+            this.perspectiveProvider.onLayoutRestored(
+                activeId ?? this.perspectiveProvider.getActivePerspectiveId()
+            );
+            this.logger.info('<<< The layout has been successfully restored.');
+            return true;
+        }
+
+        this.logger.info('<<< Nothing to restore.');
+        return false;
     }
 
     protected isWidgetProperty(propertyName: string): boolean {
@@ -203,7 +292,7 @@ export class ShellLayoutRestorer implements CommandContribution {
     /**
      * Turns the layout data to a string representation.
      */
-    protected deflate(data: object): string {
+    deflate(data: object): string {
         return JSON.stringify(data, (property: string, value) => {
             if (this.isWidgetProperty(property)) {
                 const description = this.convertToDescription(value as Widget);
@@ -243,7 +332,7 @@ export class ShellLayoutRestorer implements CommandContribution {
     /**
      * Creates the layout data from its string representation.
      */
-    protected async inflate(layoutData: string): Promise<ApplicationShell.LayoutData> {
+    async inflate(layoutData: string): Promise<ApplicationShell.LayoutData> {
         const parseContext = new ShellLayoutRestorer.ParseContext();
         const layout = this.parse<ApplicationShell.LayoutData>(layoutData, parseContext);
 

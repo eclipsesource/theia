@@ -147,6 +147,7 @@ import { SymbolIconColorContribution } from './symbol-icon-color-contribution';
 import { CorePreferences, bindCorePreferences } from '../common/core-preferences';
 import { bindBadgeDecoration } from './badges';
 import { PerspectiveContribution, PerspectiveService } from './perspective-service';
+import { PerspectiveLayoutProvider } from './shell/shell-layout-restorer';
 
 export { bindResourceProvider, bindMessageService, bindPreferenceService };
 
@@ -487,6 +488,7 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(PerspectiveService).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(PerspectiveService);
     bind(CommandContribution).toService(PerspectiveService);
+    bind(PerspectiveLayoutProvider).toService(PerspectiveService);
     bindRootContributionProvider(bind, PerspectiveContribution);
 
     bind(WidgetStatusBarService).toSelf().inSingletonScope();
