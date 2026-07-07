@@ -114,14 +114,15 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     }
 
     async switchPerspective(id: string): Promise<void> {
-        if (this.switchInProgress) {
-            await this.switchInProgress;
-        }
-        this.switchInProgress = this.doSwitchPerspective(id);
+        const pending = (this.switchInProgress ?? Promise.resolve())
+            .then(() => this.doSwitchPerspective(id));
+        this.switchInProgress = pending;
         try {
-            await this.switchInProgress;
+            await pending;
         } finally {
-            this.switchInProgress = undefined;
+            if (this.switchInProgress === pending) {
+                this.switchInProgress = undefined;
+            }
         }
     }
 

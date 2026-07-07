@@ -731,4 +731,36 @@ describe('PerspectiveService', () => {
         expect(callOrder).to.deep.equal(['activate-A', 'activate-B']);
         expect(service.getActivePerspective()?.id).to.equal('perspB');
     });
+
+    it('should serialize three or more concurrent perspective switches', async () => {
+        const callOrder: string[] = [];
+
+        service.registerPerspective({
+            id: 'perspA',
+            label: 'A',
+            viewPlacements: new Map(),
+            onActivate: () => callOrder.push('activate-A')
+        });
+        service.registerPerspective({
+            id: 'perspB',
+            label: 'B',
+            viewPlacements: new Map(),
+            onActivate: () => callOrder.push('activate-B')
+        });
+        service.registerPerspective({
+            id: 'perspC',
+            label: 'C',
+            viewPlacements: new Map(),
+            onActivate: () => callOrder.push('activate-C')
+        });
+
+        const p1 = service.switchPerspective('perspA');
+        const p2 = service.switchPerspective('perspB');
+        const p3 = service.switchPerspective('perspC');
+
+        await Promise.all([p1, p2, p3]);
+
+        expect(callOrder).to.deep.equal(['activate-A', 'activate-B', 'activate-C']);
+        expect(service.getActivePerspective()?.id).to.equal('perspC');
+    });
 });
