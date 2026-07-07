@@ -16,9 +16,11 @@
 
 import { Event } from '@theia/core';
 import { PreferenceScope, PreferenceService } from '@theia/core/lib/common';
+import { PreferenceSchemaService } from '@theia/core/lib/common/preferences/preference-schema';
 import { MarkdownRenderer } from '@theia/core/lib/browser/markdown-rendering/markdown-renderer';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering/markdown-string';
 import { inject, injectable } from '@theia/core/shared/inversify';
+import type { SelectOption } from '@theia/core/lib/browser/widgets/select-component';
 import { AiConfigurationScope } from '../ai-configuration-category';
 
 /**
@@ -51,6 +53,9 @@ export class AiSettingsRowService {
 
     @inject(MarkdownRenderer)
     protected readonly markdownRenderer: MarkdownRenderer;
+
+    @inject(PreferenceSchemaService)
+    protected readonly schemaService: PreferenceSchemaService;
 
     protected changed: Event<void> | undefined;
 
@@ -96,6 +101,34 @@ export class AiSettingsRowService {
     /** Renders a markdown description into a detached element for use in a React `ref`. */
     renderMarkdown(markdown: string): HTMLElement {
         return this.markdownRenderer.render(new MarkdownStringImpl(markdown)).element;
+    }
+
+    /**
+     * Reads the (already-localized) label and markdown description a preference declares in its
+     * registered schema, so settings rows do not have to re-author those strings. Returns
+     * `undefined` fields when the preference is unknown or omits them.
+     */
+    describe(preferenceId: string): { label?: string; description?: string } {
+        const property = this.schemaService.getSchemaProperty(preferenceId);
+        return {
+            label: property?.title,
+            description: property?.markdownDescription ?? property?.description
+        };
+    }
+
+    /**
+     * Builds {@link SelectOption}s from a preference's `enum`, using its `enumItemLabels`
+     * (falling back to `enumDescriptions`, then the raw value) for the display label.
+     * Returns an empty array when the preference declares no enum.
+     */
+    enumOptions(preferenceId: string): SelectOption[] {
+        const property = this.schemaService.getSchemaProperty(preferenceId);
+        const values = property?.enum;
+        if (!values) {
+            return [];
+        }
+        const labels = property?.enumItemLabels ?? property?.enumDescriptions;
+        return values.map((value, index) => ({ value: String(value), label: labels?.[index] ?? String(value) }));
     }
 
     protected toPreferenceScope(scope: AiConfigurationScope): PreferenceScope {

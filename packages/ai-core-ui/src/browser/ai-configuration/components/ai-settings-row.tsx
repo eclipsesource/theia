@@ -59,6 +59,10 @@ export const AiSettingsRow: React.FC<AiSettingsRowProps> = ({
     service, preferenceId, label, description, scope, control, resourceUri, onDidChange, rowId
 }) => {
     const inspection = service.inspect(preferenceId, scope, resourceUri);
+    // Fall back to the (already-localized) label and description from the preference schema.
+    const described = service.describe(preferenceId);
+    const effectiveLabel = label ?? described.label;
+    const effectiveDescription = description ?? described.description;
 
     const commit = (value: unknown): void => {
         service.set(preferenceId, value, scope, resourceUri).then(() => onDidChange?.());
@@ -67,9 +71,9 @@ export const AiSettingsRow: React.FC<AiSettingsRowProps> = ({
         service.reset(preferenceId, scope, resourceUri).then(() => onDidChange?.());
     };
 
-    return <div className='ai-settings-row' data-ai-config-row-id={rowId}>
+    return <div className='ai-settings-row' data-ai-config-row-id={rowId ?? preferenceId}>
         <div className='ai-settings-row-header'>
-            <span className='ai-settings-row-label'>{label ?? preferenceId}</span>
+            <span className='ai-settings-row-label'>{effectiveLabel ?? preferenceId}</span>
             {inspection.modified && <>
                 <span className='ai-settings-row-modified'>
                     {nls.localize('theia/ai/core/aiConfiguration/modifiedInScope', 'Modified in: {0}', scope)}
@@ -81,7 +85,7 @@ export const AiSettingsRow: React.FC<AiSettingsRowProps> = ({
                 ></button>
             </>}
         </div>
-        {description && <AiSettingsRowDescription service={service} description={description} />}
+        {effectiveDescription && <AiSettingsRowDescription service={service} description={effectiveDescription} />}
         <div className='ai-settings-row-control'>
             <AiSettingsRowControl control={control} value={inspection.value} onCommit={commit} />
         </div>
