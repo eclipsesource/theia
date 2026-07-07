@@ -71,6 +71,7 @@ import { AIAgentConfigurationWidget } from './ai-configuration/agent-configurati
 import { AgentsConfigurationCategory } from './ai-configuration/categories/agents-configuration-category';
 import { GeneralConfigurationCategory } from './ai-configuration/categories/general-configuration-category';
 import { ModelsConfigurationCategory } from './ai-configuration/categories/models-configuration-category';
+import { ModelAliasesConfigurationCategory } from './ai-configuration/categories/model-aliases-configuration-category';
 import { AiConfigurationCategory } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AIConfigurationSelectionService } from './ai-configuration/ai-configuration-service';
 import { AIAgentConfigurationViewContribution } from './ai-configuration/ai-configuration-view-contribution';
@@ -282,6 +283,9 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
     bind(ModelsConfigurationCategory).toSelf().inSingletonScope();
     bind(AiConfigurationCategory).toService(ModelsConfigurationCategory);
+
+    bind(ModelAliasesConfigurationCategory).toSelf().inSingletonScope();
+    bind(AiConfigurationCategory).toService(ModelAliasesConfigurationCategory);
 
     bind(ModelAliasesConfigurationWidget).toSelf();
     bind(WidgetFactory)
