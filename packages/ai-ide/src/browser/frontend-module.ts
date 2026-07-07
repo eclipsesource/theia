@@ -74,6 +74,7 @@ import { ModelsConfigurationCategory } from './ai-configuration/categories/model
 import { ModelAliasesConfigurationCategory } from './ai-configuration/categories/model-aliases-configuration-category';
 import { VariablesConfigurationCategory } from './ai-configuration/categories/variables-configuration-category';
 import { TokenUsageConfigurationCategory } from './ai-configuration/categories/token-usage-configuration-category';
+import { ToolsConfigurationCategory } from './ai-configuration/categories/tools-configuration-category';
 import { AiConfigurationCategory } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AIConfigurationSelectionService } from './ai-configuration/ai-configuration-service';
 import { AIAgentConfigurationViewContribution } from './ai-configuration/ai-configuration-view-contribution';
@@ -294,6 +295,9 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
     bind(TokenUsageConfigurationCategory).toSelf().inSingletonScope();
     bind(AiConfigurationCategory).toService(TokenUsageConfigurationCategory);
+
+    bind(ToolsConfigurationCategory).toSelf().inSingletonScope();
+    bind(AiConfigurationCategory).toService(ToolsConfigurationCategory);
 
     bind(ModelAliasesConfigurationWidget).toSelf();
     bind(WidgetFactory)

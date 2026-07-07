@@ -1454,6 +1454,10 @@
   margin-bottom: var(--theia-ui-padding);
 }
 
+.ai-tools-reset-button {
+  margin-left: auto;
+}
+
 .ai-tools-configuration-default-select {
   font-size: 14px;
   padding: var(--theia-ui-padding);
