@@ -107,6 +107,12 @@ export interface PerspectiveService {
     setActivePerspectiveId(id: string): boolean;
 
     /**
+     * The ID of the built-in default perspective.
+     * @internal Plumbing API — used by `ShellLayoutRestorer` for legacy migration.
+     */
+    readonly defaultPerspectiveId: string;
+
+    /**
      * Clears all saved in-memory layout snapshots.
      * @internal Plumbing API — used by `ShellLayoutRestorer` during layout reset.
      */
@@ -150,6 +156,8 @@ export class PerspectiveServiceImpl implements FrontendApplicationContribution, 
     protected readonly logger: ILogger;
 
     static readonly DEFAULT_PERSPECTIVE_ID = 'default';
+
+    readonly defaultPerspectiveId = PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID;
 
     protected readonly perspectives = new Map<string, PerspectiveDescriptor>();
     protected activePerspectiveId: string | undefined;

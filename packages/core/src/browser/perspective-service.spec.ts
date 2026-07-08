@@ -894,6 +894,10 @@ describe('PerspectiveService', () => {
     });
 
     describe('Plumbing API (layout persistence)', () => {
+        it('should expose defaultPerspectiveId matching the static constant', () => {
+            expect(service.defaultPerspectiveId).to.equal(PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID);
+        });
+
         it('should return default perspective ID when none is set', () => {
             expect(service.getActivePerspectiveId()).to.equal(PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID);
         });

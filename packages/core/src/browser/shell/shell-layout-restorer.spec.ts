@@ -45,6 +45,7 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
         setActivePerspectiveId: sinon.SinonStub;
         clearSavedLayouts: sinon.SinonStub;
         onLayoutRestored: sinon.SinonStub;
+        defaultPerspectiveId: string;
     };
     let mockTransformations: { getContributions: sinon.SinonStub };
     let mockMigrations: { getContributions: sinon.SinonStub };
@@ -79,7 +80,8 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
             setSavedLayout: sinon.stub(),
             setActivePerspectiveId: sinon.stub().returns(true),
             clearSavedLayouts: sinon.stub(),
-            onLayoutRestored: sinon.stub()
+            onLayoutRestored: sinon.stub(),
+            defaultPerspectiveId: 'default'
         };
         mockTransformations = {
             getContributions: sinon.stub().returns([])
@@ -440,6 +442,142 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
         });
     });
 
+    describe('storePerspectiveLayouts - error isolation', () => {
+        it('should persist other perspectives when one inactive perspective deflate fails', () => {
+            mockProvider.getActivePerspectiveId.returns('active');
+            mockProvider.getSavedPerspectiveIds.returns(['active', 'good', 'bad']);
+
+            const goodLayout = { version: 999, mainPanel: { items: ['good'] }, bottomPanel: {} } as unknown as ApplicationShell.LayoutData;
+            // Create a layout with a circular reference that will cause JSON.stringify to throw
+            const badLayout: Record<string, unknown> = { version: 999, mainPanel: {}, bottomPanel: {} };
+            badLayout['self'] = badLayout;
+
+            mockProvider.getSavedLayout.withArgs('good').returns(goodLayout);
+            mockProvider.getSavedLayout.withArgs('bad').returns(badLayout);
+            mockProvider.getSavedLayout.withArgs('active').returns(undefined);
+
+            restorer.storeLayout(mockApp as never);
+
+            // Should still persist — 'active' and 'good' should be in layouts
+            expect(mockStorageService.setData.calledOnce).to.be.true;
+            const [key, data] = mockStorageService.setData.firstCall.args as [string, PersistedPerspectiveData];
+            expect(key).to.equal(PERSPECTIVE_LAYOUTS_STORAGE_KEY);
+            expect(data.layouts).to.have.property('active');
+            expect(data.layouts).to.have.property('good');
+            expect(data.layouts).to.not.have.property('bad');
+
+            // Should warn about 'bad'
+            expect(mockLogger.warn.called).to.be.true;
+            const warnCall = mockLogger.warn.getCalls().find(
+                (c: sinon.SinonSpyCall) => (c.args[0] as string).includes('bad')
+            );
+            expect(warnCall).to.not.be.undefined;
+        });
+
+        it('should persist inactive perspectives when active perspective deflate fails', () => {
+            mockProvider.getActivePerspectiveId.returns('active');
+            mockProvider.getSavedPerspectiveIds.returns(['active', 'inactive']);
+
+            // Make the shell return a circular structure for the active perspective
+            const circularLayout: Record<string, unknown> = { version: 999, mainPanel: {}, bottomPanel: {} };
+            circularLayout['self'] = circularLayout;
+            mockShell.getLayoutData.returns(circularLayout);
+
+            const inactiveLayout = { version: 999, mainPanel: { items: ['inactive'] }, bottomPanel: {} } as unknown as ApplicationShell.LayoutData;
+            mockProvider.getSavedLayout.withArgs('inactive').returns(inactiveLayout);
+
+            restorer.storeLayout(mockApp as never);
+
+            expect(mockStorageService.setData.calledOnce).to.be.true;
+            const [, data] = mockStorageService.setData.firstCall.args as [string, PersistedPerspectiveData];
+            expect(data.layouts).to.not.have.property('active');
+            expect(data.layouts).to.have.property('inactive');
+
+            expect(mockLogger.warn.called).to.be.true;
+        });
+
+        it('should clear storage key when setData throws', () => {
+            mockProvider.getActivePerspectiveId.returns('default');
+            mockProvider.getSavedPerspectiveIds.returns([]);
+
+            mockStorageService.setData.onFirstCall().throws(new Error('storage error'));
+            mockStorageService.setData.onSecondCall().returns(undefined);
+
+            restorer.storeLayout(mockApp as never);
+
+            // First call throws, second call clears the key
+            expect(mockStorageService.setData.calledTwice).to.be.true;
+            expect(mockStorageService.setData.secondCall.args[0]).to.equal(PERSPECTIVE_LAYOUTS_STORAGE_KEY);
+            expect(mockStorageService.setData.secondCall.args[1]).to.be.undefined;
+
+            expect(mockLogger.error.called).to.be.true;
+        });
+    });
+
+    describe('restorePerspectiveLayouts - desync fallback', () => {
+        it('should fall back to default perspective when active perspective has no saved layout', async () => {
+            const persisted: PersistedPerspectiveData = {
+                activePerspectiveId: 'custom',
+                layouts: {
+                    'default': JSON.stringify({ version: 999, mainPanel: { items: ['default-w'] }, bottomPanel: {} })
+                }
+            };
+            mockStorageService.getData.withArgs(PERSPECTIVE_LAYOUTS_STORAGE_KEY).resolves(persisted);
+
+            // 'custom' is a registered perspective, but has no layout entry
+            mockProvider.setActivePerspectiveId.returns(true);
+
+            // Track calls to setActivePerspectiveId to simulate state changes
+            let currentActiveId = 'default';
+            mockProvider.setActivePerspectiveId.callsFake((id: string) => {
+                currentActiveId = id;
+                return true;
+            });
+            mockProvider.getActivePerspectiveId.callsFake(() => currentActiveId);
+
+            mockProvider.getSavedLayout.callsFake((id: string) => {
+                const call = mockProvider.setSavedLayout.getCalls().find(
+                    (c: sinon.SinonSpyCall) => c.args[0] === id
+                );
+                return call?.args[1];
+            });
+
+            const result = await restorer.restoreLayout(mockApp as never);
+
+            expect(result).to.be.true;
+            // Should have fallen back to default
+            expect(mockLogger.warn.called).to.be.true;
+            const warnCall = mockLogger.warn.getCalls().find(
+                (c: sinon.SinonSpyCall) => (c.args[0] as string).includes('custom')
+            );
+            expect(warnCall).to.not.be.undefined;
+            // Should have called onLayoutRestored with default
+            expect(mockProvider.onLayoutRestored.calledWith('default')).to.be.true;
+        });
+
+        it('should call onLayoutRestored even when falling through to no layout', async () => {
+            const persisted: PersistedPerspectiveData = {
+                activePerspectiveId: 'custom',
+                layouts: {}
+            };
+            mockStorageService.getData.withArgs(PERSPECTIVE_LAYOUTS_STORAGE_KEY).resolves(persisted);
+
+            let currentActiveId = 'default';
+            mockProvider.setActivePerspectiveId.callsFake((id: string) => {
+                currentActiveId = id;
+                return true;
+            });
+            mockProvider.getActivePerspectiveId.callsFake(() => currentActiveId);
+            mockProvider.getSavedLayout.returns(undefined);
+
+            const result = await restorer.restoreLayout(mockApp as never);
+
+            expect(result).to.be.false;
+            // onLayoutRestored should still be called
+            expect(mockProvider.onLayoutRestored.calledOnce).to.be.true;
+        });
+    });
+
     describe('resetLayout', () => {
         it('should clear layouts and legacy layout keys', async () => {
 
@@ -480,6 +618,13 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
             };
             mockStorageService.getData.withArgs(PERSPECTIVE_LAYOUTS_STORAGE_KEY).resolves(persisted);
 
+            let currentActiveId = 'default';
+            mockProvider.setActivePerspectiveId.callsFake((id: string) => {
+                currentActiveId = id;
+                return true;
+            });
+            mockProvider.getActivePerspectiveId.callsFake(() => currentActiveId);
+
             mockProvider.getSavedLayout.callsFake((id: string) => {
                 const call = mockProvider.setSavedLayout.getCalls().find(
                     (c: sinon.SinonSpyCall) => c.args[0] === id
@@ -493,13 +638,14 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
             expect(mockProvider.onLayoutRestored.calledWith('my-persp')).to.be.true;
         });
 
-        it('should not call onLayoutRestored when no layout is restored', async () => {
+        it('should call onLayoutRestored even when no layout is restored', async () => {
 
             mockStorageService.getData.resolves(undefined);
 
             await restorer.restoreLayout(mockApp as never);
 
-            expect(mockProvider.onLayoutRestored.called).to.be.false;
+            expect(mockProvider.onLayoutRestored.calledOnce).to.be.true;
+            expect(mockProvider.onLayoutRestored.calledWith('default')).to.be.true;
         });
 
         it('should call onLayoutRestored after layout is applied to shell', async () => {
@@ -511,6 +657,13 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
                 }
             };
             mockStorageService.getData.withArgs(PERSPECTIVE_LAYOUTS_STORAGE_KEY).resolves(persisted);
+
+            let currentActiveId = 'default';
+            mockProvider.setActivePerspectiveId.callsFake((id: string) => {
+                currentActiveId = id;
+                return true;
+            });
+            mockProvider.getActivePerspectiveId.callsFake(() => currentActiveId);
 
             mockProvider.getSavedLayout.callsFake((id: string) => {
                 const call = mockProvider.setSavedLayout.getCalls().find(
