@@ -255,12 +255,6 @@ export class AiConfigurationTreeWidget extends TreeWidget {
         if (AiConfigurationCategoryNode.is(node) && node.count !== undefined) {
             return <span className='ai-configuration-tree-badge'>{node.count}</span>;
         }
-        if (AiConfigurationItemNode.is(node) && node.status) {
-            return <span
-                className={`ai-configuration-tree-status ai-configuration-tree-status-${node.status.kind}`}
-                title={node.status.tooltip}
-            ></span>;
-        }
         return super.renderTailDecorations(node, props);
     }
 

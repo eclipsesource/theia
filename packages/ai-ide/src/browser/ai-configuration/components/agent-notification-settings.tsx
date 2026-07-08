@@ -21,8 +21,9 @@ import {
     NOTIFICATION_TYPE_DESCRIPTIONS,
 } from '@theia/ai-core/lib/common';
 import { nls } from '@theia/core';
-import { SelectComponent, SelectOption } from '@theia/core/lib/browser/widgets/select-component';
+import { SelectOption } from '@theia/core/lib/browser/widgets/select-component';
 import * as React from '@theia/core/shared/react';
+import { AiEnumSelect } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-controls';
 
 export interface AgentNotificationSettingsProps {
     agentId: string;
@@ -48,8 +49,8 @@ const NOTIFICATION_SELECT_OPTIONS: SelectOption[] = [
 ];
 
 export const AgentNotificationSettings = ({ agentId, currentNotificationType, onNotificationTypeChange, onOpenNotificationSettings }: AgentNotificationSettingsProps) => {
-    const handleChange = (option: SelectOption, _index: number): void => {
-        const notificationType = option.value === DEFAULT_VALUE ? undefined : option.value as NotificationType;
+    const handleChange = (value: string): void => {
+        const notificationType = value === DEFAULT_VALUE ? undefined : value as NotificationType;
         onNotificationTypeChange(agentId, notificationType);
     };
 
@@ -59,11 +60,16 @@ export const AgentNotificationSettings = ({ agentId, currentNotificationType, on
                 <label className="ai-configuration-value-row-label">
                     {nls.localizeByDefault('Notifications')}:
                 </label>
-                <SelectComponent
-                    className="ai-configuration-select"
-                    options={NOTIFICATION_SELECT_OPTIONS}
-                    defaultValue={currentNotificationType ?? DEFAULT_VALUE}
-                    onChange={handleChange}
+                <AiEnumSelect
+                    ariaLabel={nls.localizeByDefault('Notifications')}
+                    className="ai-configuration-value-row-value"
+                    options={NOTIFICATION_SELECT_OPTIONS.map(option => ({
+                        value: String(option.value ?? ''),
+                        label: option.label ?? String(option.value ?? ''),
+                        title: option.description
+                    }))}
+                    value={currentNotificationType ?? DEFAULT_VALUE}
+                    onCommit={handleChange}
                 />
             </div>
             <NotificationDescription onOpenNotificationSettings={onOpenNotificationSettings} />

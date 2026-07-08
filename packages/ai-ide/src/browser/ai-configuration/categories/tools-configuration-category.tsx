@@ -37,6 +37,7 @@ import {
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { SinglePageCategoryRenderer } from '@theia/ai-core-ui/lib/browser/ai-configuration/renderers/single-page-category-renderer';
 import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
+import { AiEnumSelect } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-controls';
 
 const TOOL_OPTIONS: { value: ToolConfirmationMode; label: string }[] = [
     { value: ToolConfirmationMode.DISABLED, label: nls.localizeByDefault('Disabled') },
@@ -159,13 +160,12 @@ export class ToolsConfigurationCategory extends SinglePageCategoryRenderer imple
                 <div className='ai-tools-configuration-default-label'>
                     {nls.localize('theia/ai/ide/toolsConfiguration/default/label', 'Default Tool Confirmation Mode:')}
                 </div>
-                <select
-                    className='theia-select'
+                <AiEnumSelect
+                    ariaLabel={nls.localize('theia/ai/ide/toolsConfiguration/default/label', 'Default Tool Confirmation Mode:')}
                     value={this.defaultState}
-                    onChange={event => this.confirmationManager.setDefaultConfirmationMode(event.target.value as ToolConfirmationMode)}
-                >
-                    {TOOL_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
+                    options={TOOL_OPTIONS}
+                    onCommit={value => this.confirmationManager.setDefaultConfirmationMode(value as ToolConfirmationMode)}
+                />
                 <button
                     className='theia-button secondary ai-tools-reset-button'
                     title={nls.localize('theia/ai/ide/toolsConfiguration/resetAllTooltip', 'Reset all tools to default')}
@@ -210,13 +210,12 @@ export class ToolsConfigurationCategory extends SinglePageCategoryRenderer imple
                         return <tr key={name} className={effective === this.defaultState ? 'default-mode' : 'custom-mode'}>
                             <td className='tool-name-column'>{name}</td>
                             <td className='confirmation-mode-column'>
-                                <select
-                                    className='theia-select'
+                                <AiEnumSelect
+                                    ariaLabel={nls.localize('theia/ai/ide/toolsConfiguration/confirmationMode/label', 'Confirmation Mode')}
                                     value={effective}
-                                    onChange={event => this.handleToolConfirmationModeChange(name, event.target.value as ToolConfirmationMode)}
-                                >
-                                    {TOOL_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                </select>
+                                    options={TOOL_OPTIONS}
+                                    onCommit={value => this.handleToolConfirmationModeChange(name, value as ToolConfirmationMode)}
+                                />
                             </td>
                         </tr>;
                     })}

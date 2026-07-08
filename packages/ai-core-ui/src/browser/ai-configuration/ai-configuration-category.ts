@@ -129,7 +129,7 @@ export interface AiConfigurationCategoryRenderer {
 export interface AiConfigurationTreeItem {
     readonly id: string;
     readonly label: string;
-    /** Small status affordance in the tree row / card corner. */
+    /** Status badge shown on the overview card and the item detail header. */
     readonly status?: AiConfigurationItemStatus;
     /** Short text for the overview card. */
     readonly description?: string;
@@ -139,6 +139,9 @@ export interface AiConfigurationTreeItem {
 
 export interface AiConfigurationItemStatus {
     readonly kind: 'on' | 'off' | 'warn' | 'error';
+    /** Short, human-readable badge text, e.g. "Enabled", "Ready". */
+    readonly label: string;
+    /** Optional longer hover detail; falls back to {@link label}. */
     readonly tooltip?: string;
 }
 

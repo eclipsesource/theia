@@ -14,11 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import {
-    PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE,
-    PREFERENCE_NAME_MAX_RETRIES,
-    PREFERENCE_NAME_PROMPT_TEMPLATES
-} from '@theia/ai-core/lib/common/ai-core-preferences';
+import { PREFERENCE_NAME_MAX_RETRIES } from '@theia/ai-core/lib/common/ai-core-preferences';
 import { FrontendLanguageModelRegistry } from '@theia/ai-core/lib/common/language-model';
 import {
     BYPASS_MODEL_REQUIREMENT_PREF,
@@ -30,10 +26,8 @@ import {
 import { Emitter, Event, nls } from '@theia/core';
 import { codicon } from '@theia/core/lib/browser';
 import { DisposableCollection } from '@theia/core/lib/common';
-import { URI } from '@theia/core/lib/common/uri';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
-import { FileDialogService } from '@theia/filesystem/lib/browser';
 import {
     AiConfigurationCategory,
     AiConfigurationCategoryId,
@@ -43,16 +37,15 @@ import {
     AiConfigurationSearchProvider
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AiSettingsRowService } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
-import { PREFERENCE_NAME_AGENT_MODE_ENABLED, PREFERENCE_NAME_ENABLE_AI, PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST } from '../../../common/ai-ide-preferences';
+import { PREFERENCE_NAME_ENABLE_AI } from '../../../common/ai-ide-preferences';
 import {
-    AiChipEditor,
     AiEnumSelect,
     AiMarkdownDescription,
     AiNumberStepper,
-    AiPathInput,
     AiSessionLimitControl,
     AiToggleSwitch
 } from '../components/ai-general-settings-controls';
+import { AiGeneralPageHeader, AiGeneralSection, AiGeneralSettingRow } from '../components/ai-general-settings-layout';
 
 /** Documentation on Theia's AI capabilities, linked from the hero's cost/data disclosure. */
 const AI_DOCUMENTATION_URL = 'https://theia-ide.org/docs/user_ai/';
@@ -88,9 +81,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
 
     @inject(FrontendLanguageModelRegistry)
     protected readonly languageModelRegistry: FrontendLanguageModelRegistry;
-
-    @inject(FileDialogService)
-    protected readonly fileDialogService: FileDialogService;
 
     protected readonly onDidChangeEmitter = new Emitter<void>();
     readonly onDidChange: Event<void> = this.onDidChangeEmitter.event;
@@ -135,30 +125,20 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
     /** The page's sections and their settings, shared by rendering and the search index. */
     protected getSectionRefs(): GeneralSettingRef[] {
         return [
-            { section: this.sectionAgents, preferenceId: PREFERENCE_NAME_AGENT_MODE_ENABLED },
-            { section: this.sectionAgents, preferenceId: PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST },
-            { section: this.sectionPrompts, preferenceId: PREFERENCE_NAME_PROMPT_TEMPLATES },
-            { section: this.sectionPrompts, preferenceId: PREFERENCE_NAME_MAX_RETRIES },
+            { section: this.sectionRequests, preferenceId: PREFERENCE_NAME_MAX_RETRIES },
             { section: this.sectionChat, preferenceId: PIN_CHAT_AGENT_PREF },
             { section: this.sectionChat, preferenceId: BYPASS_MODEL_REQUIREMENT_PREF },
             { section: this.sectionChat, preferenceId: PERSISTED_SESSION_LIMIT_PREF },
             { section: this.sectionChat, preferenceId: WELCOME_SCREEN_SESSIONS_PREF },
-            { section: this.sectionChat, preferenceId: SESSION_STORAGE_PREF },
-            { section: this.sectionNotifications, preferenceId: PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE }
+            { section: this.sectionChat, preferenceId: SESSION_STORAGE_PREF }
         ];
     }
 
-    protected get sectionAgents(): string {
-        return nls.localizeByDefault('Agents');
-    }
-    protected get sectionPrompts(): string {
-        return nls.localize('theia/ai/ide/generalConfiguration/promptsSection', 'Prompts & requests');
+    protected get sectionRequests(): string {
+        return nls.localize('theia/ai/ide/generalConfiguration/requestsSection', 'Requests');
     }
     protected get sectionChat(): string {
         return nls.localizeByDefault('Chat');
-    }
-    protected get sectionNotifications(): string {
-        return nls.localizeByDefault('Notifications');
     }
 
     /** Per-setting, human-readable titles. The preferences share a schema `title`, so titles are authored here. */
@@ -166,12 +146,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
         switch (preferenceId) {
             case PREFERENCE_NAME_ENABLE_AI:
                 return nls.localizeByDefault('Enable AI features');
-            case PREFERENCE_NAME_AGENT_MODE_ENABLED:
-                return nls.localize('theia/ai/ide/generalConfiguration/agentModeTitle', 'Agent mode for Coder');
-            case PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST:
-                return nls.localize('theia/ai/ide/generalConfiguration/orchestratorExcludeTitle', 'Agents hidden from the orchestrator');
-            case PREFERENCE_NAME_PROMPT_TEMPLATES:
-                return nls.localize('theia/ai/ide/generalConfiguration/promptTemplatesTitle', 'Prompt templates folder');
             case PREFERENCE_NAME_MAX_RETRIES:
                 return nls.localize('theia/ai/ide/generalConfiguration/maxRetriesTitle', 'Maximum retries');
             case PIN_CHAT_AGENT_PREF:
@@ -184,8 +158,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
                 return nls.localize('theia/ai/ide/generalConfiguration/homeSessionsTitle', 'Sessions on the home view');
             case SESSION_STORAGE_PREF:
                 return nls.localize('theia/ai/ide/generalConfiguration/sessionStorageTitle', 'Session storage location');
-            case PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE:
-                return nls.localize('theia/ai/ide/generalConfiguration/notificationTypeTitle', 'Default notification type');
             default:
                 return this.settingsRowService.describe(preferenceId).label ?? preferenceId;
         }
@@ -198,10 +170,8 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
             {this.renderHero(ctx, enabled)}
             {!enabled && this.renderGateNote()}
             <div className={`ai-general-sections${enabled ? '' : ' ai-general-off'}`}>
-                {this.renderAgentsSection(ctx, !enabled)}
-                {this.renderPromptsSection(ctx, !enabled)}
+                {this.renderRequestsSection(ctx, !enabled)}
                 {this.renderChatSection(ctx, !enabled)}
-                {this.renderNotificationsSection(ctx, !enabled)}
             </div>
         </div>;
     }
@@ -212,17 +182,11 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
 
     protected renderHeader(): React.ReactNode {
         const title = nls.localize('theia/ai/ide/generalConfiguration/pageTitle', 'AI Features');
-        return <div className='ai-general-head'>
-            <div className='ai-general-crumbs'>
-                <span>{nls.localizeByDefault('Preferences')}</span>
-                <span className={`ai-general-crumbs-sep ${codicon('chevron-right')}`}></span>
-                <b>{title}</b>
-            </div>
-            <h1 className='ai-general-head-title'>{title}</h1>
-            <p className='ai-general-head-subtitle'>
-                {nls.localize('theia/ai/ide/generalConfiguration/pageSubtitle', "Configure Theia's built-in AI capabilities, agents, and chat behavior.")}
-            </p>
-        </div>;
+        return <AiGeneralPageHeader
+            crumbs={[nls.localizeByDefault('Preferences'), title]}
+            title={title}
+            subtitle={nls.localize('theia/ai/ide/generalConfiguration/pageSubtitle', "Configure Theia's built-in AI capabilities, agents, and chat behavior.")}
+        />;
     }
 
     protected renderHero(ctx: AiConfigurationRenderContext, enabled: boolean): React.ReactNode {
@@ -289,40 +253,8 @@ costs — monitor them closely. Requests may run continuously while agents are a
         </div>;
     }
 
-    protected renderAgentsSection(ctx: AiConfigurationRenderContext, disabled: boolean): React.ReactNode {
-        const orchestratorValue = this.arrayValue(PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST, ctx);
-        return this.renderSection(this.sectionAgents, [
-            this.renderSettingRow(ctx, PREFERENCE_NAME_AGENT_MODE_ENABLED, disabled, {
-                control: <AiToggleSwitch
-                    checked={this.booleanValue(PREFERENCE_NAME_AGENT_MODE_ENABLED, ctx)}
-                    ariaLabel={this.titleFor(PREFERENCE_NAME_AGENT_MODE_ENABLED)}
-                    disabled={disabled}
-                    onChange={value => this.commit(PREFERENCE_NAME_AGENT_MODE_ENABLED, value, ctx)}
-                />
-            }),
-            this.renderSettingRow(ctx, PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST, disabled, {
-                below: <AiChipEditor
-                    values={orchestratorValue}
-                    addPlaceholder={nls.localize('theia/ai/ide/generalConfiguration/addAgentId', 'Add agent ID…')}
-                    disabled={disabled}
-                    onChange={value => this.commit(PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST, value, ctx)}
-                />
-            })
-        ]);
-    }
-
-    protected renderPromptsSection(ctx: AiConfigurationRenderContext, disabled: boolean): React.ReactNode {
-        return this.renderSection(this.sectionPrompts, [
-            this.renderSettingRow(ctx, PREFERENCE_NAME_PROMPT_TEMPLATES, disabled, {
-                below: <AiPathInput
-                    value={this.stringValue(PREFERENCE_NAME_PROMPT_TEMPLATES, ctx)}
-                    placeholder={nls.localize('theia/ai/ide/generalConfiguration/templatesPlaceholder', 'Default: user config directory')}
-                    browseLabel={nls.localizeByDefault('Browse...')}
-                    disabled={disabled}
-                    onCommit={value => this.commit(PREFERENCE_NAME_PROMPT_TEMPLATES, value, ctx)}
-                    onBrowse={() => this.browseTemplatesFolder()}
-                />
-            }),
+    protected renderRequestsSection(ctx: AiConfigurationRenderContext, disabled: boolean): React.ReactNode {
+        return this.renderSection(this.sectionRequests, [
             this.renderSettingRow(ctx, PREFERENCE_NAME_MAX_RETRIES, disabled, {
                 control: <AiNumberStepper
                     value={this.numberValue(PREFERENCE_NAME_MAX_RETRIES, ctx, 3)}
@@ -401,31 +333,15 @@ costs — monitor them closely. Requests may run continuously while agents are a
         ]);
     }
 
-    protected renderNotificationsSection(ctx: AiConfigurationRenderContext, disabled: boolean): React.ReactNode {
-        return this.renderSection(this.sectionNotifications, [
-            this.renderSettingRow(ctx, PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE, disabled, {
-                control: <AiEnumSelect
-                    value={this.selectValue(PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE, ctx)}
-                    options={this.enumOptions(PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE)}
-                    ariaLabel={this.titleFor(PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE)}
-                    disabled={disabled}
-                    onCommit={value => this.commit(PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE, value, ctx)}
-                />
-            })
-        ]);
-    }
-
     protected renderSection(title: string, rows: React.ReactNode[]): React.ReactNode {
-        return <div className='ai-general-section' key={title}>
-            <h2 className='ai-general-section-title'>{title}</h2>
-            {rows}
-        </div>;
+        return <AiGeneralSection title={title} key={title}>{rows}</AiGeneralSection>;
     }
 
     /**
-     * Renders one setting row: title with the real preference id, the schema description, a control
-     * (inline via {@link options.control} or full-width via {@link options.below}), and — when the
-     * value is overridden in the current scope — a modified edge and a hover reset that clears the override.
+     * Renders one setting row via the shared {@link AiGeneralSettingRow}: title with the real
+     * preference id, the schema description, a control (inline via {@link options.control} or
+     * full-width via {@link options.below}), and — when the value is overridden in the current
+     * scope — a modified edge and a hover reset that clears the override.
      */
     protected renderSettingRow(
         ctx: AiConfigurationRenderContext,
@@ -434,50 +350,18 @@ costs — monitor them closely. Requests may run continuously while agents are a
         options: { control?: React.ReactNode; below?: React.ReactNode }
     ): React.ReactNode {
         const inspection = this.settingsRowService.inspect(preferenceId, ctx.scope);
-        const description = this.settingsRowService.describe(preferenceId).description;
-        return <div
-            className={`ai-general-setting${inspection.modified ? ' modified' : ''}`}
+        return <AiGeneralSettingRow
             key={preferenceId}
-            data-ai-config-row-id={preferenceId}
-        >
-            <div className='ai-general-setting-top'>
-                <div className='ai-general-setting-main'>
-                    <div className='ai-general-setting-title'>
-                        {this.titleFor(preferenceId)}
-                        <span className='ai-general-setting-id'>{preferenceId}</span>
-                    </div>
-                    {description && <AiMarkdownDescription renderMarkdown={this.renderMarkdown} markdown={description} />}
-                </div>
-                <div className='ai-general-setting-ctrl'>
-                    {inspection.modified && <button
-                        type='button'
-                        className='ai-general-reset'
-                        title={nls.localizeByDefault('Reset Setting')}
-                        disabled={disabled}
-                        onClick={() => this.resetPref(preferenceId, ctx)}
-                    >
-                        <span className={codicon('discard')}></span>
-                        {nls.localizeByDefault('Reset')}
-                    </button>}
-                    {options.control}
-                </div>
-            </div>
-            {options.below && <div className='ai-general-setting-below'>{options.below}</div>}
-        </div>;
-    }
-
-    protected async browseTemplatesFolder(): Promise<string | undefined> {
-        const selection = await this.fileDialogService.showOpenDialog({
-            title: nls.localizeByDefault('Select Folder'),
-            canSelectFiles: false,
-            canSelectFolders: true,
-            canSelectMany: false
-        });
-        if (!selection) {
-            return undefined;
-        }
-        const uri: URI | undefined = Array.isArray(selection) ? selection[0] : selection;
-        return uri?.path.fsPath();
+            preferenceId={preferenceId}
+            title={this.titleFor(preferenceId)}
+            description={this.settingsRowService.describe(preferenceId).description}
+            renderMarkdown={this.renderMarkdown}
+            modified={inspection.modified}
+            disabled={disabled}
+            onReset={() => this.resetPref(preferenceId, ctx)}
+            control={options.control}
+            below={options.below}
+        />;
     }
 
     protected commit(preferenceId: string, value: unknown, ctx: AiConfigurationRenderContext): void {
@@ -497,19 +381,9 @@ costs — monitor them closely. Requests may run continuously while agents are a
         return typeof value === 'number' ? value : fallback;
     }
 
-    protected stringValue(preferenceId: string, ctx: AiConfigurationRenderContext): string {
-        const value = this.settingsRowService.inspect(preferenceId, ctx.scope).value;
-        return typeof value === 'string' ? value : '';
-    }
-
     protected selectValue(preferenceId: string, ctx: AiConfigurationRenderContext): string | undefined {
         const value = this.settingsRowService.inspect(preferenceId, ctx.scope).value;
         return value === undefined ? undefined : String(value);
-    }
-
-    protected arrayValue(preferenceId: string, ctx: AiConfigurationRenderContext): string[] {
-        const value = this.settingsRowService.inspect(preferenceId, ctx.scope).value;
-        return Array.isArray(value) ? value.map(String) : [];
     }
 
     protected enumOptions(preferenceId: string): { value: string; label: string }[] {
@@ -534,7 +408,7 @@ costs — monitor them closely. Requests may run continuously while agents are a
             typeLabel: settingLabel,
             categoryId: this.id,
             target: { categoryId: this.id, highlight: { rowId: PREFERENCE_NAME_ENABLE_AI } },
-            keywords: `${PREFERENCE_NAME_ENABLE_AI} ${this.sectionAgents}`
+            keywords: PREFERENCE_NAME_ENABLE_AI
         });
         return items;
     }

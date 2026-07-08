@@ -237,58 +237,6 @@
   font-weight: normal;
 }
 
-/* Toggle switch */
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 36px;
-  height: 20px;
-}
-
-.toggle-switch input[type="checkbox"] {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--theia-radio-inactiveHoverBackground);
-  transition: 0.2s;
-  border-radius: 20px;
-  border: var(--theia-border-width) solid var(--theia-widget-border);
-}
-
-.toggle-slider:before {
-  position: absolute;
-  content: "";
-  height: 14px;
-  width: 14px;
-  left: calc(var(--theia-ui-padding) / 3);
-  bottom: calc(var(--theia-ui-padding) / 3);
-  background-color: var(--theia-icon-foreground);
-  transition: 0.2s;
-  border-radius: 50%;
-}
-
-.toggle-switch input:checked+.toggle-slider {
-  background-color: var(--theia-button-background);
-}
-
-.toggle-switch input:checked+.toggle-slider:before {
-  transform: translateX(16px);
-  background-color: var(--theia-button-foreground);
-}
-
-.toggle-switch:hover .toggle-slider {
-  opacity: 0.9;
-}
-
 /* Agent status indicator in tree */
 .agent-status-indicator {
   font-size: var(--theia-ui-font-size3);
@@ -340,10 +288,6 @@
 .ai-configuration-value-row-value {
   color: var(--theia-foreground);
   word-break: break-word;
-}
-
-.ai-configuration-select {
-  max-width: 400px;
 }
 
 .ai-configuration-value-row-value.ai-alias-evaluates-to-unresolved {

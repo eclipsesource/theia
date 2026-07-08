@@ -19,7 +19,7 @@ import { FrontendLanguageModelRegistry, LanguageModel, LanguageModelRegistry, La
 import { LanguageModelAlias, LanguageModelAliasRegistry } from '@theia/ai-core/lib/common/language-model-alias';
 import { Emitter, Event, nls } from '@theia/core';
 import { codicon } from '@theia/core/lib/browser';
-import { SelectComponent, SelectOption } from '@theia/core/lib/browser/widgets/select-component';
+import { SelectOption } from '@theia/core/lib/browser/widgets/select-component';
 import { DisposableCollection } from '@theia/core/lib/common';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
@@ -35,6 +35,7 @@ import {
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { CollectionCategoryRenderer } from '@theia/ai-core-ui/lib/browser/ai-configuration/renderers/collection-category-renderer';
 import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
+import { AiEnumSelect } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-controls';
 
 /** Sentinel option value representing "use the alias' default priority list" (no explicit model). */
 const DEFAULT_LIST_VALUE = '';
@@ -161,12 +162,20 @@ export class ModelAliasesConfigurationCategory extends CollectionCategoryRendere
     protected getAliasStatus(alias: LanguageModelAlias): AiConfigurationItemStatus {
         const resolved = this.resolvedModelForAlias.get(alias.id);
         if (!resolved) {
-            return { kind: 'error', tooltip: nls.localize('theia/ai/core/modelAliasesConfiguration/noResolvedModel', 'No model ready for this alias.') };
+            return {
+                kind: 'error',
+                label: nls.localize('theia/ai/core/modelAliasesConfiguration/noModel', 'No model'),
+                tooltip: nls.localize('theia/ai/core/modelAliasesConfiguration/noResolvedModel', 'No model ready for this alias.')
+            };
         }
         if (resolved.status.status !== 'ready') {
-            return { kind: 'warn', tooltip: resolved.status.message };
+            return {
+                kind: 'warn',
+                label: nls.localize('theia/ai/core/modelAliasesConfiguration/notReady', 'Not ready'),
+                tooltip: resolved.status.message
+            };
         }
-        return { kind: 'on', tooltip: nls.localize('theia/ai/core/modelAliasesConfiguration/modelReadyTooltip', 'Ready') };
+        return { kind: 'on', label: nls.localize('theia/ai/core/modelAliasesConfiguration/modelReadyTooltip', 'Ready') };
     }
 
     protected renderItemSections(item: AiConfigurationTreeItem, ctx: AiConfigurationRenderContext): React.ReactNode {
@@ -189,10 +198,12 @@ export class ModelAliasesConfigurationCategory extends CollectionCategoryRendere
             {isInvalid && <div className='ai-alias-invalid-model'>
                 {nls.localize('theia/ai/core/modelAliasesConfiguration/unavailableModel', 'Selected model is no longer available')}
             </div>}
-            <SelectComponent
-                options={options}
-                defaultValue={isInvalid ? undefined : selected}
-                onChange={option => this.setSelectedModel(alias, option.value)}
+            <AiEnumSelect
+                ariaLabel={nls.localize('theia/ai/core/modelAliasesConfiguration/selectedModelId', 'Selected Model')}
+                value={isInvalid ? undefined : selected}
+                invalid={isInvalid}
+                options={options.map(option => ({ value: String(option.value ?? ''), label: option.label ?? String(option.value ?? ''), title: option.description }))}
+                onCommit={value => this.setSelectedModel(alias, value)}
             />
         </AiConfigurationSection>;
     }

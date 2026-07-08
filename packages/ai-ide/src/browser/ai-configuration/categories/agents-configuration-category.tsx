@@ -50,6 +50,7 @@ import { CollectionCategoryRenderer, AiConfigurationAddDescriptor } from '@theia
 import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
 import { AiSettingsRow } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row';
 import { AiSettingsRowService } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
+import { PREFERENCE_NAME_AGENT_MODE_ENABLED, PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST } from '../../../common/ai-ide-preferences';
 import { AgentDetailServices, AgentDetailView } from './agent-detail-view';
 
 /** A candidate location for creating a new custom agent: its scope directory and `agents/` folder. */
@@ -172,35 +173,55 @@ export class AgentsConfigurationCategory extends CollectionCategoryRenderer impl
                 description: agent.description,
                 status: {
                     kind: enabled ? 'on' : 'off',
-                    tooltip: enabled ? nls.localizeByDefault('Enabled') : nls.localizeByDefault('Disabled')
+                    label: enabled ? nls.localizeByDefault('Enabled') : nls.localizeByDefault('Disabled')
                 }
             } satisfies AiConfigurationTreeItem;
         });
     }
 
     protected override renderCategorySettings(ctx: AiConfigurationRenderContext): React.ReactNode {
-        return <AiConfigurationSection title={nls.localize('theia/ai/ide/agentConfiguration/defaults', 'Defaults')}>
-            <AiSettingsRow
-                service={this.settingsRowService}
-                preferenceId={DEFAULT_CHAT_AGENT_PREF}
-                label={nls.localize('theia/ai/ide/agentConfiguration/defaultChatAgent', 'Default Chat Agent')}
-                description={nls.localize('theia/ai/chat/defaultAgent/description',
-                    'Optional: the Chat Agent invoked when no agent is explicitly mentioned with @<agent-name>. If unset, the built-in defaults apply.')}
-                scope={ctx.scope}
-                control={{ type: 'select', options: this.getChatAgentOptions() }}
-                onDidChange={ctx.update}
-            />
-            <AiSettingsRow
-                service={this.settingsRowService}
-                preferenceId={PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE}
-                label={nls.localize('theia/ai/core/defaultNotification/title', 'Default Notification Type')}
-                description={nls.localize('theia/ai/core/defaultNotification/mdDescription',
-                    'The default notification method used when an AI agent needs your attention. Individual agents can override this setting.')}
-                scope={ctx.scope}
-                control={{ type: 'select', options: this.getNotificationTypeOptions() }}
-                onDidChange={ctx.update}
-            />
-        </AiConfigurationSection>;
+        return <>
+            <AiConfigurationSection title={nls.localize('theia/ai/ide/agentConfiguration/behavior', 'Behavior')}>
+                <AiSettingsRow
+                    service={this.settingsRowService}
+                    preferenceId={PREFERENCE_NAME_AGENT_MODE_ENABLED}
+                    label={nls.localize('theia/ai/ide/agentConfiguration/agentMode', 'Agent mode for Coder')}
+                    scope={ctx.scope}
+                    control={{ type: 'boolean' }}
+                    onDidChange={ctx.update}
+                />
+                <AiSettingsRow
+                    service={this.settingsRowService}
+                    preferenceId={PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST}
+                    label={nls.localize('theia/ai/ide/agentConfiguration/orchestratorExclude', 'Agents hidden from the orchestrator')}
+                    scope={ctx.scope}
+                    control={{ type: 'array', placeholder: nls.localize('theia/ai/ide/agentConfiguration/orchestratorExcludePlaceholder', 'Comma-separated agent IDs') }}
+                    onDidChange={ctx.update}
+                />
+            </AiConfigurationSection>
+            <AiConfigurationSection title={nls.localize('theia/ai/ide/agentConfiguration/defaults', 'Defaults')}>
+                <AiSettingsRow
+                    service={this.settingsRowService}
+                    preferenceId={DEFAULT_CHAT_AGENT_PREF}
+                    label={nls.localize('theia/ai/ide/agentConfiguration/defaultChatAgent', 'Default Chat Agent')}
+                    description={nls.localize('theia/ai/chat/defaultAgent/description',
+                        'Optional: the Chat Agent invoked when no agent is explicitly mentioned with @<agent-name>. If unset, the built-in defaults apply.')}
+                    scope={ctx.scope}
+                    control={{ type: 'select', options: this.getChatAgentOptions() }}
+                    onDidChange={ctx.update}
+                />
+                <AiSettingsRow
+                    service={this.settingsRowService}
+                    preferenceId={PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE}
+                    label={nls.localize('theia/ai/core/defaultNotification/title', 'Default Notification Type')}
+                    description={nls.localize('theia/ai/core/defaultNotification/mdDescription',
+                        'The default notification method used when an AI agent needs your attention. Individual agents can override this setting.')}
+                    scope={ctx.scope}
+                    control={{ type: 'select', options: this.getNotificationTypeOptions() }}
+                    onDidChange={ctx.update}
+                />
+            </AiConfigurationSection>
+        </>;
     }
 
     protected getChatAgentOptions(): SelectOption[] {
@@ -258,11 +279,29 @@ export class AgentsConfigurationCategory extends CollectionCategoryRenderer impl
     getSearchItems(): AiConfigurationSearchItem[] {
         const settingLabel = nls.localizeByDefault('Setting');
         const items: AiConfigurationSearchItem[] = [{
+            label: nls.localize('theia/ai/ide/agentConfiguration/agentMode', 'Agent mode for Coder'),
+            typeLabel: settingLabel,
+            categoryId: this.id,
+            target: { categoryId: this.id },
+            keywords: PREFERENCE_NAME_AGENT_MODE_ENABLED
+        }, {
+            label: nls.localize('theia/ai/ide/agentConfiguration/orchestratorExclude', 'Agents hidden from the orchestrator'),
+            typeLabel: settingLabel,
+            categoryId: this.id,
+            target: { categoryId: this.id },
+            keywords: PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST
+        }, {
             label: nls.localize('theia/ai/ide/agentConfiguration/defaultChatAgent', 'Default Chat Agent'),
             typeLabel: settingLabel,
             categoryId: this.id,
             target: { categoryId: this.id },
             keywords: DEFAULT_CHAT_AGENT_PREF
+        }, {
+            label: nls.localize('theia/ai/core/defaultNotification/title', 'Default Notification Type'),
+            typeLabel: settingLabel,
+            categoryId: this.id,
+            target: { categoryId: this.id },
+            keywords: PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE
         }];
         const agentTypeLabel = nls.localizeByDefault('Agent');
         for (const agent of this.agentService.getAllAgents()) {

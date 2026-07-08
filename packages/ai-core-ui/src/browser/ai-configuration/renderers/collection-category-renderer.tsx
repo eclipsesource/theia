@@ -94,7 +94,7 @@ export abstract class CollectionCategoryRenderer implements AiConfigurationCateg
 
     /** Header of an item detail page; icon/title/subtitle from the item by default. */
     protected renderItemHeader(item: AiConfigurationTreeItem, ctx: AiConfigurationRenderContext): React.ReactNode {
-        return <AiConfigurationItemDetailHeader title={item.label} iconClass={item.iconClass} subtitle={item.description} />;
+        return <AiConfigurationItemDetailHeader title={item.label} iconClass={item.iconClass} subtitle={item.description} status={item.status} />;
     }
 
     /** Body of an item detail page: typically {@link AiConfigurationSection}s of rows. */

@@ -164,6 +164,35 @@
   user-select: none;
 }
 
+/* Placeholder shown when a section has no entries (e.g. no providers installed). */
+.ai-general-empty {
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size1);
+  padding: var(--theia-ui-padding) 0;
+}
+
+/* A settings-styled row that navigates instead of editing a value (e.g. a provider entry). */
+.ai-general-nav-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ai-general-nav-row:focus-visible {
+  outline: 1px solid var(--theia-focusBorder);
+  outline-offset: -1px;
+}
+
+.ai-general-nav-chevron {
+  align-self: center;
+  color: var(--theia-descriptionForeground);
+}
+
 /* Sections */
 .ai-general-section {
   margin-top: calc(var(--theia-ui-padding) * 3);
@@ -285,229 +314,4 @@
 
 .ai-general-reset:focus-visible {
   outline: 1px solid var(--theia-focusBorder);
-}
-
-/* Toggle switch */
-.ai-general-switch {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.ai-general-switch input {
-  position: absolute;
-  opacity: 0;
-  inset: 0;
-  margin: 0;
-  cursor: pointer;
-}
-
-.ai-general-switch-track {
-  position: absolute;
-  inset: 0;
-  background: var(--theia-button-secondaryBackground, var(--theia-widget-border));
-  border-radius: 10px;
-  transition: background 0.15s;
-}
-
-.ai-general-switch-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  background: var(--theia-button-foreground);
-  border-radius: 50%;
-  transition: left 0.15s;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
-.ai-general-switch input:checked + .ai-general-switch-track {
-  background: var(--theia-button-background);
-}
-
-.ai-general-switch input:checked + .ai-general-switch-track .ai-general-switch-thumb {
-  left: 18px;
-}
-
-.ai-general-switch input:focus-visible + .ai-general-switch-track {
-  outline: 2px solid var(--theia-focusBorder);
-  outline-offset: 2px;
-}
-
-.ai-general-switch input:disabled {
-  cursor: default;
-}
-
-.ai-general-switch-large {
-  width: 44px;
-  height: 24px;
-}
-
-.ai-general-switch-large .ai-general-switch-thumb {
-  width: 20px;
-  height: 20px;
-}
-
-.ai-general-switch-large input:checked + .ai-general-switch-track .ai-general-switch-thumb {
-  left: 22px;
-}
-
-/* Numeric stepper */
-.ai-general-stepper-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--theia-ui-padding) / 1.5);
-}
-
-.ai-general-stepper {
-  display: inline-flex;
-  align-items: center;
-  border: var(--theia-border-width) solid var(--theia-input-border, var(--theia-widget-border));
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--theia-input-background);
-}
-
-.ai-general-stepper:focus-within {
-  outline: 1px solid var(--theia-focusBorder);
-  outline-offset: -1px;
-}
-
-.ai-general-stepper-button {
-  width: 26px;
-  height: 26px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: var(--theia-descriptionForeground);
-  font-size: var(--theia-ui-font-size2);
-}
-
-.ai-general-stepper-button:hover:not(:disabled) {
-  background: var(--theia-list-hoverBackground);
-  color: var(--theia-foreground);
-}
-
-.ai-general-stepper-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.ai-general-stepper-input {
-  width: 52px;
-  border: none;
-  text-align: center;
-  font: inherit;
-  padding: 4px 0;
-  outline: none;
-  background: transparent;
-  color: var(--theia-input-foreground);
-}
-
-.ai-general-unit-hint {
-  font-size: var(--theia-ui-font-size0);
-  color: var(--theia-descriptionForeground);
-}
-
-/* Native select */
-.ai-general-select {
-  font: inherit;
-  padding: 4px 8px;
-  border: var(--theia-border-width) solid var(--theia-dropdown-border, var(--theia-input-border, var(--theia-widget-border)));
-  border-radius: 4px;
-  background: var(--theia-dropdown-background, var(--theia-input-background));
-  color: var(--theia-dropdown-foreground, var(--theia-input-foreground));
-}
-
-.ai-general-select:focus {
-  outline: 1px solid var(--theia-focusBorder);
-  outline-offset: -1px;
-}
-
-.ai-general-session-limit {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--theia-ui-padding);
-}
-
-/* Chip / tag editor */
-.ai-general-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 5px 6px;
-  border: var(--theia-border-width) solid var(--theia-input-border, var(--theia-widget-border));
-  border-radius: 4px;
-  background: var(--theia-input-background);
-  min-width: 280px;
-  max-width: 480px;
-  cursor: text;
-}
-
-.ai-general-chips:focus-within {
-  outline: 1px solid var(--theia-focusBorder);
-  outline-offset: -1px;
-}
-
-.ai-general-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--theia-badge-background);
-  color: var(--theia-badge-foreground);
-  border-radius: 11px;
-  padding: 2px 6px 2px 9px;
-  font-size: var(--theia-ui-font-size0);
-  font-family: var(--theia-code-font-family);
-}
-
-.ai-general-chip-remove {
-  border: none;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-  font-size: var(--theia-ui-font-size0);
-  padding: 0;
-  line-height: 1;
-  border-radius: 50%;
-  width: 14px;
-  height: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ai-general-chip-remove:hover:not(:disabled) {
-  background: var(--theia-list-hoverBackground);
-}
-
-.ai-general-chip-remove:focus-visible {
-  outline: 1px solid var(--theia-focusBorder);
-}
-
-.ai-general-chip-input {
-  border: none;
-  outline: none;
-  font: inherit;
-  flex: 1;
-  min-width: 90px;
-  padding: 2px;
-  background: transparent;
-  color: var(--theia-input-foreground);
-}
-
-/* Path input + Browse */
-.ai-general-path-row {
-  display: flex;
-  gap: calc(var(--theia-ui-padding) / 1.5);
-}
-
-.ai-general-path-input {
-  width: 320px;
-  max-width: 100%;
-  font-family: var(--theia-code-font-family);
-  font-size: var(--theia-ui-font-size1);
 }

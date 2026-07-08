@@ -228,31 +228,6 @@
   color: var(--theia-badge-foreground);
 }
 
-.ai-configuration-tree-status {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: calc(var(--theia-ui-padding) / 2);
-}
-
-.ai-configuration-tree-status-on {
-  background-color: var(--theia-charts-green);
-}
-
-.ai-configuration-tree-status-off {
-  background-color: var(--theia-descriptionForeground);
-  opacity: 0.5;
-}
-
-.ai-configuration-tree-status-warn {
-  background-color: var(--theia-editorWarning-foreground);
-}
-
-.ai-configuration-tree-status-error {
-  background-color: var(--theia-errorForeground);
-}
-
 .ai-configuration-tree-separator .theia-TreeNodeContent {
   color: var(--theia-descriptionForeground);
   font-size: var(--theia-ui-font-size0);

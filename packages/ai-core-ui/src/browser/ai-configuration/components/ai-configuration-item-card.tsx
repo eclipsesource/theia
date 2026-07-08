@@ -16,20 +16,21 @@
 
 import * as React from '@theia/core/shared/react';
 import { AiConfigurationItemStatus } from '../ai-configuration-category';
+import { AiConfigurationStatusBadge } from './ai-configuration-status-badge';
 
 export interface AiConfigurationItemCardProps {
     readonly label: string;
     /** `codicon(...)` class shown in the card corner. */
     readonly iconClass?: string;
     readonly description?: string;
-    /** Small status dot in the card corner. */
+    /** Status badge shown in the card header. */
     readonly status?: AiConfigurationItemStatus;
     /** Invoked when the card is clicked or activated via keyboard; typically `ctx.navigate(...)`. */
     readonly onSelect: () => void;
 }
 
 /**
- * Overview card for a collection item: icon, label, description and a status dot.
+ * Overview card for a collection item: icon, label, description and a status badge.
  * Clicking (or pressing Enter/Space on) the card selects the item.
  */
 export const AiConfigurationItemCard: React.FC<AiConfigurationItemCardProps> = ({ label, iconClass, description, status, onSelect }) => {
@@ -43,10 +44,7 @@ export const AiConfigurationItemCard: React.FC<AiConfigurationItemCardProps> = (
         <div className='ai-configuration-item-card-header'>
             {iconClass && <span className={`ai-configuration-item-card-icon ${iconClass}`}></span>}
             <span className='ai-configuration-item-card-label'>{label}</span>
-            {status && <span
-                className={`ai-configuration-status ai-configuration-status-${status.kind}`}
-                title={status.tooltip}
-            ></span>}
+            {status && <AiConfigurationStatusBadge status={status} />}
         </div>
         {description && <div className='ai-configuration-item-card-description'>{description}</div>}
     </div>;

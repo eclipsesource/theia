@@ -15,6 +15,7 @@
 // *****************************************************************************
 
 import { Agent, AgentService } from '@theia/ai-core';
+import { PREFERENCE_NAME_PROMPT_TEMPLATES } from '@theia/ai-core/lib/common/ai-core-preferences';
 import { CustomizationSource } from '@theia/ai-core/lib/browser/frontend-prompt-customization-service';
 import { SkillService } from '@theia/ai-core/lib/browser/skill-service';
 import { Skill } from '@theia/ai-core/lib/common/skill';
@@ -36,10 +37,14 @@ import {
     AiConfigurationCategory,
     AiConfigurationCategoryId,
     AiConfigurationCategoryOrder,
+    AiConfigurationRenderContext,
     AiConfigurationSearchItem,
     AiConfigurationSearchProvider
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { SinglePageCategoryRenderer } from '@theia/ai-core-ui/lib/browser/ai-configuration/renderers/single-page-category-renderer';
+import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
+import { AiSettingsRow } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row';
+import { AiSettingsRowService } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
 
 /**
  * The Prompts & Skills category: a `single-page` category that renders the existing Prompt
@@ -67,6 +72,9 @@ export class PromptsAndSkillsConfigurationCategory extends SinglePageCategoryRen
 
     @inject(OpenerService)
     protected readonly openerService: OpenerService;
+
+    @inject(AiSettingsRowService)
+    protected readonly settingsRowService: AiSettingsRowService;
 
     protected readonly onDidChangeEmitter = new Emitter<void>();
     readonly onDidChange: Event<void> = this.onDidChangeEmitter.event;
@@ -112,7 +120,8 @@ export class PromptsAndSkillsConfigurationCategory extends SinglePageCategoryRen
             this.skillService.onSkillsChanged(() => {
                 this.loadSkills();
                 this.onDidChangeEmitter.fire();
-            })
+            }),
+            this.settingsRowService.onPreferenceChanged(() => this.onDidChangeEmitter.fire())
         ]);
     }
 
@@ -292,9 +301,19 @@ export class PromptsAndSkillsConfigurationCategory extends SinglePageCategoryRen
         </div>;
     }
 
-    protected renderSections(): React.ReactNode {
+    protected renderSections(ctx: AiConfigurationRenderContext): React.ReactNode {
         const nonSystemPromptFragments = this.getNonPromptVariantSetFragments();
         return <div className='ai-prompt-fragments-configuration'>
+            <AiConfigurationSection title={nls.localizeByDefault('Prompts')}>
+                <AiSettingsRow
+                    service={this.settingsRowService}
+                    preferenceId={PREFERENCE_NAME_PROMPT_TEMPLATES}
+                    label={nls.localize('theia/ai/ide/promptsAndSkillsConfiguration/templatesFolder', 'Prompt templates folder')}
+                    scope={ctx.scope}
+                    control={{ type: 'string', placeholder: nls.localize('theia/ai/ide/promptsAndSkillsConfiguration/templatesPlaceholder', 'Default: user config directory') }}
+                    onDidChange={ctx.update}
+                />
+            </AiConfigurationSection>
             <div className='prompt-variants-container'>
                 <h3 className='section-header'>{nls.localize('theia/ai/core/promptFragmentsConfiguration/promptVariantsHeader', 'Prompt Variant Sets')}</h3>
                 {Array.from(this.promptVariantsMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))
@@ -552,7 +571,13 @@ export class PromptsAndSkillsConfigurationCategory extends SinglePageCategoryRen
     }
 
     getSearchItems(): AiConfigurationSearchItem[] {
-        const items: AiConfigurationSearchItem[] = [];
+        const items: AiConfigurationSearchItem[] = [{
+            label: nls.localize('theia/ai/ide/promptsAndSkillsConfiguration/templatesFolder', 'Prompt templates folder'),
+            typeLabel: nls.localizeByDefault('Setting'),
+            categoryId: this.id,
+            target: { categoryId: this.id },
+            keywords: PREFERENCE_NAME_PROMPT_TEMPLATES
+        }];
         const variantSetLabel = nls.localize('theia/ai/ide/promptsAndSkillsConfiguration/variantSetTypeLabel', 'Prompt Variant Set');
         const fragmentLabel = nls.localize('theia/ai/core/promptFragmentsConfiguration/label', 'Prompt Fragments');
         const skillLabel = nls.localizeByDefault('Skill');

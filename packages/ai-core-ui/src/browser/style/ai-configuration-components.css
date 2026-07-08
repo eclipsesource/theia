@@ -102,10 +102,245 @@
   align-items: center;
 }
 
-.ai-settings-row-input,
-.ai-settings-row-select {
+/* ------------------------------------------------------------------------- *
+ * Unified form controls (shared across every AI configuration page).
+ * A given logical control renders the same everywhere; see
+ * `ai-configuration/components/ai-configuration-controls.tsx`.
+ * ------------------------------------------------------------------------- */
+
+/* Text input */
+.ai-config-input {
   min-width: 240px;
   max-width: 480px;
+}
+
+.ai-config-input-mono {
+  font-family: var(--theia-code-font-family);
+  font-size: var(--theia-ui-font-size1);
+}
+
+/* Toggle switch */
+.ai-config-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.ai-config-switch input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.ai-config-switch-track {
+  position: absolute;
+  inset: 0;
+  background: var(--theia-button-secondaryBackground, var(--theia-widget-border));
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.ai-config-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--theia-button-foreground);
+  border-radius: 50%;
+  transition: left 0.15s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.ai-config-switch input:checked + .ai-config-switch-track {
+  background: var(--theia-button-background);
+}
+
+.ai-config-switch input:checked + .ai-config-switch-track .ai-config-switch-thumb {
+  left: 18px;
+}
+
+.ai-config-switch input:focus-visible + .ai-config-switch-track {
+  outline: 2px solid var(--theia-focusBorder);
+  outline-offset: 2px;
+}
+
+.ai-config-switch input:disabled {
+  cursor: default;
+}
+
+.ai-config-switch-large {
+  width: 44px;
+  height: 24px;
+}
+
+.ai-config-switch-large .ai-config-switch-thumb {
+  width: 20px;
+  height: 20px;
+}
+
+.ai-config-switch-large input:checked + .ai-config-switch-track .ai-config-switch-thumb {
+  left: 22px;
+}
+
+/* Numeric stepper */
+.ai-config-stepper-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--theia-ui-padding) / 1.5);
+}
+
+.ai-config-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: var(--theia-border-width) solid var(--theia-input-border, var(--theia-widget-border));
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--theia-input-background);
+}
+
+.ai-config-stepper:focus-within {
+  outline: 1px solid var(--theia-focusBorder);
+  outline-offset: -1px;
+}
+
+.ai-config-stepper-button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size2);
+}
+
+.ai-config-stepper-button:hover:not(:disabled) {
+  background: var(--theia-list-hoverBackground);
+  color: var(--theia-foreground);
+}
+
+.ai-config-stepper-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ai-config-stepper-input {
+  width: 52px;
+  border: none;
+  text-align: center;
+  font: inherit;
+  padding: 4px 0;
+  outline: none;
+  background: transparent;
+  color: var(--theia-input-foreground);
+}
+
+.ai-config-unit-hint {
+  font-size: var(--theia-ui-font-size0);
+  color: var(--theia-descriptionForeground);
+}
+
+/* Native select */
+.ai-config-select {
+  font: inherit;
+  min-width: 240px;
+  max-width: 480px;
+  padding: 4px 8px;
+  border: var(--theia-border-width) solid var(--theia-dropdown-border, var(--theia-input-border, var(--theia-widget-border)));
+  border-radius: 4px;
+  background: var(--theia-dropdown-background, var(--theia-input-background));
+  color: var(--theia-dropdown-foreground, var(--theia-input-foreground));
+}
+
+.ai-config-select:focus {
+  outline: 1px solid var(--theia-focusBorder);
+  outline-offset: -1px;
+}
+
+.ai-config-select.error {
+  border-color: var(--theia-inputValidation-errorBorder, var(--theia-errorForeground));
+}
+
+.ai-config-session-limit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--theia-ui-padding);
+}
+
+/* Chip / tag editor */
+.ai-config-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 5px 6px;
+  border: var(--theia-border-width) solid var(--theia-input-border, var(--theia-widget-border));
+  border-radius: 4px;
+  background: var(--theia-input-background);
+  min-width: 280px;
+  max-width: 480px;
+  cursor: text;
+}
+
+.ai-config-chips:focus-within {
+  outline: 1px solid var(--theia-focusBorder);
+  outline-offset: -1px;
+}
+
+.ai-config-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--theia-badge-background);
+  color: var(--theia-badge-foreground);
+  border-radius: 11px;
+  padding: 2px 6px 2px 9px;
+  font-size: var(--theia-ui-font-size0);
+  font-family: var(--theia-code-font-family);
+}
+
+.ai-config-chip-remove {
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: var(--theia-ui-font-size0);
+  padding: 0;
+  line-height: 1;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-config-chip-remove:hover:not(:disabled) {
+  background: var(--theia-list-hoverBackground);
+}
+
+.ai-config-chip-remove:focus-visible {
+  outline: 1px solid var(--theia-focusBorder);
+}
+
+.ai-config-chip-input {
+  border: none;
+  outline: none;
+  font: inherit;
+  flex: 1;
+  min-width: 90px;
+  padding: 2px;
+  background: transparent;
+  color: var(--theia-input-foreground);
+}
+
+/* Path input + Browse */
+.ai-config-path-row {
+  display: flex;
+  gap: calc(var(--theia-ui-padding) / 1.5);
 }
 
 /* Status dot */
@@ -131,6 +366,19 @@
 
 .ai-configuration-status-error {
   background-color: var(--theia-errorForeground);
+}
+
+/* Status badge (dot + label) */
+.ai-configuration-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--theia-ui-padding) / 2);
+  white-space: nowrap;
+}
+
+.ai-configuration-status-badge-label {
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size0);
 }
 
 /* Overview card grid */
@@ -177,7 +425,7 @@
   white-space: nowrap;
 }
 
-.ai-configuration-item-card-header .ai-configuration-status {
+.ai-configuration-item-card-header .ai-configuration-status-badge {
   margin-left: auto;
 }
 

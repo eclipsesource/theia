@@ -26,6 +26,14 @@ import { AiConfigurationItemDetailHeader } from './ai-configuration-item-detail-
 
 disableJSDOM();
 
+/** Renders one level of an element: the output of a function component, or the children of a host element. */
+function contentOf(element: React.ReactElement): React.ReactNode {
+    if (typeof element.type === 'function') {
+        return (element.type as (props: unknown) => React.ReactNode)(element.props);
+    }
+    return (element.props as { children?: React.ReactNode } | undefined)?.children;
+}
+
 /** Recursively collects the class names present anywhere in a rendered element tree. */
 function classNames(node: React.ReactNode, into: string[] = []): string[] {
     if (!node || typeof node !== 'object') {
@@ -35,11 +43,11 @@ function classNames(node: React.ReactNode, into: string[] = []): string[] {
         node.forEach(child => classNames(child, into));
         return into;
     }
-    const element = node as React.ReactElement<{ className?: string; children?: React.ReactNode }>;
+    const element = node as React.ReactElement<{ className?: string }>;
     if (element.props?.className) {
         into.push(...element.props.className.split(/\s+/).filter(Boolean));
     }
-    classNames(element.props?.children, into);
+    classNames(contentOf(element), into);
     return into;
 }
 
@@ -57,7 +65,7 @@ function textOf(node: React.ReactNode, into: string[] = []): string[] {
         return into;
     }
     if (typeof node === 'object') {
-        textOf((node as React.ReactElement<{ children?: React.ReactNode }>).props?.children, into);
+        textOf(contentOf(node as React.ReactElement), into);
     }
     return into;
 }
@@ -78,10 +86,10 @@ describe('AI Configuration primitives', () => {
         const tree = AiConfigurationItemCard({
             label: 'Universal',
             iconClass: 'codicon-hubot',
-            status: { kind: 'on' },
+            status: { kind: 'on', label: 'Enabled' },
             onSelect: () => { selected = true; }
         }) as React.ReactElement<{ onClick: () => void }>;
-        expect(textOf(tree)).to.include('Universal');
+        expect(textOf(tree)).to.include('Universal').and.to.include('Enabled');
         expect(classNames(tree)).to.include('ai-configuration-status-on');
         tree.props.onClick();
         expect(selected).to.equal(true);

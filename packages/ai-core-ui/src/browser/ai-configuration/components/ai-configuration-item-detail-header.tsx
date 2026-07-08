@@ -15,6 +15,8 @@
 // *****************************************************************************
 
 import * as React from '@theia/core/shared/react';
+import { AiConfigurationItemStatus } from '../ai-configuration-category';
+import { AiConfigurationStatusBadge } from './ai-configuration-status-badge';
 
 export interface AiConfigurationItemDetailHeaderProps {
     readonly title: string;
@@ -22,12 +24,14 @@ export interface AiConfigurationItemDetailHeaderProps {
     readonly iconClass?: string;
     /** Secondary line under the title (e.g. an id or provider). */
     readonly subtitle?: string;
+    /** Status badge shown next to the title. */
+    readonly status?: AiConfigurationItemStatus;
     /** Trailing slot for header actions and toggles (buttons, switches). */
     readonly actions?: React.ReactNode;
 }
 
-/** Header of a collection item's detail page: icon, title, subtitle and an actions slot. */
-export const AiConfigurationItemDetailHeader: React.FC<AiConfigurationItemDetailHeaderProps> = ({ title, iconClass, subtitle, actions }) => (
+/** Header of a collection item's detail page: icon, title, subtitle, status badge and an actions slot. */
+export const AiConfigurationItemDetailHeader: React.FC<AiConfigurationItemDetailHeaderProps> = ({ title, iconClass, subtitle, status, actions }) => (
     <div className='ai-configuration-item-detail-header'>
         <div className='ai-configuration-item-detail-header-heading'>
             {iconClass && <span className={`ai-configuration-item-detail-header-icon ${iconClass}`}></span>}
@@ -35,6 +39,7 @@ export const AiConfigurationItemDetailHeader: React.FC<AiConfigurationItemDetail
                 <span className='ai-configuration-item-detail-header-title'>{title}</span>
                 {subtitle !== undefined && <span className='ai-configuration-item-detail-header-subtitle'>{subtitle}</span>}
             </div>
+            {status && <AiConfigurationStatusBadge status={status} />}
         </div>
         {actions !== undefined && <div className='ai-configuration-item-detail-header-actions'>{actions}</div>}
     </div>

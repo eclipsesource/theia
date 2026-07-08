@@ -15,11 +15,11 @@
 // *****************************************************************************
 
 import { codicon } from '@theia/core/lib/browser';
-import { SelectComponent } from '@theia/core/lib/browser/widgets/select-component';
 import { nls } from '@theia/core';
 import * as React from '@theia/core/shared/react';
 import { AiConfigurationScope } from '../ai-configuration-category';
 import { AiSettingsControl, AiSettingsRowService } from './ai-settings-row-service';
+import { AiChipEditor, AiEnumSelect, AiNumberStepper, AiTextInput, AiToggleSwitch } from './ai-configuration-controls';
 
 // Re-exported from its natural home on the service so existing importers keep working.
 export { AiSettingsControl } from './ai-settings-row-service';
@@ -82,7 +82,7 @@ export const AiSettingsRow: React.FC<AiSettingsRowProps> = ({
         </div>
         {effectiveDescription && <AiSettingsRowDescription service={service} description={effectiveDescription} />}
         <div className='ai-settings-row-control'>
-            <AiSettingsRowControl control={control} value={inspection.value} onCommit={commit} />
+            <AiSettingsRowControl control={control} value={inspection.value} label={effectiveLabel ?? preferenceId} onCommit={commit} />
         </div>
     </div>;
 };
@@ -103,102 +103,42 @@ const AiSettingsRowDescription: React.FC<{ service: AiSettingsRowService; descri
     return <div className='ai-settings-row-description' ref={host}></div>;
 };
 
-const AiSettingsRowControl: React.FC<{ control: AiSettingsControl; value: unknown; onCommit: (value: unknown) => void }> = ({ control, value, onCommit }) => {
+const AiSettingsRowControl: React.FC<{ control: AiSettingsControl; value: unknown; label: string; onCommit: (value: unknown) => void }> = ({ control, value, label, onCommit }) => {
     switch (control.type) {
         case 'boolean':
-            return <input
-                className='ai-settings-row-toggle'
-                type='checkbox'
-                checked={value === true}
-                onChange={e => onCommit(e.target.checked)}
+            return <AiToggleSwitch checked={value === true} ariaLabel={label} onChange={onCommit} />;
+        case 'select':
+            return <AiEnumSelect
+                value={value === undefined ? undefined : String(value)}
+                ariaLabel={label}
+                options={control.options.map(option => ({
+                    value: String(option.value ?? ''),
+                    label: option.label ?? String(option.value ?? ''),
+                    title: option.description
+                }))}
+                onCommit={onCommit}
             />;
-        case 'select': {
-            const current = value === undefined ? undefined : String(value);
-            return <SelectComponent
-                className='ai-settings-row-select'
-                options={control.options}
-                defaultValue={current}
-                onChange={option => onCommit(option.value)}
-            />;
-        }
         case 'number':
-            return <AiSettingsNumberInput value={value} control={control} onCommit={onCommit} />;
+            return <AiNumberStepper
+                value={typeof value === 'number' ? value : (control.min ?? 0)}
+                ariaLabel={label}
+                min={control.min}
+                max={control.max}
+                onCommit={onCommit}
+            />;
         case 'array':
-            return <AiSettingsArrayInput value={value} placeholder={control.placeholder} onCommit={onCommit} />;
+            return <AiChipEditor
+                values={Array.isArray(value) ? value.map(String) : []}
+                addPlaceholder={control.placeholder ?? nls.localize('theia/ai/core/aiConfiguration/addValue', 'Add value…')}
+                onChange={onCommit}
+            />;
         case 'string':
         default:
-            return <AiSettingsTextInput value={value} placeholder={control.placeholder} onCommit={onCommit} />;
+            return <AiTextInput
+                value={typeof value === 'string' ? value : ''}
+                ariaLabel={label}
+                placeholder={control.placeholder}
+                onCommit={onCommit}
+            />;
     }
-};
-
-/** Text input committing on blur or Enter, so typing does not write a preference per keystroke. */
-const AiSettingsTextInput: React.FC<{ value: unknown; placeholder?: string; onCommit: (value: string) => void }> = ({ value, placeholder, onCommit }) => {
-    const initial = typeof value === 'string' ? value : '';
-    const [draft, setDraft] = React.useState(initial);
-    React.useEffect(() => setDraft(initial), [initial]);
-    const commitIfChanged = (): void => {
-        if (draft !== initial) {
-            onCommit(draft);
-        }
-    };
-    return <input
-        className='theia-input ai-settings-row-input'
-        type='text'
-        value={draft}
-        placeholder={placeholder}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={commitIfChanged}
-        onKeyDown={e => { if (e.key === 'Enter') { commitIfChanged(); } }}
-    />;
-};
-
-const AiSettingsNumberInput: React.FC<{
-    value: unknown;
-    control: { min?: number; max?: number; step?: number };
-    onCommit: (value: number | undefined) => void;
-}> = ({ value, control, onCommit }) => {
-    const initial = typeof value === 'number' ? String(value) : '';
-    const [draft, setDraft] = React.useState(initial);
-    React.useEffect(() => setDraft(initial), [initial]);
-    const commitIfChanged = (): void => {
-        if (draft === initial) {
-            return;
-        }
-        const parsed = Number(draft);
-        onCommit(draft.trim() === '' || Number.isNaN(parsed) ? undefined : parsed);
-    };
-    return <input
-        className='theia-input ai-settings-row-input'
-        type='number'
-        value={draft}
-        min={control.min}
-        max={control.max}
-        step={control.step}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={commitIfChanged}
-        onKeyDown={e => { if (e.key === 'Enter') { commitIfChanged(); } }}
-    />;
-};
-
-/** A comma-separated editor over a string array, kept simple until a richer chip editor is needed. */
-const AiSettingsArrayInput: React.FC<{ value: unknown; placeholder?: string; onCommit: (value: string[]) => void }> = ({ value, placeholder, onCommit }) => {
-    const initial = Array.isArray(value) ? value.map(String).join(', ') : '';
-    const [draft, setDraft] = React.useState(initial);
-    React.useEffect(() => setDraft(initial), [initial]);
-    const commitIfChanged = (): void => {
-        if (draft === initial) {
-            return;
-        }
-        const entries = draft.split(',').map(entry => entry.trim()).filter(entry => entry.length > 0);
-        onCommit(entries);
-    };
-    return <input
-        className='theia-input ai-settings-row-input'
-        type='text'
-        value={draft}
-        placeholder={placeholder}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={commitIfChanged}
-        onKeyDown={e => { if (e.key === 'Enter') { commitIfChanged(); } }}
-    />;
 };

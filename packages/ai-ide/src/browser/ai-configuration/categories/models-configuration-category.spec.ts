@@ -44,10 +44,10 @@ describe('ModelsConfigurationCategory', () => {
     before(() => disableJSDOM = enableJSDOM());
     after(() => disableJSDOM());
 
-    it('declares the models single-page metadata', () => {
+    it('declares the models collection metadata', () => {
         const category = createCategory([]);
         expect(category.id).to.equal(AiConfigurationCategoryId.MODELS);
-        expect(category.kind).to.equal('single-page');
+        expect(category.kind).to.equal('collection');
         expect(category.renderer).to.equal(category);
     });
 
@@ -71,12 +71,34 @@ describe('ModelsConfigurationCategory', () => {
         expect(sections[2].preferenceIds).to.deep.equal(['ai-features.google.apiKey']);
     });
 
-    it('indexes each discovered setting for deep search', () => {
-        const category = createCategory(['ai-features.anthropic.AnthropicApiKey']);
+    it('exposes one tree child per provider, excluding the cross-provider model settings', () => {
+        const category = createCategory([
+            'ai-features.modelSettings.requestSettings',
+            'ai-features.anthropic.AnthropicApiKey',
+            'ai-features.google.apiKey'
+        ]);
+        const children = category.getTreeChildren();
+        expect(children.map(c => c.id)).to.deep.equal(['anthropic', 'google']);
+        expect(children.map(c => c.label)).to.deep.equal(['anthropic', 'google']);
+    });
+
+    it('indexes each setting for deep search, navigating provider settings to the provider node', () => {
+        const category = createCategory([
+            'ai-features.modelSettings.requestSettings',
+            'ai-features.anthropic.AnthropicApiKey'
+        ]);
         const items = category.getSearchItems();
-        expect(items).to.have.lengthOf(1);
+        expect(items).to.have.lengthOf(2);
+        // Cross-provider model settings navigate to the overview (no itemId).
         expect(items[0].target).to.deep.equal({
             categoryId: AiConfigurationCategoryId.MODELS,
+            itemId: undefined,
+            highlight: { rowId: 'ai-features.modelSettings.requestSettings' }
+        });
+        // Provider settings navigate to the provider node.
+        expect(items[1].target).to.deep.equal({
+            categoryId: AiConfigurationCategoryId.MODELS,
+            itemId: 'anthropic',
             highlight: { rowId: 'ai-features.anthropic.AnthropicApiKey' }
         });
     });

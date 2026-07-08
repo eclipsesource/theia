@@ -17,7 +17,7 @@
 import { nls } from '@theia/core';
 import { CompositeTreeNode, TreeNode } from '@theia/core/lib/browser/tree/tree';
 import { SelectableTreeNode } from '@theia/core/lib/browser/tree/tree-selection';
-import { AiConfigurationCategory, AiConfigurationItemStatus, AiConfigurationTreeItem } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
+import { AiConfigurationCategory, AiConfigurationTreeItem } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 
 /**
  * Top-level node representing a single {@link AiConfigurationCategory}.
@@ -47,7 +47,6 @@ export interface AiConfigurationItemNode extends SelectableTreeNode {
     readonly categoryId: string;
     readonly itemId: string;
     readonly iconClass: string;
-    readonly status?: AiConfigurationItemStatus;
     selected: boolean;
 }
 export namespace AiConfigurationItemNode {
@@ -140,7 +139,6 @@ export namespace AiConfigurationTree {
             itemId: item.id,
             name: item.label,
             iconClass: item.iconClass ?? category.iconClass,
-            status: item.status,
             parent: undefined,
             selected: false
         };

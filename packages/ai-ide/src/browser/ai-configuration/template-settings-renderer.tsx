@@ -75,7 +75,7 @@ export const PromptVariantRenderer: React.FC<PromptVariantRendererProps> = ({
                     {(variantIds.length > 1 || isInvalidVariant) && (
                         <select
                             id={`variant-selector-${promptVariantSet.id}`}
-                            className={`theia-select template-variant-selector ${isInvalidVariant ? 'error' : ''}`}
+                            className={`ai-config-select template-variant-selector ${isInvalidVariant ? 'error' : ''}`}
                             value={isInvalidVariant ? 'invalid' : selectedVariant}
                             onChange={handleVariantChange}
                         >

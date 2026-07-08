@@ -38,6 +38,7 @@ import { codicon, CommonCommands } from '@theia/core/lib/browser';
 import { CommandService } from '@theia/core/lib/common/command';
 import * as React from '@theia/core/shared/react';
 import { AiConfigurationItemDetailHeader } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-item-detail-header';
+import { AiToggleSwitch } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-controls';
 import { LanguageModelRenderer } from '../language-model-renderer';
 import { PromptVariantRenderer } from '../template-settings-renderer';
 import { AgentNotificationSettings } from '../components/agent-notification-settings';
@@ -314,22 +315,25 @@ interface AgentDetailTogglesProps {
 }
 const AgentDetailToggles = ({ enabled, showInChat, showInChatVisible, onToggleEnabled, onToggleShowInChat }: AgentDetailTogglesProps) => (
     <div className='agent-toggles'>
-        <label className='agent-enable-toggle' title={nls.localize('theia/ai/core/agentConfiguration/enableAgent', 'Enable Agent')}>
+        <div className='agent-enable-toggle' title={nls.localize('theia/ai/core/agentConfiguration/enableAgent', 'Enable Agent')}>
             <span className='toggle-label'>{nls.localize('theia/ai/core/agentConfiguration/enableAgent', 'Enable Agent')}</span>
-            <div className='toggle-switch' onClick={onToggleEnabled}>
-                <input type='checkbox' checked={enabled} onChange={onToggleEnabled} />
-                <span className='toggle-slider'></span>
-            </div>
-        </label>
-        {showInChatVisible && <label
+            <AiToggleSwitch
+                checked={enabled}
+                ariaLabel={nls.localize('theia/ai/core/agentConfiguration/enableAgent', 'Enable Agent')}
+                onChange={onToggleEnabled}
+            />
+        </div>
+        {showInChatVisible && <div
             className={`agent-enable-toggle${enabled ? '' : ' disabled'}`}
             title={nls.localize('theia/ai/core/agentConfiguration/showInChat', 'Show in Chat')}>
             <span className='toggle-label'>{nls.localize('theia/ai/core/agentConfiguration/showInChat', 'Show in Chat')}</span>
-            <div className='toggle-switch' onClick={enabled ? onToggleShowInChat : undefined}>
-                <input type='checkbox' checked={showInChat} disabled={!enabled} onChange={onToggleShowInChat} />
-                <span className='toggle-slider'></span>
-            </div>
-        </label>}
+            <AiToggleSwitch
+                checked={showInChat}
+                disabled={!enabled}
+                ariaLabel={nls.localize('theia/ai/core/agentConfiguration/showInChat', 'Show in Chat')}
+                onChange={onToggleShowInChat}
+            />
+        </div>}
     </div>
 );
 
@@ -449,10 +453,12 @@ const AgentCapabilitiesSettings = ({ capabilities, agentId, savedOverrides, aiSe
                         {capability.description ?? nls.localize('theia/ai/ide/agentConfiguration/noDescription', 'No description available')}
                     </td>
                     <td>
-                        <div className='toggle-switch' onClick={!loading ? () => handleToggle(capability.fragmentId, getCurrentValue(capability)) : undefined}>
-                            <input type='checkbox' checked={getCurrentValue(capability)} disabled={loading} readOnly />
-                            <span className='toggle-slider'></span>
-                        </div>
+                        <AiToggleSwitch
+                            checked={getCurrentValue(capability)}
+                            disabled={loading}
+                            ariaLabel={capability.name ?? capability.fragmentId}
+                            onChange={() => handleToggle(capability.fragmentId, getCurrentValue(capability))}
+                        />
                     </td>
                 </tr>)}
             </tbody>

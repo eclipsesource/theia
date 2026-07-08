@@ -57,8 +57,8 @@ describe('AiConfigurationTree.buildRoot', () => {
 
     it('creates an expandable node with a count and item children for a non-empty collection', () => {
         const items: AiConfigurationTreeItem[] = [
-            { id: 'a', label: 'Agent A', status: { kind: 'on' } },
-            { id: 'b', label: 'Agent B', status: { kind: 'off' } }
+            { id: 'a', label: 'Agent A' },
+            { id: 'b', label: 'Agent B' }
         ];
         const root = AiConfigurationTree.buildRoot([category('agents', 'collection', { items })]);
         const node = root.children[0] as AiConfigurationCategoryNode;
@@ -71,7 +71,6 @@ describe('AiConfigurationTree.buildRoot', () => {
         const [first] = node.children;
         expect(AiConfigurationItemNode.is(first)).to.equal(true);
         expect(first.name).to.equal('Agent A');
-        expect(first.status?.kind).to.equal('on');
         expect(first.parent).to.equal(node);
     });
 
