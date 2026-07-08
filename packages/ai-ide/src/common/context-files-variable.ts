@@ -22,7 +22,8 @@ import { CONTEXT_FILES_VARIABLE_ID } from './context-variables';
 
 export const CONTEXT_FILES_VARIABLE: AIVariable = {
     id: CONTEXT_FILES_VARIABLE_ID,
-    description: nls.localize('theia/ai/core/contextSummaryVariable/description', 'Describes files in the context for a given session.'),
+    description: nls.localize('theia/ai/core/contextFilesVariable/description',
+        'A bullet list of the file paths currently added to the chat session context.'),
     name: CONTEXT_FILES_VARIABLE_ID,
 };
 
