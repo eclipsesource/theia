@@ -17,6 +17,14 @@
 import { enableJSDOM } from '@theia/core/lib/browser/test/jsdom';
 let disableJSDOM = enableJSDOM();
 
+// @lumino/dragdrop (pulled in transitively via the file dialog service) extends the DragEvent DOM
+// global at module load, which JSDOM does not provide; stub it so the import succeeds.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+if (!(global as any).DragEvent) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (global as any).DragEvent = class DragEvent extends (global as any).Event { };
+}
+
 import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/frontend-application-config-provider';
 FrontendApplicationConfigProvider.set({});
 
@@ -56,11 +64,12 @@ describe('GeneralConfigurationCategory', () => {
     it('indexes one search item per setting, deep-linking to the row', () => {
         const category = createCategory();
         const items = category.getSearchItems();
-        // AI Features (5) + Chat (5) + Notifications (1)
+        // master toggle (hero) + Agents (2) + Prompts & requests (2) + Chat (5) + Notifications (1)
         expect(items).to.have.lengthOf(11);
         const enableAi = items.find(item => item.keywords?.startsWith('ai-features.AiEnable.enableAI'));
         expect(enableAi).to.not.equal(undefined);
-        expect(enableAi!.label).to.equal('label:ai-features.AiEnable.enableAI');
+        // The master toggle authors its own title, so it does not fall back to the schema label.
+        expect(enableAi!.label).to.equal('Enable AI features');
         expect(enableAi!.target).to.deep.equal({
             categoryId: AiConfigurationCategoryId.GENERAL,
             highlight: { rowId: 'ai-features.AiEnable.enableAI' }
