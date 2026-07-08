@@ -97,4 +97,39 @@ describe('VariablesConfigurationCategory', () => {
         const category = createCategory([file], [agent('coder', 'Coder', { templates: ['Content: {{file:/tmp/x.ts}}'] })]);
         expect(agentsForVariable(category, file)).to.deep.equal(['coder']);
     });
+
+    describe('filter matching', () => {
+        const category = createCategory([]);
+
+        it('matches everything for an empty or whitespace-only query', () => {
+            const file = variable('file-provider', 'file', 'The current file');
+            expect(category.matchesVariable(file, '')).to.be.true;
+            expect(category.matchesVariable(file, '   ')).to.be.true;
+        });
+
+        it('matches the variable name case-insensitively', () => {
+            const file = variable('file-provider', 'file', 'The current file');
+            expect(category.matchesVariable(file, 'FIL')).to.be.true;
+        });
+
+        it('matches the description case-insensitively', () => {
+            const file = variable('file-provider', 'file', 'The Current File');
+            expect(category.matchesVariable(file, 'current')).to.be.true;
+        });
+
+        it('does not match when neither name nor description contain the query', () => {
+            const file = variable('file-provider', 'file', 'The current file');
+            expect(category.matchesVariable(file, 'agent')).to.be.false;
+        });
+    });
+
+    describe('group count formatting', () => {
+        it('shows only the total when not filtering', () => {
+            expect(VariablesConfigurationCategory.formatGroupCount(4, 4, false)).to.equal('4');
+        });
+
+        it('shows matching of total when filtering', () => {
+            expect(VariablesConfigurationCategory.formatGroupCount(3, 31, true)).to.equal('3 of 31');
+        });
+    });
 });

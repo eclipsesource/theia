@@ -437,6 +437,11 @@
   margin-top: 0;
 }
 
+.ai-variable-group-count {
+  color: var(--theia-descriptionForeground);
+  font-weight: normal;
+}
+
 .ai-variable-row {
   border: var(--theia-border-width) solid var(--theia-widget-border);
   border-radius: 6px;

@@ -30,6 +30,8 @@ import {
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { SinglePageCategoryRenderer } from '@theia/ai-core-ui/lib/browser/ai-configuration/renderers/single-page-category-renderer';
 import { AiConfigurationItemDetailHeader } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-item-detail-header';
+import { AiConfigurationFilterInput } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-filter-input';
+import { AiConfigurationEmptyState } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-empty-state';
 
 /**
  * The Variables category: a `single-page` category that renders every variable as a flat,
@@ -56,9 +58,6 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
     protected readonly onDidChangeEmitter = new Emitter<void>();
     readonly onDidChange: Event<void> = this.onDidChangeEmitter.event;
     protected readonly toDispose = new DisposableCollection(this.onDidChangeEmitter);
-
-    /** Ids of the variables whose detail is currently expanded in the list. */
-    protected readonly expandedVariableIds = new Set<string>();
 
     get renderer(): this {
         return this;
@@ -127,13 +126,31 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
             .map(entry => entry.agent);
     }
 
-    protected toggleExpansion(variableId: string): void {
-        if (this.expandedVariableIds.has(variableId)) {
-            this.expandedVariableIds.delete(variableId);
-        } else {
-            this.expandedVariableIds.add(variableId);
+    /** The prompt reference used to insert the variable, e.g. `#file`. */
+    protected getVariableReference(variable: AIVariable): string {
+        return `${PromptText.VARIABLE_CHAR}${variable.name}`;
+    }
+
+    /**
+     * Case-insensitive match of a variable against the filter query, testing both the variable name
+     * and its description. An empty (or whitespace-only) query matches everything.
+     */
+    matchesVariable(variable: AIVariable, query: string): boolean {
+        const needle = query.trim().toLocaleLowerCase();
+        if (!needle) {
+            return true;
         }
-        this.onDidChangeEmitter.fire();
+        const haystack = `${variable.name} ${variable.description ?? ''}`.toLocaleLowerCase();
+        return haystack.includes(needle);
+    }
+
+    protected buildRow(variable: AIVariable, usage: VariableAgentUsage[]): VariableRowModel {
+        return {
+            variable,
+            reference: this.getVariableReference(variable),
+            description: variable.description ?? '',
+            agents: this.getAgentsForVariable(variable, usage)
+        };
     }
 
     protected override renderHeader(): React.ReactNode {
@@ -150,104 +167,24 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
 
     protected renderSections(ctx: AiConfigurationRenderContext): React.ReactNode {
         const variables = this.getVariables();
-        if (variables.length === 0) {
-            return <div className='ai-empty-state-message'>
-                {nls.localize('theia/ai/ide/variableConfiguration/noVariables', 'No variables are available.')}
-            </div>;
-        }
-        const contextVariables = variables.filter(variable => variable.isContextVariable);
-        const plainVariables = variables.filter(variable => !variable.isContextVariable);
         const usage = this.computeAgentUsage();
-        return <div className='ai-variable-list'>
-            {this.renderGroup(nls.localize('theia/ai/ide/variableConfiguration/contextGroup', 'Context Variables'), contextVariables, usage, ctx)}
-            {this.renderGroup(nls.localize('theia/ai/ide/variableConfiguration/plainGroup', 'Other Variables'), plainVariables, usage, ctx)}
-        </div>;
-    }
-
-    protected renderGroup(title: string, variables: AIVariable[], usage: VariableAgentUsage[], ctx: AiConfigurationRenderContext): React.ReactNode {
-        if (variables.length === 0) {
-            return undefined;
-        }
-        return <div className='ai-variable-group'>
-            <h3 className='section-header'>{title}</h3>
-            {variables.map(variable => this.renderVariableRow(variable, usage, ctx))}
-        </div>;
-    }
-
-    protected renderVariableRow(variable: AIVariable, usage: VariableAgentUsage[], ctx: AiConfigurationRenderContext): React.ReactNode {
-        const expanded = this.expandedVariableIds.has(variable.id);
-        const agents = this.getAgentsForVariable(variable, usage);
-        const argCount = variable.args?.length ?? 0;
-        return <div className='ai-variable-row' key={variable.id} data-ai-config-row-id={variable.id}>
-            <div
-                className={`ai-variable-row-header ${expanded ? 'expanded' : ''}`}
-                onClick={() => this.toggleExpansion(variable.id)}
-            >
-                <div className='ai-variable-row-title'>
-                    <span className={`ai-variable-expansion-icon ${codicon(expanded ? 'chevron-down' : 'chevron-right')}`}></span>
-                    <span className='ai-variable-name'>{PromptText.VARIABLE_CHAR}{variable.name}</span>
-                    <span className='ai-variable-inline-description'>{variable.description}</span>
-                    {argCount > 0 && <span className='ai-variable-arg-hint'>
-                        {argCount === 1
-                            ? nls.localize('theia/ai/ide/variableConfiguration/argCountSingular', '1 argument')
-                            : nls.localize('theia/ai/ide/variableConfiguration/argCountPlural', '{0} arguments', argCount)}
-                    </span>}
-                </div>
-                {agents.length > 0 && <div className='agent-chips-container'>
-                    {agents.map(agent => <span
-                        key={agent.id}
-                        className='agent-chip'
-                        title={nls.localize('theia/ai/ide/variableConfiguration/usedByAgentTitle', 'Used by agent: {0} (click to open)', agent.name)}
-                        onClick={event => {
-                            event.stopPropagation();
-                            ctx.navigate({ categoryId: AiConfigurationCategoryId.AGENTS, itemId: agent.id });
-                        }}
-                    >
-                        <span className={codicon('copilot')}></span>
-                        {agent.name}
-                    </span>)}
-                </div>}
-            </div>
-            {expanded && <div className='ai-variable-row-body'>
-                {variable.description && <div className='ai-variable-full-description'>{variable.description}</div>}
-                <div className='ai-variable-meta'>
-                    <span className='ai-variable-meta-entry'>
-                        {nls.localizeByDefault('Reference')}: <code>{PromptText.VARIABLE_CHAR}{variable.name}</code>
-                    </span>
-                    <span className='ai-variable-meta-entry'>
-                        {nls.localize('theia/ai/ide/variableConfiguration/idLabel', 'Id')}: <code>{variable.id}</code>
-                    </span>
-                </div>
-                {this.renderArgs(variable)}
-            </div>}
-        </div>;
-    }
-
-    protected renderArgs(variable: AIVariable): React.ReactNode {
-        if (!variable.args || variable.args.length === 0) {
-            return undefined;
-        }
-        return <div className='ai-variable-args'>
-            <div className='ai-variable-args-title'>{nls.localizeByDefault('Arguments')}</div>
-            <table className='ai-templates-table'>
-                <tbody>
-                    {variable.args.map(arg => <tr key={arg.name}>
-                        <td className='ai-variable-arg-name'>
-                            <code>{arg.name}</code>
-                            {arg.isOptional && <span className='ai-variable-arg-optional'>
-                                {nls.localize('theia/ai/ide/variableConfiguration/optional', 'optional')}
-                            </span>}
-                        </td>
-                        <td>
-                            {arg.description}
-                            {arg.enum && arg.enum.length > 0 && <span className='ai-variable-arg-enum'>
-                                {nls.localize('theia/ai/ide/variableConfiguration/argEnum', 'One of: {0}', arg.enum.join(', '))}
-                            </span>}
-                        </td>
-                    </tr>)}
-                </tbody>
-            </table>
-        </div>;
+        const groups: VariableGroupModel[] = [
+            {
+                id: 'context',
+                title: nls.localize('theia/ai/ide/variableConfiguration/contextGroup', 'Context Variables'),
+                rows: variables.filter(variable => variable.isContextVariable).map(variable => this.buildRow(variable, usage))
+            },
+            {
+                id: 'other',
+                title: nls.localize('theia/ai/ide/variableConfiguration/plainGroup', 'Other Variables'),
+                rows: variables.filter(variable => !variable.isContextVariable).map(variable => this.buildRow(variable, usage))
+            }
+        ];
+        return <VariableListView
+            groups={groups}
+            matches={(variable, query) => this.matchesVariable(variable, query)}
+            onOpenAgent={agentId => ctx.navigate({ categoryId: AiConfigurationCategoryId.AGENTS, itemId: agentId })}
+        />;
     }
 
     getSearchItems(): AiConfigurationSearchItem[] {
@@ -260,6 +197,13 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
             keywords: `${variable.id} ${variable.description ?? ''}`
         } satisfies AiConfigurationSearchItem));
     }
+
+    /** Localized `(total)` / `(matching of total)` count suffix shown next to a group header. */
+    static formatGroupCount(matching: number, total: number, filtering: boolean): string {
+        return filtering
+            ? nls.localizeByDefault('{0} of {1}', matching, total)
+            : `${total}`;
+    }
 }
 
 /** An agent together with the variables it uses, resolved once per render. */
@@ -270,3 +214,187 @@ interface VariableAgentUsage {
     /** Names of variables the agent references in its prompt templates. */
     readonly referencedNames: Set<string>;
 }
+
+/** Presentation model for a single variable row, prepared by the category and rendered by the view. */
+interface VariableRowModel {
+    readonly variable: AIVariable;
+    /** The prompt reference, e.g. `#file`. */
+    readonly reference: string;
+    readonly description: string;
+    readonly agents: Agent[];
+}
+
+/** One titled group of variable rows (e.g. "Context Variables"). */
+interface VariableGroupModel {
+    readonly id: string;
+    readonly title: string;
+    readonly rows: VariableRowModel[];
+}
+
+interface VariableListViewProps {
+    readonly groups: VariableGroupModel[];
+    readonly matches: (variable: AIVariable, query: string) => boolean;
+    readonly onOpenAgent: (agentId: string) => void;
+}
+
+/**
+ * The interactive variables list: owns the local filter and per-row expansion state so both reset
+ * when the user navigates away from and back to the Variables page (the component unmounts).
+ */
+const VariableListView: React.FC<VariableListViewProps> = ({ groups, matches, onOpenAgent }) => {
+    const [filter, setFilter] = React.useState('');
+    const [expanded, setExpanded] = React.useState<ReadonlySet<string>>(() => new Set<string>());
+    const toggle = React.useCallback((id: string) => setExpanded(previous => {
+        const next = new Set(previous);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
+        return next;
+    }), []);
+
+    const query = filter.trim();
+    const filtering = query.length > 0;
+    const visibleGroups = groups
+        .map(group => ({ group, matching: filtering ? group.rows.filter(row => matches(row.variable, query)) : group.rows }))
+        .filter(entry => entry.matching.length > 0);
+
+    return <div className='ai-variable-list'>
+        <AiConfigurationFilterInput
+            value={filter}
+            onChange={setFilter}
+            placeholder={nls.localize('theia/ai/ide/variableConfiguration/filterPlaceholder', 'Filter variables by name or description')}
+        />
+        {visibleGroups.length === 0
+            ? <AiConfigurationEmptyState
+                iconClass={codicon('search')}
+                message={filtering
+                    ? nls.localize('theia/ai/ide/variableConfiguration/noMatches', 'No variables match "{0}".', query)
+                    : nls.localize('theia/ai/ide/variableConfiguration/noVariables', 'No variables are available.')}
+            />
+            : visibleGroups.map(({ group, matching }) => <VariableGroup
+                key={group.id}
+                title={group.title}
+                count={VariablesConfigurationCategory.formatGroupCount(matching.length, group.rows.length, filtering)}
+                rows={matching}
+                expanded={expanded}
+                onToggle={toggle}
+                onOpenAgent={onOpenAgent}
+            />)}
+    </div>;
+};
+
+interface VariableGroupProps {
+    readonly title: string;
+    readonly count: string;
+    readonly rows: VariableRowModel[];
+    readonly expanded: ReadonlySet<string>;
+    readonly onToggle: (id: string) => void;
+    readonly onOpenAgent: (agentId: string) => void;
+}
+
+const VariableGroup: React.FC<VariableGroupProps> = ({ title, count, rows, expanded, onToggle, onOpenAgent }) =>
+    <div className='ai-variable-group'>
+        <h3 className='section-header'>
+            {title} <span className='ai-variable-group-count'>({count})</span>
+        </h3>
+        {rows.map(row => <VariableRow
+            key={row.variable.id}
+            row={row}
+            expanded={expanded.has(row.variable.id)}
+            onToggle={onToggle}
+            onOpenAgent={onOpenAgent}
+        />)}
+    </div>;
+
+interface VariableRowProps {
+    readonly row: VariableRowModel;
+    readonly expanded: boolean;
+    readonly onToggle: (id: string) => void;
+    readonly onOpenAgent: (agentId: string) => void;
+}
+
+const VariableRow: React.FC<VariableRowProps> = ({ row, expanded, onToggle, onOpenAgent }) => {
+    const { variable, reference, description, agents } = row;
+    const argCount = variable.args?.length ?? 0;
+    return <div className='ai-variable-row' data-ai-config-row-id={variable.id}>
+        <div className={`ai-variable-row-header ${expanded ? 'expanded' : ''}`} onClick={() => onToggle(variable.id)}>
+            <div className='ai-variable-row-title'>
+                <span aria-hidden='true' className={`ai-variable-expansion-icon ${codicon(expanded ? 'chevron-down' : 'chevron-right')}`}></span>
+                <span className='ai-variable-name'>{reference}</span>
+                <span className='ai-variable-inline-description'>{description}</span>
+                {argCount > 0 && <span className='ai-variable-arg-hint'>
+                    {argCount === 1
+                        ? nls.localize('theia/ai/ide/variableConfiguration/argCountSingular', '1 argument')
+                        : nls.localize('theia/ai/ide/variableConfiguration/argCountPlural', '{0} arguments', argCount)}
+                </span>}
+            </div>
+            {agents.length > 0 && <AgentChips agents={agents} onOpenAgent={onOpenAgent} />}
+        </div>
+        {expanded && <div className='ai-variable-row-body'>
+            {description && <div className='ai-variable-full-description'>{description}</div>}
+            <div className='ai-variable-meta'>
+                <span className='ai-variable-meta-entry'>
+                    {nls.localizeByDefault('Reference')}: <code>{reference}</code>
+                </span>
+                <span className='ai-variable-meta-entry'>
+                    {nls.localize('theia/ai/ide/variableConfiguration/idLabel', 'Id')}: <code>{variable.id}</code>
+                </span>
+            </div>
+            <VariableArgs variable={variable} />
+        </div>}
+    </div>;
+};
+
+const VariableArgs: React.FC<{ variable: AIVariable }> = ({ variable }) => {
+    if (!variable.args || variable.args.length === 0) {
+        return undefined;
+    }
+    return <div className='ai-variable-args'>
+        <div className='ai-variable-args-title'>{nls.localizeByDefault('Arguments')}</div>
+        <table className='ai-templates-table'>
+            <tbody>
+                {variable.args.map(arg => <tr key={arg.name}>
+                    <td className='ai-variable-arg-name'>
+                        <code>{arg.name}</code>
+                        {arg.isOptional && <span className='ai-variable-arg-optional'>
+                            {nls.localize('theia/ai/ide/variableConfiguration/optional', 'optional')}
+                        </span>}
+                    </td>
+                    <td>
+                        {arg.description}
+                        {arg.enum && arg.enum.length > 0 && <span className='ai-variable-arg-enum'>
+                            {nls.localize('theia/ai/ide/variableConfiguration/argEnum', 'One of: {0}', arg.enum.join(', '))}
+                        </span>}
+                    </td>
+                </tr>)}
+            </tbody>
+        </table>
+    </div>;
+};
+
+interface AgentChipsProps {
+    readonly agents: Agent[];
+    readonly onOpenAgent: (agentId: string) => void;
+}
+
+const AgentChips: React.FC<AgentChipsProps> = ({ agents, onOpenAgent }) =>
+    <div className='agent-chips-container'>
+        {agents.map(agent => <AgentChip key={agent.id} agent={agent} onOpenAgent={onOpenAgent} />)}
+    </div>;
+
+const AgentChip: React.FC<{ agent: Agent; onOpenAgent: (agentId: string) => void }> = ({ agent, onOpenAgent }) => {
+    const label = nls.localize('theia/ai/ide/variableConfiguration/openAgent', 'Open agent {0}', agent.name);
+    return <span
+        className='agent-chip'
+        title={label}
+        onClick={event => {
+            event.stopPropagation();
+            onOpenAgent(agent.id);
+        }}
+    >
+        <span className={codicon('copilot')}></span>
+        {agent.name}
+    </span>;
+};
