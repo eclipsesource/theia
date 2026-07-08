@@ -21,6 +21,7 @@ import {
 } from '@theia/core';
 import { ILogger } from '@theia/core/lib/common/logger';
 import { ConfirmDialog, FrontendApplicationContribution, KeybindingRegistry, Widget } from '@theia/core/lib/browser';
+import { PerspectiveService } from '@theia/core/lib/browser/perspective-service';
 import { ContextKey, ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import {
     AI_CHAT_HOME,
@@ -77,6 +78,9 @@ export class AIChatContribution extends AbstractViewContribution<ChatViewWidget>
     protected readonly logger: ILogger;
     @inject(PreferenceService)
     protected readonly preferenceService: PreferenceService;
+
+    @inject(PerspectiveService)
+    protected readonly perspectiveService: PerspectiveService;
 
     /**
      * Store whether there are persisted sessions to make this information available in
@@ -147,6 +151,10 @@ export class AIChatContribution extends AbstractViewContribution<ChatViewWidget>
 
         this.checkPersistedSessions();
         this.attachToActiveSession();
+
+        this.perspectiveService.onDidChangePerspective(() => {
+            this.onActiveSessionEmptyChangedEmitter.fire();
+        });
 
         this.chatViewActiveKey = this.contextKeyService.createKey<boolean>('chatViewActive', false);
         this.updateChatViewActiveKey();
@@ -393,7 +401,10 @@ export class AIChatContribution extends AbstractViewContribution<ChatViewWidget>
             onDidChange: this.onActiveSessionEmptyChangedEmitter.event,
             // Hide on the overview itself (the active session is empty); only show when there
             // is an actual chat to return from.
-            isVisible: widget => this.activationService.isActive && this.withWidget(widget) && !this.activeSessionEmpty,
+            isVisible: widget => this.activationService.isActive
+                && this.withWidget(widget)
+                && !this.activeSessionEmpty
+                && this.perspectiveService.getActivePerspectiveId() !== 'ai-first',
             when: ENABLE_AI_CONTEXT_KEY
         });
         registry.registerItem({

@@ -369,4 +369,5 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
         }))
         .inSingletonScope();
     bindViewContribution(bind, AISessionsViewContribution);
+    bind(TabBarToolbarContribution).toService(AISessionsViewContribution);
 });
