@@ -216,13 +216,11 @@ export class ShellLayoutRestorer implements CommandContribution {
             }
         }
 
-        try {
-            const data: PersistedPerspectiveData = { activePerspectiveId: activeId, layouts };
-            this.storageService.setData(PERSPECTIVE_LAYOUTS_STORAGE_KEY, data);
-        } catch (error) {
+        const data: PersistedPerspectiveData = { activePerspectiveId: activeId, layouts };
+        this.storageService.setData(PERSPECTIVE_LAYOUTS_STORAGE_KEY, data).catch(error => {
             this.logger.error('Error persisting perspective layouts, clearing stored data', error);
             this.storageService.setData(PERSPECTIVE_LAYOUTS_STORAGE_KEY, undefined);
-        }
+        });
     }
 
     async restoreLayout(app: FrontendApplication): Promise<boolean> {

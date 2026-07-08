@@ -83,45 +83,45 @@ export interface PerspectiveService {
 
     /**
      * Returns the IDs of all perspectives that have a saved (in-memory) layout snapshot.
-     * @internal Plumbing API — used by `ShellLayoutRestorer` for layout persistence.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` for layout persistence.
      */
     getSavedPerspectiveIds(): string[];
 
     /**
      * Returns the saved in-memory layout for a perspective, or `undefined` if none exists.
-     * @internal Plumbing API — used by `ShellLayoutRestorer` for layout persistence.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` for layout persistence.
      */
     getSavedLayout(perspectiveId: string): ApplicationShell.LayoutData | undefined;
 
     /**
      * Stores an in-memory layout snapshot for a perspective.
-     * @internal Plumbing API — used by `ShellLayoutRestorer` for layout persistence.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` for layout persistence.
      */
     setSavedLayout(perspectiveId: string, layout: ApplicationShell.LayoutData): void;
 
     /**
      * Sets the active perspective ID (without triggering a switch).
      * Returns `true` if the ID corresponds to a registered perspective, `false` otherwise.
-     * @internal Plumbing API — used by `ShellLayoutRestorer` during layout restore.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` during layout restore.
      */
     setActivePerspectiveId(id: string): boolean;
 
     /**
      * The ID of the built-in default perspective.
-     * @internal Plumbing API — used by `ShellLayoutRestorer` for legacy migration.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` for legacy migration.
      */
     readonly defaultPerspectiveId: string;
 
     /**
      * Clears all saved in-memory layout snapshots.
-     * @internal Plumbing API — used by `ShellLayoutRestorer` during layout reset.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` during layout reset.
      */
     clearSavedLayouts(): void;
 
     /**
      * Called by `ShellLayoutRestorer` after restoring a persisted layout to apply chrome options
      * (e.g., status bar visibility) for the given perspective.
-     * @internal Plumbing API — used by `ShellLayoutRestorer` after layout restore.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` after layout restore.
      */
     onLayoutRestored(activePerspectiveId: string): void;
 }

@@ -496,16 +496,19 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
             expect(mockLogger.warn.called).to.be.true;
         });
 
-        it('should clear storage key when setData throws', () => {
+        it('should clear storage key when setData rejects', async () => {
             mockProvider.getActivePerspectiveId.returns('default');
             mockProvider.getSavedPerspectiveIds.returns([]);
 
-            mockStorageService.setData.onFirstCall().throws(new Error('storage error'));
-            mockStorageService.setData.onSecondCall().returns(undefined);
+            mockStorageService.setData.onFirstCall().rejects(new Error('storage error'));
+            mockStorageService.setData.onSecondCall().resolves();
 
             restorer.storeLayout(mockApp as never);
 
-            // First call throws, second call clears the key
+            // Allow the .catch() handler to execute
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            // First call rejects, second call clears the key
             expect(mockStorageService.setData.calledTwice).to.be.true;
             expect(mockStorageService.setData.secondCall.args[0]).to.equal(PERSPECTIVE_LAYOUTS_STORAGE_KEY);
             expect(mockStorageService.setData.secondCall.args[1]).to.be.undefined;
