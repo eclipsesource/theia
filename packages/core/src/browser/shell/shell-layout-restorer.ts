@@ -255,11 +255,11 @@ export class ShellLayoutRestorer implements CommandContribution {
                     this.transformations.getContributions()
                         .forEach(t => t.transformLayoutOnRestore(layout));
                     this.perspectiveService.setSavedLayout(this.perspectiveService.defaultPerspectiveId, layout);
+                    activeId = this.perspectiveService.defaultPerspectiveId;
+                    this.storageService.setData(this.legacyStorageKey, undefined);
                 } catch (error) {
                     this.logger.warn('Could not inflate legacy layout for migration', error);
                 }
-                activeId = this.perspectiveService.defaultPerspectiveId;
-                this.storageService.setData(this.legacyStorageKey, undefined);
             }
         }
 

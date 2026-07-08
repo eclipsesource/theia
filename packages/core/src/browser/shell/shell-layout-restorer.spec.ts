@@ -423,6 +423,25 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
             expect(legacyClear).to.not.be.undefined;
         });
 
+        it('should preserve legacy key when inflate fails', async () => {
+
+            mockStorageService.getData.withArgs(PERSPECTIVE_LAYOUTS_STORAGE_KEY).resolves(undefined);
+            mockStorageService.getData.withArgs('layout').resolves('not-valid-json{');
+
+            const result = await restorer.restoreLayout(mockApp as never);
+
+            expect(result).to.be.false;
+            // Legacy key should NOT be cleared
+            const legacyClear = mockStorageService.setData.getCalls().find(
+                (c: sinon.SinonSpyCall) => c.args[0] === 'layout' && c.args[1] === undefined
+            );
+            expect(legacyClear).to.be.undefined;
+            // No layout should have been saved
+            expect(mockProvider.setSavedLayout.called).to.be.false;
+            // Should warn about the failure
+            expect(mockLogger.warn.called).to.be.true;
+        });
+
         it('should apply migrated legacy layout to shell', async () => {
 
             const legacyLayout = JSON.stringify({ version: 999, mainPanel: { items: ['legacy-w'] }, bottomPanel: {} });
