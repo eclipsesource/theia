@@ -186,6 +186,7 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
                 value={inspection.value}
                 ariaLabel={label}
                 onCommit={value => this.commit(preferenceId, value, ctx)}
+                onEditInSettings={() => this.settingsRowService.editInSettings(preferenceId)}
             />}
         />;
     }

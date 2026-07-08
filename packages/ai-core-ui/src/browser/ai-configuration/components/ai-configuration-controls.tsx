@@ -241,6 +241,29 @@ export const AiPathInput: React.FC<{
     </div>;
 };
 
+/**
+ * A button that hands editing off to the full Settings UI. Used for preferences whose value is a
+ * complex object (or array of objects) that cannot be edited meaningfully through an inline control;
+ * clicking it opens the Settings view focused on the preference.
+ */
+export const AiEditInSettingsButton: React.FC<{
+    label: string;
+    ariaLabel: string;
+    disabled?: boolean;
+    onClick: () => void;
+}> = ({ label, ariaLabel, disabled, onClick }) => (
+    <button
+        type='button'
+        className='theia-button secondary ai-config-edit-in-settings'
+        aria-label={ariaLabel}
+        disabled={disabled}
+        onClick={onClick}
+    >
+        <span className={codicon('edit')}></span>
+        {label}
+    </button>
+);
+
 /** A single option for {@link AiEnumSelect}. */
 export interface AiEnumOption {
     readonly value: string;

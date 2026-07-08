@@ -73,8 +73,8 @@ export const aiChatPreferences: PreferenceSchema = {
             type: 'string',
             enum: ['workspace', 'global'] satisfies SessionStorageScope[],
             enumItemLabels: [
-                nls.localize('theia/ai/chat/sessionStorageScope/workspaceLabel', 'Workspace'),
-                nls.localize('theia/ai/chat/sessionStorageScope/globalLabel', 'Global')
+                nls.localizeByDefault('Workspace'),
+                nls.localizeByDefault('Global')
             ],
             enumDescriptions: [
                 nls.localize('theia/ai/chat/sessionStorageScope/workspace',

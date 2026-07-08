@@ -14,9 +14,10 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { Event } from '@theia/core';
+import { CommandService, Event } from '@theia/core';
 import { PreferenceScope, PreferenceService } from '@theia/core/lib/common';
-import { PreferenceSchemaService } from '@theia/core/lib/common/preferences/preference-schema';
+import { PreferenceDataProperty, PreferenceSchemaService } from '@theia/core/lib/common/preferences/preference-schema';
+import { CommonCommands } from '@theia/core/lib/browser';
 import { MarkdownRenderer } from '@theia/core/lib/browser/markdown-rendering/markdown-renderer';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering/markdown-string';
 import { inject, injectable } from '@theia/core/shared/inversify';
@@ -29,7 +30,8 @@ export type AiSettingsControl =
     | { readonly type: 'string'; readonly placeholder?: string }
     | { readonly type: 'number'; readonly min?: number; readonly max?: number; readonly step?: number }
     | { readonly type: 'select'; readonly options: SelectOption[] }
-    | { readonly type: 'array'; readonly placeholder?: string };
+    | { readonly type: 'array'; readonly placeholder?: string }
+    | { readonly type: 'json' };
 
 /**
  * The value of a single preference as seen from a particular {@link AiConfigurationScope},
@@ -64,6 +66,9 @@ export class AiSettingsRowService {
 
     @inject(PreferenceSchemaService)
     protected readonly schemaService: PreferenceSchemaService;
+
+    @inject(CommandService)
+    protected readonly commandService: CommandService;
 
     protected changed: Event<void> | undefined;
 
@@ -104,6 +109,14 @@ export class AiSettingsRowService {
 
     reset(preferenceId: string, scope: AiConfigurationScope, resourceUri?: string): Promise<void> {
         return this.preferenceService.set(preferenceId, undefined, this.toPreferenceScope(scope), resourceUri);
+    }
+
+    /**
+     * Opens the Settings UI focused on a preference. Used for `json` controls, i.e. complex
+     * object/array values that cannot be edited meaningfully through an inline control.
+     */
+    editInSettings(preferenceId: string): void {
+        this.commandService.executeCommand(CommonCommands.OPEN_PREFERENCES.id, preferenceId);
     }
 
     /** Renders a markdown description into a detached element for use in a React `ref`. */
@@ -159,7 +172,9 @@ export class AiSettingsRowService {
 
     /**
      * Infers a sensible {@link AiSettingsControl} for a preference from its schema `type`
-     * (a `select` when it declares an `enum`). Falls back to a text input for unknown types.
+     * (a `select` when it declares an `enum`). Complex values — an `object`, or an `array` of
+     * objects — cannot be edited meaningfully inline, so they resolve to a `json` control that
+     * defers to the Settings UI. Falls back to a text input for unknown types.
      */
     controlFor(preferenceId: string): AiSettingsControl {
         const property = this.schemaService.getSchemaProperty(preferenceId);
@@ -172,11 +187,23 @@ export class AiSettingsRowService {
             case 'number':
             case 'integer':
                 return { type: 'number', min: property.minimum, max: property.maximum };
+            case 'object':
+                return { type: 'json' };
             case 'array':
-                return { type: 'array' };
+                return this.isPrimitiveArray(property) ? { type: 'array' } : { type: 'json' };
             default:
                 return { type: 'string' };
         }
+    }
+
+    /**
+     * Whether an `array` preference holds primitive items (so it can be edited as a chip list) rather
+     * than complex objects/arrays (which must be edited in the Settings UI via a `json` control).
+     */
+    protected isPrimitiveArray(property: PreferenceDataProperty): boolean {
+        const items = property.items;
+        const itemSchema = Array.isArray(items) ? items[0] : items;
+        return itemSchema?.type !== 'object' && itemSchema?.type !== 'array' && !itemSchema?.properties;
     }
 
     protected toPreferenceScope(scope: AiConfigurationScope): PreferenceScope {

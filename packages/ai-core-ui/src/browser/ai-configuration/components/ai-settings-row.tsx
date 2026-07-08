@@ -19,7 +19,7 @@ import { nls } from '@theia/core';
 import * as React from '@theia/core/shared/react';
 import { AiConfigurationScope } from '../ai-configuration-category';
 import { AiSettingsControl, AiSettingsRowService } from './ai-settings-row-service';
-import { AiChipEditor, AiEnumSelect, AiNumberStepper, AiTextInput, AiToggleSwitch } from './ai-configuration-controls';
+import { AiChipEditor, AiEditInSettingsButton, AiEnumSelect, AiNumberStepper, AiTextInput, AiToggleSwitch } from './ai-configuration-controls';
 
 // Re-exported from its natural home on the service so existing importers keep working.
 export { AiSettingsControl } from './ai-settings-row-service';
@@ -82,7 +82,13 @@ export const AiSettingsRow: React.FC<AiSettingsRowProps> = ({
         </div>
         {effectiveDescription && <AiSettingsRowDescription service={service} description={effectiveDescription} />}
         <div className='ai-settings-row-control'>
-            <AiSettingsRowControl control={control} value={inspection.value} label={effectiveLabel ?? preferenceId} onCommit={commit} />
+            <AiSettingsRowControl
+                control={control}
+                value={inspection.value}
+                label={effectiveLabel ?? preferenceId}
+                onCommit={commit}
+                onEditInSettings={() => service.editInSettings(preferenceId)}
+            />
         </div>
     </div>;
 };
@@ -103,7 +109,13 @@ const AiSettingsRowDescription: React.FC<{ service: AiSettingsRowService; descri
     return <div className='ai-settings-row-description' ref={host}></div>;
 };
 
-const AiSettingsRowControl: React.FC<{ control: AiSettingsControl; value: unknown; label: string; onCommit: (value: unknown) => void }> = ({ control, value, label, onCommit }) => {
+const AiSettingsRowControl: React.FC<{
+    control: AiSettingsControl;
+    value: unknown;
+    label: string;
+    onCommit: (value: unknown) => void;
+    onEditInSettings: () => void;
+}> = ({ control, value, label, onCommit, onEditInSettings }) => {
     switch (control.type) {
         case 'boolean':
             return <AiToggleSwitch checked={value === true} ariaLabel={label} onChange={onCommit} />;
@@ -131,6 +143,12 @@ const AiSettingsRowControl: React.FC<{ control: AiSettingsControl; value: unknow
                 values={Array.isArray(value) ? value.map(String) : []}
                 addPlaceholder={control.placeholder ?? nls.localize('theia/ai/core/aiConfiguration/addValue', 'Add value…')}
                 onChange={onCommit}
+            />;
+        case 'json':
+            return <AiEditInSettingsButton
+                label={nls.localize('theia/ai/core/aiConfiguration/editInSettings', 'Edit in settings')}
+                ariaLabel={label}
+                onClick={onEditInSettings}
             />;
         case 'string':
         default:

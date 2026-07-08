@@ -18,6 +18,7 @@ import { enableJSDOM } from '@theia/core/lib/browser/test/jsdom';
 let disableJSDOM = enableJSDOM();
 
 import { PreferenceInspection, PreferenceScope, PreferenceService } from '@theia/core/lib/common';
+import { PreferenceDataProperty, PreferenceSchemaService } from '@theia/core/lib/common/preferences/preference-schema';
 import { expect } from 'chai';
 import { AiSettingsRowService } from './ai-settings-row-service';
 
@@ -58,6 +59,15 @@ function createService(inspection: Partial<PreferenceInspection<unknown>>): { se
     const service = new AiSettingsRowService();
     (service as unknown as { preferenceService: PreferenceService }).preferenceService = preferences as unknown as PreferenceService;
     return { service, preferences };
+}
+
+function createServiceWithSchema(property: PreferenceDataProperty | undefined): AiSettingsRowService {
+    const service = new AiSettingsRowService();
+    const schemaService: Partial<PreferenceSchemaService> = {
+        getSchemaProperty: () => property
+    };
+    (service as unknown as { schemaService: PreferenceSchemaService }).schemaService = schemaService as PreferenceSchemaService;
+    return service;
 }
 
 describe('AiSettingsRowService', () => {
@@ -112,6 +122,30 @@ describe('AiSettingsRowService', () => {
             const result = service.inspect('pref', 'user');
             expect(result.value).to.equal(false);
             expect(result.modified).to.equal(true);
+        });
+    });
+
+    describe('controlFor', () => {
+        it('maps primitive schema types to their inline controls', () => {
+            expect(createServiceWithSchema({ type: 'boolean' }).controlFor('pref').type).to.equal('boolean');
+            expect(createServiceWithSchema({ type: 'number' }).controlFor('pref').type).to.equal('number');
+            expect(createServiceWithSchema({ type: 'integer' }).controlFor('pref').type).to.equal('number');
+            expect(createServiceWithSchema({ type: 'string' }).controlFor('pref').type).to.equal('string');
+            expect(createServiceWithSchema(undefined).controlFor('pref').type).to.equal('string');
+        });
+
+        it('maps an enum to a select regardless of its base type', () => {
+            expect(createServiceWithSchema({ type: 'string', enum: ['a', 'b'] }).controlFor('pref').type).to.equal('select');
+        });
+
+        it('renders a chip editor for arrays of primitives', () => {
+            expect(createServiceWithSchema({ type: 'array', items: { type: 'string' } }).controlFor('pref').type).to.equal('array');
+        });
+
+        it('defers complex object/array-of-object preferences to the Settings UI via a json control', () => {
+            expect(createServiceWithSchema({ type: 'object' }).controlFor('pref').type).to.equal('json');
+            expect(createServiceWithSchema({ type: 'array', items: { type: 'object' } }).controlFor('pref').type).to.equal('json');
+            expect(createServiceWithSchema({ type: 'array', items: { properties: {} } }).controlFor('pref').type).to.equal('json');
         });
     });
 

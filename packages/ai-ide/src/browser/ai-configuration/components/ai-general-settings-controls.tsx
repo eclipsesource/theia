@@ -21,6 +21,7 @@ import * as React from '@theia/core/shared/react';
 // identically; re-export them here so this package's existing import sites keep working.
 export {
     AiChipEditor,
+    AiEditInSettingsButton,
     AiEnumSelect,
     AiNumberStepper,
     AiPathInput,

@@ -343,6 +343,13 @@
   gap: calc(var(--theia-ui-padding) / 1.5);
 }
 
+.ai-config-edit-in-settings {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--theia-ui-padding) / 2);
+  white-space: nowrap;
+}
+
 /* Status dot */
 .ai-configuration-status {
   display: inline-block;

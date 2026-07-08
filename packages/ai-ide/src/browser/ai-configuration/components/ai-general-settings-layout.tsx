@@ -20,6 +20,7 @@ import * as React from '@theia/core/shared/react';
 import { AiSettingsControl } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
 import {
     AiChipEditor,
+    AiEditInSettingsButton,
     AiEnumSelect,
     AiMarkdownDescription,
     AiNumberStepper,
@@ -126,7 +127,9 @@ export const AiGeneralSettingControl: React.FC<{
     ariaLabel: string;
     disabled?: boolean;
     onCommit: (value: unknown) => void;
-}> = ({ control, value, ariaLabel, disabled, onCommit }) => {
+    /** Invoked by the `json` control to open the Settings UI for complex object/array values. */
+    onEditInSettings?: () => void;
+}> = ({ control, value, ariaLabel, disabled, onCommit, onEditInSettings }) => {
     switch (control.type) {
         case 'boolean':
             return <AiToggleSwitch checked={value === true} ariaLabel={ariaLabel} disabled={disabled} onChange={onCommit} />;
@@ -153,6 +156,13 @@ export const AiGeneralSettingControl: React.FC<{
                 addPlaceholder={nls.localize('theia/ai/ide/generalConfiguration/addValue', 'Add value…')}
                 disabled={disabled}
                 onChange={onCommit}
+            />;
+        case 'json':
+            return <AiEditInSettingsButton
+                label={nls.localize('theia/ai/ide/generalConfiguration/editInSettings', 'Edit in settings')}
+                ariaLabel={ariaLabel}
+                disabled={disabled || !onEditInSettings}
+                onClick={onEditInSettings ?? (() => { })}
             />;
         case 'string':
         default:

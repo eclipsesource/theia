@@ -136,15 +136,15 @@ export class McpServersConfigurationCategory extends CollectionCategoryRenderer 
         switch (status) {
             case MCPServerStatus.Running:
             case MCPServerStatus.Connected:
-                return { kind: 'on', tooltip: status };
+                return { kind: 'on', label: status };
             case MCPServerStatus.Starting:
             case MCPServerStatus.Connecting:
             case MCPServerStatus.AuthenticationRequired:
-                return { kind: 'warn', tooltip: status };
+                return { kind: 'warn', label: status };
             case MCPServerStatus.Errored:
-                return { kind: 'error', tooltip: server.error ?? status };
+                return { kind: 'error', label: MCPServerStatus.Errored, tooltip: server.error ?? status };
             default:
-                return { kind: 'off', tooltip: status };
+                return { kind: 'off', label: status ?? MCPServerStatus.NotRunning };
         }
     }
 
