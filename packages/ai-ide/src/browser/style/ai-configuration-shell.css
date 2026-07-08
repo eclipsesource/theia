@@ -101,13 +101,16 @@
 
 /* Tree column: search box + category tree */
 .ai-configuration-tree-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border-right: var(--theia-border-width) solid var(--theia-widget-border);
   background-color: var(--theia-sideBar-background, var(--theia-editor-background));
 }
 
 /* Search box + deep-results dropdown */
 .ai-configuration-search {
-  min-height: fit-content;
+  flex: 0 0 auto;
 }
 
 .ai-configuration-search-wrap {
@@ -201,7 +204,8 @@
 
 /* Category tree */
 .ai-configuration-tree {
-  height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   overflow: auto;
   background-color: transparent;
 }

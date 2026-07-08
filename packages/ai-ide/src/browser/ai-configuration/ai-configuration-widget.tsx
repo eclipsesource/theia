@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { nls } from '@theia/core';
-import { BaseWidget, BoxLayout, BoxPanel, codicon, Message, SplitPanel } from '@theia/core/lib/browser';
+import { BaseWidget, BoxLayout, codicon, Message, Panel, SplitPanel } from '@theia/core/lib/browser';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import { AiConfigurationCategoryId } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AiConfigurationCategoryRegistry } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category-registry';
@@ -83,12 +83,13 @@ export class AIConfigurationContainerWidget extends BaseWidget {
         BoxLayout.setStretch(this.titleBarWidget, 0);
         layout.addWidget(this.titleBarWidget);
 
-        // Tree column: search box above the category tree.
-        const treeColumn = new BoxPanel({ direction: 'top-to-bottom', spacing: 0 });
+        // Tree column: search box above the category tree. A plain Panel (flow layout)
+        // lets CSS flexbox stack the fixed-height search box over the scrollable tree.
+        // A BoxLayout would size the search box from its `fit-content` height, which
+        // Lumino measures as zero, collapsing the search box on top of the tree.
+        const treeColumn = new Panel();
         treeColumn.addClass('ai-configuration-tree-column');
-        BoxPanel.setStretch(this.searchWidget, 0);
         treeColumn.addWidget(this.searchWidget);
-        BoxPanel.setStretch(this.treeWidget, 1);
         treeColumn.addWidget(this.treeWidget);
 
         this.bodyPanel = new SplitPanel({ orientation: 'horizontal', spacing: 1 });
