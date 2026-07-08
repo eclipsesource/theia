@@ -77,7 +77,7 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
             getSavedPerspectiveIds: sinon.stub().returns([]),
             getSavedLayout: sinon.stub().returns(undefined),
             setSavedLayout: sinon.stub(),
-            setActivePerspectiveId: sinon.stub(),
+            setActivePerspectiveId: sinon.stub().returns(true),
             clearSavedLayouts: sinon.stub(),
             onLayoutRestored: sinon.stub()
         };
@@ -270,7 +270,7 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
             expect(applied.mainPanel.items).to.deep.equal(['active-item']);
         });
 
-        it('should apply transformations to the active layout', async () => {
+        it('should apply transformations to all inflated layouts, not just the active one', async () => {
 
             const transformer = {
                 transformLayoutOnRestore: sinon.stub()
@@ -278,13 +278,13 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
             mockTransformations.getContributions.returns([transformer]);
 
             const persisted: PersistedPerspectiveData = {
-                activePerspectiveId: 'active',
+                activePerspectiveId: 'persp-a',
                 layouts: {
-                    'active': JSON.stringify({ version: 999, mainPanel: {}, bottomPanel: {} })
+                    'persp-a': JSON.stringify({ version: 999, mainPanel: {}, bottomPanel: {} }),
+                    'persp-b': JSON.stringify({ version: 999, mainPanel: {}, bottomPanel: {} })
                 }
             };
             mockStorageService.getData.withArgs(PERSPECTIVE_LAYOUTS_STORAGE_KEY).resolves(persisted);
-
             mockProvider.getSavedLayout.callsFake((id: string) => {
                 const call = mockProvider.setSavedLayout.getCalls().find(
                     (c: sinon.SinonSpyCall) => c.args[0] === id
@@ -294,7 +294,37 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
 
             await restorer.restoreLayout(mockApp as never);
 
-            expect(transformer.transformLayoutOnRestore.calledOnce).to.be.true;
+            // Transformer should be called for both layouts
+            expect(transformer.transformLayoutOnRestore.callCount).to.equal(2);
+        });
+
+        it('should fall back to provider active ID when persisted ID is not registered', async () => {
+
+            const persisted: PersistedPerspectiveData = {
+                activePerspectiveId: 'removed-persp',
+                layouts: {
+                    'removed-persp': JSON.stringify({ version: 999, mainPanel: {}, bottomPanel: {} }),
+                    'default': JSON.stringify({ version: 999, mainPanel: { items: ['default-w'] }, bottomPanel: {} })
+                }
+            };
+            mockStorageService.getData.withArgs(PERSPECTIVE_LAYOUTS_STORAGE_KEY).resolves(persisted);
+            mockProvider.setActivePerspectiveId.returns(false);
+            mockProvider.getActivePerspectiveId.returns('default');
+            mockProvider.getSavedLayout.callsFake((id: string) => {
+                const call = mockProvider.setSavedLayout.getCalls().find(
+                    (c: sinon.SinonSpyCall) => c.args[0] === id
+                );
+                return call?.args[1];
+            });
+
+            const result = await restorer.restoreLayout(mockApp as never);
+
+            expect(result).to.be.true;
+            // Should apply 'default' layout to shell, not 'removed-persp'
+            const applied = mockShell.setLayoutData.firstCall.args[0];
+            expect(applied.mainPanel.items).to.deep.equal(['default-w']);
+            // onLayoutRestored should be called with 'default'
+            expect(mockProvider.onLayoutRestored.calledWith('default')).to.be.true;
         });
 
         it('should return false when no perspective data and no legacy data exists', async () => {

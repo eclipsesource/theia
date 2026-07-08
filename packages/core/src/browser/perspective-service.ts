@@ -244,10 +244,12 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
         this.savedLayouts.set(perspectiveId, layout);
     }
 
-    setActivePerspectiveId(id: string): void {
+    setActivePerspectiveId(id: string): boolean {
         if (this.perspectives.has(id)) {
             this.activePerspectiveId = id;
+            return true;
         }
+        return false;
     }
 
     clearSavedLayouts(): void {

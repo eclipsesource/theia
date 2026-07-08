@@ -764,16 +764,6 @@ describe('PerspectiveService', () => {
         expect(service.getActivePerspective()?.id).to.equal('perspC');
     });
 
-    // --- onStop() no-op test ---
-
-    it('should not persist layouts on onStop (handled by ShellLayoutRestorer)', () => {
-        service.initialize();
-
-        getLayoutDataStub.returns({ mainPanel: { widgets: ['editor1'] }, bottomPanel: {} });
-
-        service.onStop!({} as never);
-    });
-
     // --- onLayoutRestored() tests ---
 
     it('should apply chrome options when onLayoutRestored is called with a registered perspective', () => {
@@ -950,11 +940,10 @@ describe('PerspectiveService', () => {
                 viewPlacements: new Map()
             });
 
-            service.setActivePerspectiveId('registered');
+            expect(service.setActivePerspectiveId('registered')).to.be.true;
             expect(service.getActivePerspectiveId()).to.equal('registered');
 
-            // Should ignore unregistered perspective IDs
-            service.setActivePerspectiveId('unregistered');
+            expect(service.setActivePerspectiveId('unregistered')).to.be.false;
             expect(service.getActivePerspectiveId()).to.equal('registered');
         });
 

@@ -137,7 +137,7 @@ export interface PerspectiveLayoutProvider {
     getSavedPerspectiveIds(): string[];
     getSavedLayout(perspectiveId: string): ApplicationShell.LayoutData | undefined;
     setSavedLayout(perspectiveId: string, layout: ApplicationShell.LayoutData): void;
-    setActivePerspectiveId(id: string): void;
+    setActivePerspectiveId(id: string): boolean;
     clearSavedLayouts(): void;
     onLayoutRestored(activePerspectiveId: string): void;
 }
@@ -234,10 +234,12 @@ export class ShellLayoutRestorer implements CommandContribution {
 
         if (persisted) {
             activeId = persisted.activePerspectiveId;
-            // Inflate all perspective layouts and push to provider
+            // Inflate all perspective layouts, apply transforms, and push to provider
             for (const [perspId, deflated] of Object.entries(persisted.layouts)) {
                 try {
                     const layout = await this.inflate(deflated);
+                    this.transformations.getContributions()
+                        .forEach(t => t.transformLayoutOnRestore(layout));
                     this.perspectiveProvider.setSavedLayout(perspId, layout);
                 } catch (error) {
                     this.logger.warn(`Could not inflate layout for perspective '${perspId}'`, error);
@@ -249,6 +251,8 @@ export class ShellLayoutRestorer implements CommandContribution {
             if (legacyData) {
                 try {
                     const layout = await this.inflate(legacyData);
+                    this.transformations.getContributions()
+                        .forEach(t => t.transformLayoutOnRestore(layout));
                     this.perspectiveProvider.setSavedLayout('default', layout);
                 } catch (error) {
                     this.logger.warn('Could not inflate legacy layout for migration', error);
@@ -259,20 +263,18 @@ export class ShellLayoutRestorer implements CommandContribution {
         }
 
         if (activeId) {
-            this.perspectiveProvider.setActivePerspectiveId(activeId);
+            const accepted = this.perspectiveProvider.setActivePerspectiveId(activeId);
+            if (!accepted) {
+                activeId = this.perspectiveProvider.getActivePerspectiveId();
+            }
         }
 
         // Apply the active perspective's layout to the shell
-        const activeLayout = this.perspectiveProvider.getSavedLayout(
-            activeId ?? this.perspectiveProvider.getActivePerspectiveId()
-        );
+        const effectiveId = activeId ?? this.perspectiveProvider.getActivePerspectiveId();
+        const activeLayout = this.perspectiveProvider.getSavedLayout(effectiveId);
         if (activeLayout) {
-            this.transformations.getContributions()
-                .forEach(t => t.transformLayoutOnRestore(activeLayout));
             await app.shell.setLayoutData(activeLayout);
-            this.perspectiveProvider.onLayoutRestored(
-                activeId ?? this.perspectiveProvider.getActivePerspectiveId()
-            );
+            this.perspectiveProvider.onLayoutRestored(effectiveId);
             this.logger.info('<<< The layout has been successfully restored.');
             return true;
         }
@@ -292,7 +294,7 @@ export class ShellLayoutRestorer implements CommandContribution {
     /**
      * Turns the layout data to a string representation.
      */
-    deflate(data: object): string {
+    protected deflate(data: object): string {
         return JSON.stringify(data, (property: string, value) => {
             if (this.isWidgetProperty(property)) {
                 const description = this.convertToDescription(value as Widget);
@@ -332,7 +334,7 @@ export class ShellLayoutRestorer implements CommandContribution {
     /**
      * Creates the layout data from its string representation.
      */
-    async inflate(layoutData: string): Promise<ApplicationShell.LayoutData> {
+    protected async inflate(layoutData: string): Promise<ApplicationShell.LayoutData> {
         const parseContext = new ShellLayoutRestorer.ParseContext();
         const layout = this.parse<ApplicationShell.LayoutData>(layoutData, parseContext);
 
