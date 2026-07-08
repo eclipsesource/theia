@@ -47,13 +47,92 @@ export interface PerspectiveDescriptor {
     onDeactivate?(shell: ApplicationShell): void;
 }
 
+export const PerspectiveService = Symbol('PerspectiveService');
+export interface PerspectiveService {
+    // --- High-level API (for general consumers) ---
+
+    /** Event fired whenever the active perspective changes. The payload is the new perspective ID. */
+    readonly onDidChangePerspective: Event<string>;
+
+    /**
+     * Registers a new perspective descriptor.
+     * Contributions should call this from their `PerspectiveContribution.registerPerspectives` callback.
+     */
+    registerPerspective(descriptor: PerspectiveDescriptor): void;
+
+    /**
+     * Switches the workbench to the given perspective.
+     * Saves the current perspective's layout, then restores the target perspective's layout
+     * (or applies its `viewPlacements` on first activation). Concurrent calls are serialized.
+     */
+    switchPerspective(id: string): Promise<void>;
+
+    /** Returns the descriptor of the currently active perspective, or `undefined` if none. */
+    getActivePerspective(): PerspectiveDescriptor | undefined;
+
+    /** Returns the target shell area for a widget in the active perspective, or `undefined` if unmapped. */
+    getAreaForView(viewId: string): ApplicationShell.Area | undefined;
+
+    /** Returns all registered perspective descriptors. */
+    getRegisteredPerspectives(): PerspectiveDescriptor[];
+
+    /** Returns the ID of the currently active perspective. A convenient alternative to `getActivePerspective()?.id` that always returns a string. */
+    getActivePerspectiveId(): string;
+
+    // --- Plumbing API (for layout persistence infrastructure, not general consumers) ---
+
+    /**
+     * Returns the IDs of all perspectives that have a saved (in-memory) layout snapshot.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` for layout persistence.
+     */
+    getSavedPerspectiveIds(): string[];
+
+    /**
+     * Returns the saved in-memory layout for a perspective, or `undefined` if none exists.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` for layout persistence.
+     */
+    getSavedLayout(perspectiveId: string): ApplicationShell.LayoutData | undefined;
+
+    /**
+     * Stores an in-memory layout snapshot for a perspective.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` for layout persistence.
+     */
+    setSavedLayout(perspectiveId: string, layout: ApplicationShell.LayoutData): void;
+
+    /**
+     * Sets the active perspective ID (without triggering a switch).
+     * Returns `true` if the ID corresponds to a registered perspective, `false` otherwise.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` during layout restore.
+     */
+    setActivePerspectiveId(id: string): boolean;
+
+    /**
+     * The ID of the built-in default perspective.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` for legacy migration.
+     */
+    readonly defaultPerspectiveId: string;
+
+    /**
+     * Clears all saved in-memory layout snapshots.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` during layout reset.
+     */
+    clearSavedLayouts(): void;
+
+    /**
+     * Called by `ShellLayoutRestorer` after restoring a persisted layout to apply chrome options
+     * (e.g., status bar visibility) for the given perspective.
+     * @internal Plumbing API, used by `ShellLayoutRestorer` after layout restore.
+     */
+    onLayoutRestored(activePerspectiveId: string): void;
+}
+
 export const PerspectiveContribution = Symbol('PerspectiveContribution');
 export interface PerspectiveContribution {
     registerPerspectives(service: PerspectiveService): void;
 }
 
 @injectable()
-export class PerspectiveService implements FrontendApplicationContribution, CommandContribution {
+export class PerspectiveServiceImpl implements FrontendApplicationContribution, CommandContribution, PerspectiveService {
 
     static readonly SWITCH_PERSPECTIVE_COMMAND = Command.toLocalizedCommand({
         id: 'perspective.switch',
@@ -78,6 +157,8 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
 
     static readonly DEFAULT_PERSPECTIVE_ID = 'default';
 
+    readonly defaultPerspectiveId = PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID;
+
     protected readonly perspectives = new Map<string, PerspectiveDescriptor>();
     protected activePerspectiveId: string | undefined;
     protected readonly savedLayouts = new Map<string, ApplicationShell.LayoutData>();
@@ -88,13 +169,20 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     protected readonly toDispose = new DisposableCollection();
     protected switchInProgress: Promise<void> | undefined;
 
+    onLayoutRestored(activePerspectiveId: string): void {
+        const descriptor = this.perspectives.get(activePerspectiveId);
+        if (descriptor) {
+            this.applyChrome(descriptor);
+        }
+    }
+
     initialize(): void {
         this.registerPerspective({
-            id: PerspectiveService.DEFAULT_PERSPECTIVE_ID,
+            id: PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID,
             label: nls.localizeByDefault('Default'),
             viewPlacements: new Map()
         });
-        this.activePerspectiveId = PerspectiveService.DEFAULT_PERSPECTIVE_ID;
+        this.activePerspectiveId = PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID;
 
         this.shell.setWidgetAreaResolver((widgetId, _requestedArea) =>
             this.getAreaForView(widgetId)
@@ -147,39 +235,43 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
 
         this.activePerspectiveId = id;
 
-        const savedLayout = this.savedLayouts.get(id);
-        if (savedLayout) {
-            await this.shell.setLayoutData(savedLayout);
-        } else {
-            for (const [viewId, area] of descriptor.viewPlacements) {
-                try {
-                    const widget = await this.widgetManager.getOrCreateWidget(viewId);
-                    const currentTabBar = this.shell.getTabBarFor(widget);
-                    if (currentTabBar) {
-                        const currentArea = this.shell.getAreaFor(widget);
-                        if (currentArea === area) {
-                            continue;
+        try {
+            const savedLayout = this.savedLayouts.get(id);
+            if (savedLayout) {
+                await this.shell.setLayoutData(savedLayout);
+            } else {
+                for (const [viewId, area] of descriptor.viewPlacements) {
+                    try {
+                        const widget = await this.widgetManager.getOrCreateWidget(viewId);
+                        const currentTabBar = this.shell.getTabBarFor(widget);
+                        if (currentTabBar) {
+                            const currentArea = this.shell.getAreaFor(widget);
+                            if (currentArea === area) {
+                                continue;
+                            }
                         }
+                        await this.shell.addWidget(widget, { area });
+                    } catch (error) {
+                        this.logger.debug('Failed to create or place widget for perspective', error);
                     }
-                    await this.shell.addWidget(widget, { area });
-                } catch (error) {
-                    this.logger.debug('Failed to create or place widget for perspective', error);
                 }
-            }
 
-            for (const [viewId] of descriptor.viewPlacements) {
-                try {
-                    await this.shell.activateWidget(viewId);
-                } catch (error) {
-                    this.logger.debug('Failed to activate widget for perspective', error);
+                for (const [viewId] of descriptor.viewPlacements) {
+                    try {
+                        await this.shell.activateWidget(viewId);
+                    } catch (error) {
+                        this.logger.debug('Failed to activate widget for perspective', error);
+                    }
                 }
-            }
 
-            if (descriptor.chromeOptions?.collapseAreas) {
-                for (const area of descriptor.chromeOptions.collapseAreas) {
-                    await this.shell.collapsePanel(area);
+                if (descriptor.chromeOptions?.collapseAreas) {
+                    for (const area of descriptor.chromeOptions.collapseAreas) {
+                        await this.shell.collapsePanel(area);
+                    }
                 }
             }
+        } catch (error) {
+            this.logger.warn('Failed to apply layout for perspective', error);
         }
 
         if (descriptor.onActivate) {
@@ -214,8 +306,36 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
         return Array.from(this.perspectives.values());
     }
 
+    getActivePerspectiveId(): string {
+        return this.activePerspectiveId ?? PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID;
+    }
+
+    getSavedPerspectiveIds(): string[] {
+        return Array.from(this.savedLayouts.keys());
+    }
+
+    getSavedLayout(perspectiveId: string): ApplicationShell.LayoutData | undefined {
+        return this.savedLayouts.get(perspectiveId);
+    }
+
+    setSavedLayout(perspectiveId: string, layout: ApplicationShell.LayoutData): void {
+        this.savedLayouts.set(perspectiveId, layout);
+    }
+
+    setActivePerspectiveId(id: string): boolean {
+        if (this.perspectives.has(id)) {
+            this.activePerspectiveId = id;
+            return true;
+        }
+        return false;
+    }
+
+    clearSavedLayouts(): void {
+        this.savedLayouts.clear();
+    }
+
     registerCommands(commands: CommandRegistry): void {
-        commands.registerCommand(PerspectiveService.SWITCH_PERSPECTIVE_COMMAND, {
+        commands.registerCommand(PerspectiveServiceImpl.SWITCH_PERSPECTIVE_COMMAND, {
             execute: () => this.showPerspectivePicker(),
             isEnabled: () => this.perspectives.size > 0
         });
@@ -241,3 +361,4 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
         }
     }
 }
+

@@ -146,7 +146,7 @@ import { WidgetStatusBarContribution, WidgetStatusBarService } from './widget-st
 import { SymbolIconColorContribution } from './symbol-icon-color-contribution';
 import { CorePreferences, bindCorePreferences } from '../common/core-preferences';
 import { bindBadgeDecoration } from './badges';
-import { PerspectiveContribution, PerspectiveService } from './perspective-service';
+import { PerspectiveContribution, PerspectiveService, PerspectiveServiceImpl } from './perspective-service';
 
 export { bindResourceProvider, bindMessageService, bindPreferenceService };
 
@@ -484,9 +484,10 @@ export const frontendApplicationModule = new ContainerModule((bind, _unbind, _is
     bind(DomInputUndoRedoHandler).toSelf().inSingletonScope();
     bind(UndoRedoHandler).toService(DomInputUndoRedoHandler);
 
-    bind(PerspectiveService).toSelf().inSingletonScope();
-    bind(FrontendApplicationContribution).toService(PerspectiveService);
-    bind(CommandContribution).toService(PerspectiveService);
+    bind(PerspectiveServiceImpl).toSelf().inSingletonScope();
+    bind(PerspectiveService).toService(PerspectiveServiceImpl);
+    bind(FrontendApplicationContribution).toService(PerspectiveServiceImpl);
+    bind(CommandContribution).toService(PerspectiveServiceImpl);
     bindRootContributionProvider(bind, PerspectiveContribution);
 
     bind(WidgetStatusBarService).toSelf().inSingletonScope();
