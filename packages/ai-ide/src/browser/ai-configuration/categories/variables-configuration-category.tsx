@@ -204,6 +204,20 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
             ? nls.localizeByDefault('{0} of {1}', matching, total)
             : `${total}`;
     }
+
+    /** Maximum number of agent chips rendered inline on a row before the rest collapse into an overflow chip. */
+    static readonly MAX_VISIBLE_AGENT_CHIPS = 3;
+
+    /** Splits an agent list into the chips shown inline and those hidden behind the `+N` overflow chip. */
+    static splitAgents(agents: Agent[]): { visible: Agent[]; overflow: Agent[] } {
+        if (agents.length <= VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS) {
+            return { visible: agents, overflow: [] };
+        }
+        return {
+            visible: agents.slice(0, VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS),
+            overflow: agents.slice(VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS)
+        };
+    }
 }
 
 /** An agent together with the variables it uses, resolved once per render. */
@@ -379,22 +393,99 @@ interface AgentChipsProps {
     readonly onOpenAgent: (agentId: string) => void;
 }
 
-const AgentChips: React.FC<AgentChipsProps> = ({ agents, onOpenAgent }) =>
-    <div className='agent-chips-container'>
-        {agents.map(agent => <AgentChip key={agent.id} agent={agent} onOpenAgent={onOpenAgent} />)}
+const AgentChips: React.FC<AgentChipsProps> = ({ agents, onOpenAgent }) => {
+    const { visible, overflow } = VariablesConfigurationCategory.splitAgents(agents);
+    return <div className='agent-chips-container'>
+        {visible.map(agent => <AgentChip key={agent.id} agent={agent} onOpenAgent={onOpenAgent} />)}
+        {overflow.length > 0 && <AgentOverflowChip overflow={overflow} onOpenAgent={onOpenAgent} />}
     </div>;
+};
 
 const AgentChip: React.FC<{ agent: Agent; onOpenAgent: (agentId: string) => void }> = ({ agent, onOpenAgent }) => {
     const label = nls.localize('theia/ai/ide/variableConfiguration/openAgent', 'Open agent {0}', agent.name);
-    return <span
+    return <button
+        type='button'
         className='agent-chip'
+        aria-label={label}
         title={label}
         onClick={event => {
             event.stopPropagation();
             onOpenAgent(agent.id);
         }}
     >
-        <span className={codicon('copilot')}></span>
         {agent.name}
-    </span>;
+    </button>;
+};
+
+/**
+ * The `+N` chip that reveals the remaining agents in a small popover. The popover closes on outside
+ * click and on Escape (restoring focus to the trigger), and moves keyboard focus onto its first item
+ * when opened.
+ */
+const AgentOverflowChip: React.FC<{ overflow: Agent[]; onOpenAgent: (agentId: string) => void }> = ({ overflow, onOpenAgent }) => {
+    const [open, setOpen] = React.useState(false);
+    // eslint-disable-next-line no-null/no-null
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    // eslint-disable-next-line no-null/no-null
+    const triggerRef = React.useRef<HTMLButtonElement>(null);
+    // eslint-disable-next-line no-null/no-null
+    const popoverRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        if (!open) {
+            return;
+        }
+        const onDocumentPointerDown = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setOpen(false);
+            }
+        };
+        const onDocumentKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpen(false);
+                triggerRef.current?.focus();
+            }
+        };
+        document.addEventListener('mousedown', onDocumentPointerDown);
+        document.addEventListener('keydown', onDocumentKeyDown);
+        popoverRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+        return () => {
+            document.removeEventListener('mousedown', onDocumentPointerDown);
+            document.removeEventListener('keydown', onDocumentKeyDown);
+        };
+    }, [open]);
+
+    const label = nls.localize('theia/ai/ide/variableConfiguration/moreAgents', 'Show {0} more agents', overflow.length);
+    return <div className='ai-variable-agent-overflow' ref={containerRef}>
+        <button
+            ref={triggerRef}
+            type='button'
+            className='agent-chip ai-variable-agent-overflow-trigger'
+            aria-haspopup='true'
+            aria-expanded={open}
+            aria-label={label}
+            title={label}
+            onClick={event => {
+                event.stopPropagation();
+                setOpen(value => !value);
+            }}
+        >
+            +{overflow.length}
+        </button>
+        {open && <div className='ai-variable-agent-popover' role='menu' ref={popoverRef}>
+            {overflow.map(agent => <button
+                key={agent.id}
+                type='button'
+                role='menuitem'
+                className='ai-variable-agent-popover-item'
+                onClick={event => {
+                    event.stopPropagation();
+                    onOpenAgent(agent.id);
+                    setOpen(false);
+                }}
+            >
+                {agent.name}
+            </button>)}
+        </div>}
+    </div>;
 };
