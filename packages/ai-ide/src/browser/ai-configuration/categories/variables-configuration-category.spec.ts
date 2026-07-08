@@ -133,6 +133,22 @@ describe('VariablesConfigurationCategory', () => {
         });
     });
 
+    describe('description normalization', () => {
+        it('collapses runs of whitespace and trims', () => {
+            expect(VariablesConfigurationCategory.normalizeDescription('  The absolute path of the      currently opened file. '))
+                .to.equal('The absolute path of the currently opened file.');
+        });
+
+        it('returns an empty string for an undefined description', () => {
+            expect(VariablesConfigurationCategory.normalizeDescription(undefined)).to.equal('');
+        });
+
+        it('matches variables whose description contains collapsible whitespace', () => {
+            const spaced = variable('file-provider', 'file', 'The absolute path of the      current file.');
+            expect(createCategory([]).matchesVariable(spaced, 'path of the current')).to.be.true;
+        });
+    });
+
     describe('copy reference', () => {
         it('copies the prompt reference of the variable to the clipboard', () => {
             const written: string[] = [];

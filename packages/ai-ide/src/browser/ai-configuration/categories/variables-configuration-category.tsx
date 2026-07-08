@@ -144,7 +144,7 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
         if (!needle) {
             return true;
         }
-        const haystack = `${variable.name} ${variable.description ?? ''}`.toLocaleLowerCase();
+        const haystack = `${variable.name} ${VariablesConfigurationCategory.normalizeDescription(variable.description)}`.toLocaleLowerCase();
         return haystack.includes(needle);
     }
 
@@ -152,7 +152,7 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
         return {
             variable,
             reference: this.getVariableReference(variable),
-            description: variable.description ?? '',
+            description: VariablesConfigurationCategory.normalizeDescription(variable.description),
             agents: this.getAgentsForVariable(variable, usage),
             argCount: variable.args?.length ?? 0,
             hasRichArgs: VariablesConfigurationCategory.hasRichArgs(variable)
@@ -243,6 +243,14 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
             || arg.isOptional === true
             || (arg.enum?.length ?? 0) > 0
         );
+    }
+
+    /**
+     * Trims and collapses internal whitespace in a description. Descriptions are contributed by
+     * third-party extensions, so they may contain runs of whitespace from indented template literals.
+     */
+    static normalizeDescription(text?: string): string {
+        return (text ?? '').replace(/\s+/g, ' ').trim();
     }
 }
 
@@ -469,7 +477,7 @@ const VariableArgs: React.FC<{ variable: AIVariable }> = ({ variable }) => {
                         </span>}
                     </td>
                     <td>
-                        {arg.description}
+                        {VariablesConfigurationCategory.normalizeDescription(arg.description)}
                         {arg.enum && arg.enum.length > 0 && <span className='ai-variable-arg-enum'>
                             {nls.localize('theia/ai/ide/variableConfiguration/argEnum', 'One of: {0}', arg.enum.join(', '))}
                         </span>}
