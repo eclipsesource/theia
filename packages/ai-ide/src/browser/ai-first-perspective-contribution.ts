@@ -21,6 +21,7 @@ import { ApplicationShell } from '@theia/core/lib/browser/shell/application-shel
 import { EXPLORER_VIEW_CONTAINER_ID } from '@theia/navigator/lib/browser';
 import { SCM_VIEW_CONTAINER_ID } from '@theia/scm/lib/browser/scm-contribution';
 import { ChatViewWidget } from '@theia/ai-chat-ui/lib/browser/chat-view-widget';
+import { AISessionsWidget } from './ai-sessions-widget';
 
 @injectable()
 export class AIFirstPerspectiveContribution implements PerspectiveContribution {
@@ -28,7 +29,7 @@ export class AIFirstPerspectiveContribution implements PerspectiveContribution {
     registerPerspectives(service: PerspectiveService): void {
         const chromeOptions: PerspectiveChromeOptions = {
             hideStatusBar: true,
-            collapseAreas: ['left', 'bottom']
+            collapseAreas: ['bottom']
         };
         service.registerPerspective({
             id: 'ai-first',
@@ -36,7 +37,8 @@ export class AIFirstPerspectiveContribution implements PerspectiveContribution {
             viewPlacements: new Map<string, ApplicationShell.Area>([
                 [ChatViewWidget.ID, 'main'],
                 [EXPLORER_VIEW_CONTAINER_ID, 'right'],
-                [SCM_VIEW_CONTAINER_ID, 'right']
+                [SCM_VIEW_CONTAINER_ID, 'right'],
+                [AISessionsWidget.ID, 'left']
             ]),
             chromeOptions
         });

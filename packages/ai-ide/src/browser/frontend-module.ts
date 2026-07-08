@@ -127,6 +127,9 @@ import { PRReviewAgent } from './review/pr-review-agent';
 import { PRReviewCapabilityContribution } from './review/pr-review-capability-contribution';
 import { PerspectiveContribution } from '@theia/core/lib/browser/perspective-service';
 import { AIFirstPerspectiveContribution } from './ai-first-perspective-contribution';
+import { ChatSessionListService } from './chat-session-list-service';
+import { AISessionsWidget } from './ai-sessions-widget';
+import { AISessionsViewContribution } from './ai-sessions-view-contribution';
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(PreferenceContribution).toConstantValue({ schema: aiIdePreferenceSchema });
@@ -193,6 +196,8 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(PRReviewAgent).toSelf().inSingletonScope();
     bind(Agent).toService(PRReviewAgent);
     bind(ChatAgent).toService(PRReviewAgent);
+
+    bind(ChatSessionListService).toSelf().inSingletonScope();
 
     bind(ChatWelcomeMessageProvider).to(IdeChatWelcomeMessageProvider).inSingletonScope();
     bind(ChatWelcomeMessageProvider).to(ChatSessionsWelcomeMessageProvider).inSingletonScope();
@@ -355,4 +360,13 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
     bind(AIFirstPerspectiveContribution).toSelf().inSingletonScope();
     bind(PerspectiveContribution).toService(AIFirstPerspectiveContribution);
+
+    bind(AISessionsWidget).toSelf();
+    bind(WidgetFactory)
+        .toDynamicValue(ctx => ({
+            id: AISessionsWidget.ID,
+            createWidget: () => ctx.container.get(AISessionsWidget)
+        }))
+        .inSingletonScope();
+    bindViewContribution(bind, AISessionsViewContribution);
 });
