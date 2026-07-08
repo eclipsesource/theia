@@ -133,6 +133,29 @@ describe('VariablesConfigurationCategory', () => {
         });
     });
 
+    describe('copy reference', () => {
+        it('copies the prompt reference of the variable to the clipboard', () => {
+            const written: string[] = [];
+            const category = createCategory([]);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (category as any).clipboardService = { writeText: (text: string) => written.push(text) };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (category as any).copyReference(variable('file-provider', 'file'));
+            expect(written).to.deep.equal(['#file']);
+        });
+    });
+
+    describe('argument metadata', () => {
+        it('treats arguments with a name or description as rich', () => {
+            const withArgs = { id: 'today', name: 'today', description: '', args: [{ name: 'Format', description: 'The format' }] } as unknown as AIVariable;
+            expect(VariablesConfigurationCategory.hasRichArgs(withArgs)).to.be.true;
+        });
+
+        it('treats a variable without arguments as not rich', () => {
+            expect(VariablesConfigurationCategory.hasRichArgs(variable('file-provider', 'file'))).to.be.false;
+        });
+    });
+
     describe('agent chip overflow', () => {
         const agents = (count: number) => Array.from({ length: count }, (_, i) => agent(`a${i}`, `Agent ${i}`));
 

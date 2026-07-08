@@ -17,6 +17,7 @@
 import { Agent, AgentService, AIVariable, AIVariableService, matchVariablesRegEx, PromptText } from '@theia/ai-core/lib/common';
 import { Emitter, Event, nls } from '@theia/core';
 import { codicon } from '@theia/core/lib/browser';
+import { ClipboardService } from '@theia/core/lib/browser/clipboard-service';
 import { DisposableCollection } from '@theia/core/lib/common';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
@@ -54,6 +55,9 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
 
     @inject(AgentService)
     protected readonly agentService: AgentService;
+
+    @inject(ClipboardService)
+    protected readonly clipboardService: ClipboardService;
 
     protected readonly onDidChangeEmitter = new Emitter<void>();
     readonly onDidChange: Event<void> = this.onDidChangeEmitter.event;
@@ -149,8 +153,15 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
             variable,
             reference: this.getVariableReference(variable),
             description: variable.description ?? '',
-            agents: this.getAgentsForVariable(variable, usage)
+            agents: this.getAgentsForVariable(variable, usage),
+            argCount: variable.args?.length ?? 0,
+            hasRichArgs: VariablesConfigurationCategory.hasRichArgs(variable)
         };
+    }
+
+    /** Copies the variable's prompt reference (e.g. `#file`) to the clipboard. */
+    protected copyReference(variable: AIVariable): void {
+        this.clipboardService.writeText(this.getVariableReference(variable));
     }
 
     protected override renderHeader(): React.ReactNode {
@@ -184,6 +195,7 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
             groups={groups}
             matches={(variable, query) => this.matchesVariable(variable, query)}
             onOpenAgent={agentId => ctx.navigate({ categoryId: AiConfigurationCategoryId.AGENTS, itemId: agentId })}
+            onCopyReference={variable => this.copyReference(variable)}
         />;
     }
 
@@ -218,6 +230,20 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
             overflow: agents.slice(VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS)
         };
     }
+
+    /**
+     * Whether the variable's arguments carry more than a bare count, i.e. a name, description,
+     * optionality or an enum. When they do, the expanded row shows the full argument table and the
+     * collapsed row drops the "N arguments" pill; otherwise only the count is known and the pill is kept.
+     */
+    static hasRichArgs(variable: AIVariable): boolean {
+        return (variable.args ?? []).some(arg =>
+            (arg.name?.trim().length ?? 0) > 0
+            || (arg.description?.trim().length ?? 0) > 0
+            || arg.isOptional === true
+            || (arg.enum?.length ?? 0) > 0
+        );
+    }
 }
 
 /** An agent together with the variables it uses, resolved once per render. */
@@ -236,6 +262,9 @@ interface VariableRowModel {
     readonly reference: string;
     readonly description: string;
     readonly agents: Agent[];
+    readonly argCount: number;
+    /** Whether the arguments carry detail worth an expanded table (vs. only a bare count). */
+    readonly hasRichArgs: boolean;
 }
 
 /** One titled group of variable rows (e.g. "Context Variables"). */
@@ -249,13 +278,14 @@ interface VariableListViewProps {
     readonly groups: VariableGroupModel[];
     readonly matches: (variable: AIVariable, query: string) => boolean;
     readonly onOpenAgent: (agentId: string) => void;
+    readonly onCopyReference: (variable: AIVariable) => void;
 }
 
 /**
  * The interactive variables list: owns the local filter and per-row expansion state so both reset
  * when the user navigates away from and back to the Variables page (the component unmounts).
  */
-const VariableListView: React.FC<VariableListViewProps> = ({ groups, matches, onOpenAgent }) => {
+const VariableListView: React.FC<VariableListViewProps> = ({ groups, matches, onOpenAgent, onCopyReference }) => {
     const [filter, setFilter] = React.useState('');
     const [expanded, setExpanded] = React.useState<ReadonlySet<string>>(() => new Set<string>());
     const toggle = React.useCallback((id: string) => setExpanded(previous => {
@@ -295,6 +325,7 @@ const VariableListView: React.FC<VariableListViewProps> = ({ groups, matches, on
                 expanded={expanded}
                 onToggle={toggle}
                 onOpenAgent={onOpenAgent}
+                onCopyReference={onCopyReference}
             />)}
     </div>;
 };
@@ -306,9 +337,10 @@ interface VariableGroupProps {
     readonly expanded: ReadonlySet<string>;
     readonly onToggle: (id: string) => void;
     readonly onOpenAgent: (agentId: string) => void;
+    readonly onCopyReference: (variable: AIVariable) => void;
 }
 
-const VariableGroup: React.FC<VariableGroupProps> = ({ title, count, rows, expanded, onToggle, onOpenAgent }) =>
+const VariableGroup: React.FC<VariableGroupProps> = ({ title, count, rows, expanded, onToggle, onOpenAgent, onCopyReference }) =>
     <div className='ai-variable-group'>
         <h3 className='section-header'>
             {title} <span className='ai-variable-group-count'>({count})</span>
@@ -319,6 +351,7 @@ const VariableGroup: React.FC<VariableGroupProps> = ({ title, count, rows, expan
             expanded={expanded.has(row.variable.id)}
             onToggle={onToggle}
             onOpenAgent={onOpenAgent}
+            onCopyReference={onCopyReference}
         />)}
     </div>;
 
@@ -327,24 +360,26 @@ interface VariableRowProps {
     readonly expanded: boolean;
     readonly onToggle: (id: string) => void;
     readonly onOpenAgent: (agentId: string) => void;
+    readonly onCopyReference: (variable: AIVariable) => void;
 }
 
-const VariableRow: React.FC<VariableRowProps> = ({ row, expanded, onToggle, onOpenAgent }) => {
-    const { variable, reference, description, agents } = row;
-    const argCount = variable.args?.length ?? 0;
+const VariableRow: React.FC<VariableRowProps> = ({ row, expanded, onToggle, onOpenAgent, onCopyReference }) => {
+    const { variable, reference, description, agents, argCount, hasRichArgs } = row;
+    const argCountLabel = argCount === 1
+        ? nls.localize('theia/ai/ide/variableConfiguration/argCountSingular', '1 argument')
+        : nls.localize('theia/ai/ide/variableConfiguration/argCountPlural', '{0} arguments', argCount);
     return <div className='ai-variable-row' data-ai-config-row-id={variable.id}>
         <div className={`ai-variable-row-header ${expanded ? 'expanded' : ''}`} onClick={() => onToggle(variable.id)}>
             <div className='ai-variable-row-title'>
                 <span aria-hidden='true' className={`ai-variable-expansion-icon ${codicon(expanded ? 'chevron-down' : 'chevron-right')}`}></span>
                 <span className='ai-variable-name'>{reference}</span>
                 <span className='ai-variable-inline-description'>{description}</span>
-                {argCount > 0 && <span className='ai-variable-arg-hint'>
-                    {argCount === 1
-                        ? nls.localize('theia/ai/ide/variableConfiguration/argCountSingular', '1 argument')
-                        : nls.localize('theia/ai/ide/variableConfiguration/argCountPlural', '{0} arguments', argCount)}
-                </span>}
+                {argCount > 0 && !hasRichArgs && <span className='ai-variable-arg-hint'>{argCountLabel}</span>}
             </div>
-            {agents.length > 0 && <AgentChips agents={agents} onOpenAgent={onOpenAgent} />}
+            <div className='ai-variable-row-actions'>
+                {agents.length > 0 && <AgentChips agents={agents} onOpenAgent={onOpenAgent} />}
+                <CopyReferenceButton reference={reference} onCopy={() => onCopyReference(variable)} />
+            </div>
         </div>
         {expanded && <div className='ai-variable-row-body'>
             {description && <div className='ai-variable-full-description'>{description}</div>}
@@ -356,9 +391,50 @@ const VariableRow: React.FC<VariableRowProps> = ({ row, expanded, onToggle, onOp
                     {nls.localize('theia/ai/ide/variableConfiguration/idLabel', 'Id')}: <code>{variable.id}</code>
                 </span>
             </div>
-            <VariableArgs variable={variable} />
+            {hasRichArgs
+                ? <VariableArgs variable={variable} />
+                : argCount > 0 && <div className='ai-variable-arg-hint-expanded'>{argCountLabel}</div>}
+            {agents.length > 0 && <div className='ai-variable-referenced-in'>
+                <div className='ai-variable-referenced-in-label'>
+                    {nls.localize('theia/ai/ide/variableConfiguration/referencedIn', 'Referenced in prompt templates of:')}
+                </div>
+                <div className='agent-chips-container'>
+                    {agents.map(agent => <AgentChip key={agent.id} agent={agent} onOpenAgent={onOpenAgent} />)}
+                </div>
+            </div>}
         </div>}
     </div>;
+};
+
+/** A copy-to-clipboard affordance for the variable reference, briefly swapping to a check on success. */
+const CopyReferenceButton: React.FC<{ reference: string; onCopy: () => void }> = ({ reference, onCopy }) => {
+    const [copied, setCopied] = React.useState(false);
+    const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    React.useEffect(() => () => {
+        if (timeoutRef.current !== undefined) {
+            clearTimeout(timeoutRef.current);
+        }
+    }, []);
+    const label = copied
+        ? nls.localizeByDefault('Copied')
+        : nls.localize('theia/ai/ide/variableConfiguration/copyReference', 'Copy reference {0}', reference);
+    return <button
+        type='button'
+        className='ai-variable-copy-button'
+        aria-label={label}
+        title={label}
+        onClick={event => {
+            event.stopPropagation();
+            onCopy();
+            setCopied(true);
+            if (timeoutRef.current !== undefined) {
+                clearTimeout(timeoutRef.current);
+            }
+            timeoutRef.current = setTimeout(() => setCopied(false), 1200);
+        }}
+    >
+        <span aria-hidden='true' className={codicon(copied ? 'check' : 'copy')}></span>
+    </button>;
 };
 
 const VariableArgs: React.FC<{ variable: AIVariable }> = ({ variable }) => {

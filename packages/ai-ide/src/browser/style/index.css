@@ -571,12 +571,69 @@ button.agent-chip:focus-visible {
   outline: none;
 }
 
+.ai-variable-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--theia-ui-padding);
+  flex: none;
+}
+
+/* The copy affordance stays out of the way until the row is hovered or something inside it is focused. */
+.ai-variable-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--theia-icon-foreground);
+  cursor: pointer;
+  padding: calc(var(--theia-ui-padding) / 2);
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.1s, background-color 0.1s;
+}
+
+.ai-variable-row-header:hover .ai-variable-copy-button,
+.ai-variable-row-header:focus-within .ai-variable-copy-button {
+  opacity: 1;
+}
+
+.ai-variable-copy-button:hover {
+  background-color: var(--theia-list-hoverBackground);
+}
+
+.ai-variable-copy-button:focus-visible {
+  opacity: 1;
+  outline: 1px solid var(--theia-focusBorder);
+  outline-offset: 1px;
+}
+
 .ai-variable-row-body {
   padding: var(--theia-ui-padding);
   display: flex;
   flex-direction: column;
   gap: var(--theia-ui-padding);
   border-radius: 0 0 5px 5px;
+}
+
+.ai-variable-referenced-in {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--theia-ui-padding) / 2);
+}
+
+.ai-variable-referenced-in-label {
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size0);
+}
+
+.ai-variable-referenced-in .agent-chips-container {
+  flex-wrap: wrap;
+}
+
+.ai-variable-arg-hint-expanded {
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size0);
 }
 
 .ai-variable-full-description {
