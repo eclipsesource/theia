@@ -21,6 +21,7 @@
 @import "./ai-configuration-cards.css";
 @import "./ai-configuration-table.css";
 @import "./ai-configuration-hierarchical.css";
+@import "./ai-general-configuration.css";
 
 /* Import widget-specific styles */
 @import "./widgets/model-aliases-configuration.css";
@@ -420,37 +421,144 @@
   padding: calc(var(--theia-ui-padding) / 2);
 }
 
-/* Variable agent list */
-.variable-agent-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+/* Variable list (AI Configuration -> Variables) */
+.ai-variable-list {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background-color: var(--theia-widget-border);
-  border: var(--theia-border-width) solid var(--theia-widget-border);
-  border-radius: 3px;
-  overflow: hidden;
+  gap: calc(var(--theia-ui-padding) * 2);
 }
 
-.variable-agent-item {
+.ai-variable-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-variable-group .section-header {
+  margin-top: 0;
+}
+
+.ai-variable-row {
+  border: var(--theia-border-width) solid var(--theia-widget-border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: var(--theia-ui-padding);
+  background-color: var(--theia-editorWidget-background);
+}
+
+.ai-variable-row-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--theia-ui-padding);
   padding: calc(var(--theia-ui-padding) / 1.5) var(--theia-ui-padding);
-  background-color: var(--theia-editor-background);
   cursor: pointer;
+  background-color: var(--theia-editor-background);
   transition: background-color 0.1s;
 }
 
-.variable-agent-item:hover {
+.ai-variable-row-header:hover {
   background-color: var(--theia-list-hoverBackground);
 }
 
-.variable-agent-item i {
+.ai-variable-row-header.expanded {
+  border-bottom: var(--theia-border-width) solid var(--theia-widget-border);
+}
+
+.ai-variable-row-title {
+  display: flex;
+  align-items: center;
+  gap: var(--theia-ui-padding);
+  min-width: 0;
+  flex: 1;
+}
+
+.ai-variable-expansion-icon {
   color: var(--theia-descriptionForeground);
-  opacity: 0.7;
+  flex: none;
+}
+
+.ai-variable-name {
+  font-family: var(--theia-editor-font-family, monospace);
+  color: var(--theia-textLink-foreground);
+  font-weight: 600;
+  white-space: nowrap;
+  flex: none;
+}
+
+.ai-variable-inline-description {
+  color: var(--theia-descriptionForeground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.ai-variable-arg-hint {
+  flex: none;
+  color: var(--theia-badge-foreground);
+  background-color: var(--theia-badge-background);
+  border-radius: 10px;
+  padding: 0 8px;
+  font-size: var(--theia-ui-font-size0);
+}
+
+.ai-variable-row-header .agent-chips-container {
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ai-variable-row-header .agent-chip {
+  cursor: pointer;
+}
+
+.ai-variable-row-body {
+  padding: var(--theia-ui-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--theia-ui-padding);
+}
+
+.ai-variable-full-description {
+  color: var(--theia-foreground);
+}
+
+.ai-variable-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--theia-ui-padding) * 2);
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size0);
+}
+
+.ai-variable-meta code,
+.ai-variable-arg-name code {
+  font-family: var(--theia-editor-font-family, monospace);
+  color: var(--theia-textPreformat-foreground);
+}
+
+.ai-variable-args-title {
+  font-weight: 600;
+  margin-bottom: calc(var(--theia-ui-padding) / 2);
+}
+
+.ai-variable-arg-name {
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.ai-variable-arg-optional {
+  margin-left: calc(var(--theia-ui-padding) / 2);
+  color: var(--theia-descriptionForeground);
+  font-style: italic;
+  font-size: var(--theia-ui-font-size0);
+}
+
+.ai-variable-arg-enum {
+  display: block;
+  margin-top: calc(var(--theia-ui-padding) / 2);
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size0);
 }
 
 .agent-tag {

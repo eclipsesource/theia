@@ -21,7 +21,7 @@ import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/front
 FrontendApplicationConfigProvider.set({});
 
 import { expect } from 'chai';
-import { AIVariable, AIVariableService } from '@theia/ai-core/lib/common';
+import { Agent, AgentService, AIVariable, AIVariableService } from '@theia/ai-core/lib/common';
 import { AiConfigurationCategoryId } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { VariablesConfigurationCategory } from './variables-configuration-category';
 
@@ -31,12 +31,31 @@ function variable(id: string, name: string, description = ''): AIVariable {
     return { id, name, description } as unknown as AIVariable;
 }
 
-function createCategory(variables: AIVariable[]): VariablesConfigurationCategory {
+function agent(id: string, name: string, options: { variables?: string[]; templates?: string[] } = {}): Agent {
+    return {
+        id,
+        name,
+        variables: options.variables ?? [],
+        prompts: (options.templates ?? []).map((template, index) => ({ id: `${id}-${index}`, defaultVariant: { id: `${id}-${index}-v`, template } }))
+    } as unknown as Agent;
+}
+
+function createCategory(variables: AIVariable[], agents: Agent[] = []): VariablesConfigurationCategory {
     const category = new VariablesConfigurationCategory();
     const variableService: Partial<AIVariableService> = { getVariables: () => variables };
+    const agentService: Partial<AgentService> = { getAllAgents: () => agents };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (category as any).variableService = variableService;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (category as any).agentService = agentService;
     return category;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function agentsForVariable(category: VariablesConfigurationCategory, target: AIVariable): string[] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyCategory = category as any;
+    return anyCategory.getAgentsForVariable(target, anyCategory.computeAgentUsage()).map((a: Agent) => a.id);
 }
 
 describe('VariablesConfigurationCategory', () => {
@@ -44,25 +63,38 @@ describe('VariablesConfigurationCategory', () => {
     before(() => disableJSDOM = enableJSDOM());
     after(() => disableJSDOM());
 
-    it('declares the variables collection metadata', () => {
+    it('declares the variables single-page metadata', () => {
         const category = createCategory([]);
         expect(category.id).to.equal(AiConfigurationCategoryId.VARIABLES);
-        expect(category.kind).to.equal('collection');
+        expect(category.kind).to.equal('single-page');
         expect(category.renderer).to.equal(category);
     });
 
-    it('lists variables sorted by name, without a status', () => {
-        const children = createCategory([variable('b', 'Beta'), variable('a', 'Alpha', 'first')]).getTreeChildren();
-        expect(children.map(c => c.label)).to.deep.equal(['Alpha', 'Beta']);
-        expect(children[0].id).to.equal('a');
-        expect(children[0].description).to.equal('first');
-        expect(children[0].status).to.equal(undefined);
+    it('indexes one search item per variable, sorted by name and highlighting the row', () => {
+        const items = createCategory([variable('b', 'Beta'), variable('a', 'Alpha', 'the alpha')]).getSearchItems();
+        expect(items.map(i => i.label)).to.deep.equal(['Alpha', 'Beta']);
+        expect(items[0].target).to.deep.equal({ categoryId: AiConfigurationCategoryId.VARIABLES, highlight: { rowId: 'a' } });
+        expect(items[0].keywords).to.contain('a').and.to.contain('the alpha');
     });
 
-    it('indexes one search item per variable, navigating to the item', () => {
-        const items = createCategory([variable('a', 'Alpha', 'the alpha')]).getSearchItems();
-        expect(items).to.have.lengthOf(1);
-        expect(items[0].target).to.deep.equal({ categoryId: AiConfigurationCategoryId.VARIABLES, itemId: 'a' });
-        expect(items[0].keywords).to.contain('a').and.to.contain('the alpha');
+    it('associates an agent with a variable referenced in its prompt template', () => {
+        const productName = variable('product-name-provider', 'productName');
+        const category = createCategory([productName], [
+            agent('coder', 'Coder', { templates: ['You are running in {{productName}} today.'] }),
+            agent('other', 'Other', { templates: ['References {{today}} only.'] })
+        ]);
+        expect(agentsForVariable(category, productName)).to.deep.equal(['coder']);
+    });
+
+    it('associates an agent that declares the variable id in Agent.variables', () => {
+        const file = variable('file-provider', 'file');
+        const category = createCategory([file], [agent('coder', 'Coder', { variables: ['file-provider'] })]);
+        expect(agentsForVariable(category, file)).to.deep.equal(['coder']);
+    });
+
+    it('ignores template references with an argument suffix beyond the variable name', () => {
+        const file = variable('file-provider', 'file');
+        const category = createCategory([file], [agent('coder', 'Coder', { templates: ['Content: {{file:/tmp/x.ts}}'] })]);
+        expect(agentsForVariable(category, file)).to.deep.equal(['coder']);
     });
 });
