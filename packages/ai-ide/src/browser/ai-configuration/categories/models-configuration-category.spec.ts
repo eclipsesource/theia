@@ -27,10 +27,12 @@ import { ModelsConfigurationCategory } from './models-configuration-category';
 
 disableJSDOM();
 
-function createCategory(preferenceIds: string[]): ModelsConfigurationCategory {
+function createCategory(preferenceIds: string[], nonDisplayable: string[] = []): ModelsConfigurationCategory {
     const category = new ModelsConfigurationCategory();
+    const hidden = new Set(nonDisplayable);
     const service: Partial<AiSettingsRowService> = {
         preferenceIds: () => preferenceIds,
+        isDisplayable: (id: string) => !hidden.has(id),
         describe: (id: string) => ({ label: `label:${id}` }),
         controlFor: (): AiSettingsControl => ({ type: 'string' })
     };
@@ -69,6 +71,18 @@ describe('ModelsConfigurationCategory', () => {
         expect(sections[0].preferenceIds).to.have.members(['ai-features.modelSettings.requestSettings', 'ai-features.reasoning.defaults']);
         expect(sections[1].preferenceIds).to.deep.equal(['ai-features.anthropic.AnthropicApiKey', 'ai-features.anthropic.AnthropicModels']);
         expect(sections[2].preferenceIds).to.deep.equal(['ai-features.google.apiKey']);
+    });
+
+    it('does not treat the agent settings store as a provider', () => {
+        const category = createCategory([
+            'ai-features.anthropic.AnthropicApiKey',
+            // agent settings: the hidden backing store and its value-less redirect placeholder
+            'ai-features.agentSettings',
+            'ai-features.agentSettings.details'
+        ], ['ai-features.agentSettings', 'ai-features.agentSettings.details']);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sections = (category as any).getSections() as Array<{ id: string; preferenceIds: string[] }>;
+        expect(sections.map(s => s.id)).to.deep.equal(['anthropic']);
     });
 
     it('exposes one tree child per provider, excluding the cross-provider model settings', () => {

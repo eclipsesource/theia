@@ -145,6 +145,19 @@ export class AiSettingsRowService {
     }
 
     /**
+     * Whether a preference is meant to be surfaced as an editable settings row. Excludes preferences
+     * that are hidden from the settings UI (`hidden: true`) and value-less placeholders (`type: 'null'`),
+     * such as the backing store for agent settings or the redirect entries that only link to this view.
+     */
+    isDisplayable(preferenceId: string): boolean {
+        const property = this.schemaService.getSchemaProperty(preferenceId);
+        if (!property || property.hidden) {
+            return false;
+        }
+        return property.type !== 'null';
+    }
+
+    /**
      * Infers a sensible {@link AiSettingsControl} for a preference from its schema `type`
      * (a `select` when it declares an `enum`). Falls back to a text input for unknown types.
      */

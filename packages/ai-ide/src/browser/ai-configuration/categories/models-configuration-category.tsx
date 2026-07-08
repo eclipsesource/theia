@@ -44,7 +44,7 @@ const MODEL_SETTINGS_ID = 'model-settings';
 const NON_PROVIDER_SEGMENTS = new Set<string>([
     'AiEnable', 'chat', 'notifications', 'orchestrator', 'agentMode',
     'skills', 'promptTemplates', 'languageModelAliases', 'mcp',
-    'modelSettings', 'reasoning'
+    'modelSettings', 'reasoning', 'agentSettings'
 ]);
 
 /** Segments that make up the cross-provider "Model Settings" section. */
@@ -203,7 +203,7 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
         const modelSettings: string[] = [];
         const byProvider = new Map<string, string[]>();
         for (const preferenceId of this.settingsRowService.preferenceIds()) {
-            if (!preferenceId.startsWith(AI_FEATURES_PREFIX)) {
+            if (!preferenceId.startsWith(AI_FEATURES_PREFIX) || !this.settingsRowService.isDisplayable(preferenceId)) {
                 continue;
             }
             const segment = preferenceId.substring(AI_FEATURES_PREFIX.length).split('.')[0];
