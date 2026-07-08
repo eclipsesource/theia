@@ -101,7 +101,7 @@ describe('ShellLayoutRestorer - Perspective Support', () => {
             mockStorageService as never
         );
 
-        (restorer as unknown as Record<string, unknown>)['perspectiveProvider'] = mockProvider;
+        (restorer as unknown as Record<string, unknown>)['perspectiveService'] = mockProvider;
         (restorer as unknown as Record<string, unknown>)['transformations'] = mockTransformations;
         (restorer as unknown as Record<string, unknown>)['migrations'] = mockMigrations;
         (restorer as unknown as Record<string, unknown>)['windowService'] = mockWindowService;

@@ -19,13 +19,13 @@ const disableJSDOM = enableJSDOM();
 
 import { expect } from 'chai';
 import * as sinon from 'sinon';
-import { PerspectiveService, PerspectiveDescriptor } from './perspective-service';
+import { PerspectiveServiceImpl, PerspectiveDescriptor } from './perspective-service';
 import { ApplicationShell } from './shell/application-shell';
 import { Widget } from '@lumino/widgets';
 disableJSDOM();
 
 describe('PerspectiveService', () => {
-    let service: PerspectiveService;
+    let service: PerspectiveServiceImpl;
     let addWidgetStub: sinon.SinonStub;
     let activateWidgetStub: sinon.SinonStub;
     let getTabBarForStub: sinon.SinonStub;
@@ -42,7 +42,7 @@ describe('PerspectiveService', () => {
 
     beforeEach(() => {
         toTearDown = enableJSDOM();
-        service = new PerspectiveService();
+        service = new PerspectiveServiceImpl();
         testWidget = new Widget();
         testWidget.id = 'test-widget';
 
@@ -279,7 +279,7 @@ describe('PerspectiveService', () => {
         service.initialize();
 
         const perspectives = service.getRegisteredPerspectives();
-        const defaultPerspective = perspectives.find(p => p.id === PerspectiveService.DEFAULT_PERSPECTIVE_ID);
+        const defaultPerspective = perspectives.find(p => p.id === PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID);
         expect(defaultPerspective).to.not.be.undefined;
         expect(defaultPerspective!.label).to.equal('Default');
         expect(defaultPerspective!.viewPlacements.size).to.equal(0);
@@ -290,7 +290,7 @@ describe('PerspectiveService', () => {
 
         const active = service.getActivePerspective();
         expect(active).to.not.be.undefined;
-        expect(active!.id).to.equal(PerspectiveService.DEFAULT_PERSPECTIVE_ID);
+        expect(active!.id).to.equal(PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID);
     });
 
     it('should not re-apply when switching to the already-active perspective', async () => {
@@ -455,7 +455,7 @@ describe('PerspectiveService', () => {
         });
 
         // Start in default (set by initialize)
-        expect(service.getActivePerspective()?.id).to.equal(PerspectiveService.DEFAULT_PERSPECTIVE_ID);
+        expect(service.getActivePerspective()?.id).to.equal(PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID);
 
         const defaultLayout = { mainPanel: { widgets: ['default-editor'] }, bottomPanel: {} };
         getLayoutDataStub.returns(defaultLayout);
@@ -472,8 +472,8 @@ describe('PerspectiveService', () => {
         setLayoutDataStub.resetHistory();
 
         // Switch back to default (saves ai-first layout, restores default layout)
-        await service.switchPerspective(PerspectiveService.DEFAULT_PERSPECTIVE_ID);
-        expect(service.getActivePerspective()?.id).to.equal(PerspectiveService.DEFAULT_PERSPECTIVE_ID);
+        await service.switchPerspective(PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID);
+        expect(service.getActivePerspective()?.id).to.equal(PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID);
         expect(setLayoutDataStub.calledOnce).to.be.true;
         expect(setLayoutDataStub.calledWith(defaultLayout)).to.be.true;
 
@@ -893,11 +893,9 @@ describe('PerspectiveService', () => {
         expect(service.getActivePerspective()?.id).to.equal('perspC');
     });
 
-    // --- PerspectiveLayoutProvider interface tests ---
-
-    describe('PerspectiveLayoutProvider implementation', () => {
+    describe('Plumbing API (layout persistence)', () => {
         it('should return default perspective ID when none is set', () => {
-            expect(service.getActivePerspectiveId()).to.equal(PerspectiveService.DEFAULT_PERSPECTIVE_ID);
+            expect(service.getActivePerspectiveId()).to.equal(PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID);
         });
 
         it('should return active perspective ID after switching', async () => {

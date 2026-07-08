@@ -26,7 +26,6 @@ import { QuickInputService, QuickPickItem } from '../common/quick-pick-service';
 import { nls } from '../common/nls';
 import { DisposableCollection } from '../common/disposable';
 import { CommonCommands } from './common-commands';
-import { PerspectiveLayoutProvider } from './shell/shell-layout-restorer';
 
 export interface PerspectiveChromeOptions {
     /** Hide the status bar. Default: false. */
@@ -48,13 +47,86 @@ export interface PerspectiveDescriptor {
     onDeactivate?(shell: ApplicationShell): void;
 }
 
+export const PerspectiveService = Symbol('PerspectiveService');
+export interface PerspectiveService {
+    // --- High-level API (for general consumers) ---
+
+    /** Event fired whenever the active perspective changes. The payload is the new perspective ID. */
+    readonly onDidChangePerspective: Event<string>;
+
+    /**
+     * Registers a new perspective descriptor.
+     * Contributions should call this from their `PerspectiveContribution.registerPerspectives` callback.
+     */
+    registerPerspective(descriptor: PerspectiveDescriptor): void;
+
+    /**
+     * Switches the workbench to the given perspective.
+     * Saves the current perspective's layout, then restores the target perspective's layout
+     * (or applies its `viewPlacements` on first activation). Concurrent calls are serialized.
+     */
+    switchPerspective(id: string): Promise<void>;
+
+    /** Returns the descriptor of the currently active perspective, or `undefined` if none. */
+    getActivePerspective(): PerspectiveDescriptor | undefined;
+
+    /** Returns the target shell area for a widget in the active perspective, or `undefined` if unmapped. */
+    getAreaForView(viewId: string): ApplicationShell.Area | undefined;
+
+    /** Returns all registered perspective descriptors. */
+    getRegisteredPerspectives(): PerspectiveDescriptor[];
+
+    /** Returns the ID of the currently active perspective. A convenient alternative to `getActivePerspective()?.id` that always returns a string. */
+    getActivePerspectiveId(): string;
+
+    // --- Plumbing API (for layout persistence infrastructure, not general consumers) ---
+
+    /**
+     * Returns the IDs of all perspectives that have a saved (in-memory) layout snapshot.
+     * @internal Plumbing API — used by `ShellLayoutRestorer` for layout persistence.
+     */
+    getSavedPerspectiveIds(): string[];
+
+    /**
+     * Returns the saved in-memory layout for a perspective, or `undefined` if none exists.
+     * @internal Plumbing API — used by `ShellLayoutRestorer` for layout persistence.
+     */
+    getSavedLayout(perspectiveId: string): ApplicationShell.LayoutData | undefined;
+
+    /**
+     * Stores an in-memory layout snapshot for a perspective.
+     * @internal Plumbing API — used by `ShellLayoutRestorer` for layout persistence.
+     */
+    setSavedLayout(perspectiveId: string, layout: ApplicationShell.LayoutData): void;
+
+    /**
+     * Sets the active perspective ID (without triggering a switch).
+     * Returns `true` if the ID corresponds to a registered perspective, `false` otherwise.
+     * @internal Plumbing API — used by `ShellLayoutRestorer` during layout restore.
+     */
+    setActivePerspectiveId(id: string): boolean;
+
+    /**
+     * Clears all saved in-memory layout snapshots.
+     * @internal Plumbing API — used by `ShellLayoutRestorer` during layout reset.
+     */
+    clearSavedLayouts(): void;
+
+    /**
+     * Called by `ShellLayoutRestorer` after restoring a persisted layout to apply chrome options
+     * (e.g., status bar visibility) for the given perspective.
+     * @internal Plumbing API — used by `ShellLayoutRestorer` after layout restore.
+     */
+    onLayoutRestored(activePerspectiveId: string): void;
+}
+
 export const PerspectiveContribution = Symbol('PerspectiveContribution');
 export interface PerspectiveContribution {
     registerPerspectives(service: PerspectiveService): void;
 }
 
 @injectable()
-export class PerspectiveService implements FrontendApplicationContribution, CommandContribution, PerspectiveLayoutProvider {
+export class PerspectiveServiceImpl implements FrontendApplicationContribution, CommandContribution, PerspectiveService {
 
     static readonly SWITCH_PERSPECTIVE_COMMAND = Command.toLocalizedCommand({
         id: 'perspective.switch',
@@ -98,11 +170,11 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
 
     initialize(): void {
         this.registerPerspective({
-            id: PerspectiveService.DEFAULT_PERSPECTIVE_ID,
+            id: PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID,
             label: nls.localizeByDefault('Default'),
             viewPlacements: new Map()
         });
-        this.activePerspectiveId = PerspectiveService.DEFAULT_PERSPECTIVE_ID;
+        this.activePerspectiveId = PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID;
 
         this.shell.setWidgetAreaResolver((widgetId, _requestedArea) =>
             this.getAreaForView(widgetId)
@@ -226,10 +298,8 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
         return Array.from(this.perspectives.values());
     }
 
-    // --- PerspectiveLayoutProvider implementation ---
-
     getActivePerspectiveId(): string {
-        return this.activePerspectiveId ?? PerspectiveService.DEFAULT_PERSPECTIVE_ID;
+        return this.activePerspectiveId ?? PerspectiveServiceImpl.DEFAULT_PERSPECTIVE_ID;
     }
 
     getSavedPerspectiveIds(): string[] {
@@ -257,7 +327,7 @@ export class PerspectiveService implements FrontendApplicationContribution, Comm
     }
 
     registerCommands(commands: CommandRegistry): void {
-        commands.registerCommand(PerspectiveService.SWITCH_PERSPECTIVE_COMMAND, {
+        commands.registerCommand(PerspectiveServiceImpl.SWITCH_PERSPECTIVE_COMMAND, {
             execute: () => this.showPerspectivePicker(),
             isEnabled: () => this.perspectives.size > 0
         });
