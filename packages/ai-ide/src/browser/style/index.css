@@ -465,6 +465,11 @@
   background-color: var(--theia-list-hoverBackground);
 }
 
+.ai-variable-row-header:focus-visible {
+  outline: 1px solid var(--theia-focusBorder);
+  outline-offset: -1px;
+}
+
 .ai-variable-row-header.expanded {
   border-radius: 5px 5px 0 0;
   border-bottom: var(--theia-border-width) solid var(--theia-widget-border);

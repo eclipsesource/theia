@@ -368,8 +368,24 @@ const VariableRow: React.FC<VariableRowProps> = ({ row, expanded, onToggle, onOp
     const argCountLabel = argCount === 1
         ? nls.localize('theia/ai/ide/variableConfiguration/argCountSingular', '1 argument')
         : nls.localize('theia/ai/ide/variableConfiguration/argCountPlural', '{0} arguments', argCount);
+    const bodyId = `ai-variable-body-${variable.id}`;
     return <div className='ai-variable-row' data-ai-config-row-id={variable.id}>
-        <div className={`ai-variable-row-header ${expanded ? 'expanded' : ''}`} onClick={() => onToggle(variable.id)}>
+        <div
+            className={`ai-variable-row-header ${expanded ? 'expanded' : ''}`}
+            role='button'
+            tabIndex={0}
+            aria-expanded={expanded}
+            aria-controls={expanded ? bodyId : undefined}
+            onClick={() => onToggle(variable.id)}
+            onKeyDown={event => {
+                // Only the header itself toggles on Enter/Space; keystrokes on the chips or the copy
+                // button inside it activate those controls instead of double-triggering the disclosure.
+                if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget) {
+                    event.preventDefault();
+                    onToggle(variable.id);
+                }
+            }}
+        >
             <div className='ai-variable-row-title'>
                 <span aria-hidden='true' className={`ai-variable-expansion-icon ${codicon(expanded ? 'chevron-down' : 'chevron-right')}`}></span>
                 <span className='ai-variable-name'>{reference}</span>
@@ -381,7 +397,7 @@ const VariableRow: React.FC<VariableRowProps> = ({ row, expanded, onToggle, onOp
                 <CopyReferenceButton reference={reference} onCopy={() => onCopyReference(variable)} />
             </div>
         </div>
-        {expanded && <div className='ai-variable-row-body'>
+        {expanded && <div className='ai-variable-row-body' id={bodyId}>
             {description && <div className='ai-variable-full-description'>{description}</div>}
             <div className='ai-variable-meta'>
                 <span className='ai-variable-meta-entry'>
