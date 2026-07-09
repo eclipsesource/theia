@@ -18,8 +18,8 @@ import { LanguageModelRegistry, LanguageModelResponse, PromptService, UserReques
 import { generateUuid } from '@theia/core/lib/common/uuid';
 import { ILogger } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { FileService } from '@theia/filesystem/lib/browser/file-service';
-import { ReviewArea, ReviewChangeSet, ReviewResult } from './review-model';
+import { Range } from '@theia/core/shared/vscode-languageserver-protocol';
+import { DiffHunk, HunkRef, ReviewArea, ReviewAreaFile, ReviewChangeSet, ReviewResult } from './review-model';
 import { REVIEW_SUMMARY_PROMPT_ID, reviewSummaryPromptTemplate } from './review-summary-prompt-template';
 
 @injectable()
@@ -31,14 +31,11 @@ export class ReviewSummaryService {
     @inject(PromptService)
     protected readonly promptService: PromptService;
 
-    @inject(FileService)
-    protected readonly fileService: FileService;
-
     @inject(ILogger)
     protected readonly logger: ILogger;
 
     async reviewChangeSet(cs: ReviewChangeSet): Promise<ReviewResult> {
-        const diffs = await this.collectDiffs(cs);
+        const diffs = this.collectDiffs(cs);
         const model = await this.languageModelRegistry.selectLanguageModel({ agent: 'review-summary', purpose: 'chat', identifier: 'default/code' });
         if (!model) {
             throw new Error('No language model available for review summarization.');
@@ -66,51 +63,42 @@ export class ReviewSummaryService {
         return this.parseResponse(cs, text);
     }
 
-    protected async collectDiffs(cs: ReviewChangeSet): Promise<string> {
+    protected collectDiffs(cs: ReviewChangeSet): string {
         const parts: string[] = [];
         for (const file of cs.files) {
-            parts.push(`## ${file.uri.path.base} (${file.status})`);
-            if (file.modifiedUri) {
-                try {
-                    const content = await this.fileService.read(file.modifiedUri);
-                    parts.push('```');
-                    parts.push(content.value);
-                    parts.push('```');
-                } catch {
-                    parts.push('(unable to read file content)');
-                }
+            const relativePath = file.uri.path.toString();
+            parts.push(`## file: ${relativePath} (${file.status})`);
+
+            const hunks = file.hunks ?? [];
+            if (hunks.length === 0) {
+                parts.push('(no diff hunks available)');
+                parts.push('');
+                continue;
+            }
+
+            for (const hunk of hunks) {
+                const startLine = hunk.modifiedRange.start.line;
+                const endLine = hunk.modifiedRange.end.line;
+                parts.push(`### ${hunk.id} (lines ${startLine}-${endLine} in modified file)`);
+                parts.push(`Type: ${hunk.type}`);
+                parts.push('```diff');
+                parts.push(hunk.content);
+                parts.push('```');
+                parts.push('');
             }
         }
         return parts.join('\n');
     }
 
     protected buildPrompt(cs: ReviewChangeSet, diffs: string): { systemMessage: string; userMessage: string } {
-        const systemMessage = `You are a code review assistant. You analyze change sets and produce structured reviews.
-
-    Respond with a JSON object (no markdown fences) with this structure:
-    {
-    "summary": "A high-level summary of all changes",
-    "areas": [
-    {
-      "id": "area-1",
-      "label": "Short area name",
-      "description": "Description of what this logical group of changes does",
-      "files": [
-        {
-          "path": "relative/path/to/file",
-          "ranges": [{"start": {"line": 1, "character": 0}, "end": {"line": 10, "character": 0}}]
-        }
-      ]
-    }
-    ]
-    }`;
+        const systemMessage = reviewSummaryPromptTemplate.template;
 
         const userMessage = `Analyze the following change set and produce a structured review.
 
-    Change set: "${cs.label}" (source: ${cs.source})
-    Files changed: ${cs.files.length}
+Change set: "${cs.label}" (source: ${cs.source})
+Files changed: ${cs.files.length}
 
-    ${diffs}`;
+${diffs}`;
 
         return { systemMessage, userMessage };
     }
@@ -136,12 +124,24 @@ export class ReviewSummaryService {
         try {
             const cleaned = text.replace(/^```json?\s*/m, '').replace(/\s*```$/m, '').trim();
             const parsed = JSON.parse(cleaned);
-            const areas: ReviewArea[] = (parsed.areas ?? []).map((a: ReviewArea, i: number) => ({
-                id: a.id ?? `area-${i + 1}`,
-                label: a.label ?? `Area ${i + 1}`,
-                description: a.description ?? '',
-                files: a.files ?? [],
-            }));
+            const areas: ReviewArea[] = (parsed.areas ?? []).map((a: RawArea, i: number) => {
+                const files: ReviewAreaFile[] = (a.files ?? []).map((f: RawAreaFile) => ({
+                    path: f.path ?? '',
+                    hunkRefs: (f.hunkRefs ?? []).map((ref: RawHunkRef) => ({
+                        hunkId: ref.hunkId,
+                        startLine: ref.startLine,
+                        endLine: ref.endLine,
+                    })),
+                    ranges: [],
+                }));
+                return {
+                    id: a.id ?? `area-${i + 1}`,
+                    label: a.label ?? `Area ${i + 1}`,
+                    description: a.description ?? '',
+                    files,
+                };
+            });
+            this.resolveHunkRanges(areas, cs);
             return {
                 id,
                 changeSetId: cs.id,
@@ -159,4 +159,78 @@ export class ReviewSummaryService {
             };
         }
     }
+
+    resolveHunkRanges(areas: ReviewArea[], cs: ReviewChangeSet): void {
+        const hunkMap = new Map<string, Map<string, DiffHunk>>();
+        for (const file of cs.files) {
+            const fileHunks = new Map<string, DiffHunk>();
+            for (const hunk of file.hunks ?? []) {
+                fileHunks.set(hunk.id, hunk);
+            }
+            hunkMap.set(file.uri.path.toString(), fileHunks);
+        }
+
+        for (const area of areas) {
+            for (const areaFile of area.files) {
+                const fileHunks = this.findFileHunks(hunkMap, areaFile.path);
+                areaFile.ranges = (areaFile.hunkRefs ?? [])
+                    .map(ref => this.resolveRef(ref, fileHunks))
+                    .filter((r): r is Range => r !== undefined);
+            }
+        }
+    }
+
+    protected findFileHunks(hunkMap: Map<string, Map<string, DiffHunk>>, path: string): Map<string, DiffHunk> | undefined {
+        for (const [filePath, hunks] of hunkMap) {
+            if (filePath.endsWith(path) || path.endsWith(filePath)) {
+                return hunks;
+            }
+        }
+        return undefined;
+    }
+
+    resolveRef(ref: HunkRef, fileHunks?: Map<string, DiffHunk>): Range | undefined {
+        const hunk = fileHunks?.get(ref.hunkId);
+        if (!hunk) {
+            this.logger.warn(`Unknown hunk ID "${ref.hunkId}" in AI review response — ignoring.`);
+            return undefined;
+        }
+
+        if (ref.startLine === undefined || ref.endLine === undefined) {
+            return hunk.modifiedRange;
+        }
+
+        const hunkStart = hunk.modifiedRange.start.line;
+        const hunkEnd = hunk.modifiedRange.end.line;
+        const clampedStart = Math.max(ref.startLine, hunkStart);
+        const clampedEnd = Math.min(ref.endLine, hunkEnd);
+
+        if (clampedStart > clampedEnd) {
+            this.logger.warn(
+                `Sub-range [${ref.startLine}-${ref.endLine}] in hunk "${ref.hunkId}" ` +
+                `falls outside hunk bounds [${hunkStart}-${hunkEnd}] — using full hunk.`
+            );
+            return hunk.modifiedRange;
+        }
+
+        return Range.create(clampedStart, 0, clampedEnd, 0);
+    }
+}
+
+interface RawHunkRef {
+    hunkId: string;
+    startLine?: number;
+    endLine?: number;
+}
+
+interface RawAreaFile {
+    path?: string;
+    hunkRefs?: RawHunkRef[];
+}
+
+interface RawArea {
+    id?: string;
+    label?: string;
+    description?: string;
+    files?: RawAreaFile[];
 }

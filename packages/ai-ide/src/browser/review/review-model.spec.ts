@@ -16,7 +16,10 @@
 
 import { expect } from 'chai';
 import URI from '@theia/core/lib/common/uri';
+import { Range } from '@theia/core/shared/vscode-languageserver-protocol';
 import {
+    DiffHunk,
+    HunkRef,
     ReviewChangeSet,
     ReviewFileChange,
     ReviewResult,
@@ -64,6 +67,24 @@ describe('Review Model Types', () => {
         expect(fileChange.oldPath).to.be.undefined;
     });
 
+    it('should create a ReviewFileChange with hunks', () => {
+        const hunks: DiffHunk[] = [{
+            id: 'hunk-1',
+            modifiedRange: Range.create(10, 0, 15, 0),
+            originalRange: Range.create(10, 0, 12, 0),
+            content: '- old line\n+ new line',
+            type: 'modified',
+        }];
+        const fileChange: ReviewFileChange = {
+            uri: new URI('file:///test/src/foo.ts'),
+            status: 'modified',
+            hunks,
+        };
+        expect(fileChange.hunks).to.have.length(1);
+        expect(fileChange.hunks![0].id).to.equal('hunk-1');
+        expect(fileChange.hunks![0].type).to.equal('modified');
+    });
+
     it('should support all file change statuses', () => {
         const statuses: ReviewFileChange['status'][] = ['added', 'modified', 'deleted', 'renamed'];
         for (const status of statuses) {
@@ -91,6 +112,7 @@ describe('Review Model Types', () => {
     it('should create a valid ReviewArea with disposition', () => {
         const areaFile: ReviewAreaFile = {
             path: 'src/service.ts',
+            hunkRefs: [{ hunkId: 'hunk-1' }],
             ranges: [{ start: { line: 10, character: 0 }, end: { line: 25, character: 0 } }],
         };
         const area: ReviewArea = {
@@ -104,6 +126,7 @@ describe('Review Model Types', () => {
         expect(area.label).to.equal('New authentication middleware');
         expect(area.files).to.have.length(1);
         expect(area.files[0].ranges).to.have.length(1);
+        expect(area.files[0].hunkRefs).to.have.length(1);
         expect(area.disposition).to.equal('reviewed');
         expect(area.developerNotes).to.equal('Looks good.');
     });
@@ -120,5 +143,75 @@ describe('Review Model Types', () => {
             };
             expect(area.disposition).to.equal(disposition);
         }
+    });
+
+    it('should create a DiffHunk for added content', () => {
+        const hunk: DiffHunk = {
+            id: 'hunk-1',
+            modifiedRange: Range.create(0, 0, 49, 0),
+            originalRange: Range.create(0, 0, 0, 0),
+            content: '+ line 1\n+ line 2',
+            type: 'added',
+        };
+        expect(hunk.id).to.equal('hunk-1');
+        expect(hunk.type).to.equal('added');
+        expect(hunk.modifiedRange.start.line).to.equal(0);
+        expect(hunk.modifiedRange.end.line).to.equal(49);
+    });
+
+    it('should create a DiffHunk for deleted content', () => {
+        const hunk: DiffHunk = {
+            id: 'hunk-1',
+            modifiedRange: Range.create(0, 0, 0, 0),
+            originalRange: Range.create(0, 0, 29, 0),
+            content: '- removed line 1\n- removed line 2',
+            type: 'deleted',
+        };
+        expect(hunk.type).to.equal('deleted');
+        expect(hunk.originalRange.end.line).to.equal(29);
+    });
+
+    it('should create a DiffHunk for modified content', () => {
+        const hunk: DiffHunk = {
+            id: 'hunk-2',
+            modifiedRange: Range.create(10, 0, 15, 0),
+            originalRange: Range.create(10, 0, 12, 0),
+            content: '- old\n+ new\n+ extra',
+            type: 'modified',
+        };
+        expect(hunk.type).to.equal('modified');
+        expect(hunk.modifiedRange.start.line).to.equal(10);
+    });
+
+    it('should create a whole-hunk HunkRef', () => {
+        const ref: HunkRef = { hunkId: 'hunk-1' };
+        expect(ref.hunkId).to.equal('hunk-1');
+        expect(ref.startLine).to.be.undefined;
+        expect(ref.endLine).to.be.undefined;
+    });
+
+    it('should create a sub-range HunkRef', () => {
+        const ref: HunkRef = { hunkId: 'hunk-2', startLine: 385, endLine: 392 };
+        expect(ref.hunkId).to.equal('hunk-2');
+        expect(ref.startLine).to.equal(385);
+        expect(ref.endLine).to.equal(392);
+    });
+
+    it('should create a ReviewAreaFile with hunkRefs and ranges', () => {
+        const areaFile: ReviewAreaFile = {
+            path: 'src/module.ts',
+            hunkRefs: [
+                { hunkId: 'hunk-1' },
+                { hunkId: 'hunk-2', startLine: 50, endLine: 55 },
+            ],
+            ranges: [
+                Range.create(10, 0, 20, 0),
+                Range.create(50, 0, 55, 0),
+            ],
+        };
+        expect(areaFile.hunkRefs).to.have.length(2);
+        expect(areaFile.ranges).to.have.length(2);
+        expect(areaFile.hunkRefs[0].hunkId).to.equal('hunk-1');
+        expect(areaFile.hunkRefs[1].startLine).to.equal(50);
     });
 });

@@ -17,6 +17,19 @@
 import URI from '@theia/core/lib/common/uri';
 import { Range } from '@theia/core/shared/vscode-languageserver-protocol';
 
+export interface DiffHunk {
+    /** Stable ID for AI grouping (e.g., 'hunk-1', 'hunk-2') */
+    id: string;
+    /** Line range in the modified file (0-based, used for decorations) */
+    modifiedRange: Range;
+    /** Line range in the original file (0-based) */
+    originalRange: Range;
+    /** The actual diff content: removed lines prefixed with -, added lines with + */
+    content: string;
+    /** Type of change */
+    type: 'added' | 'modified' | 'deleted';
+}
+
 export interface ReviewChangeSet {
     id: string;
     label: string;
@@ -31,6 +44,8 @@ export interface ReviewFileChange {
     modifiedUri?: URI;
     status: 'added' | 'modified' | 'deleted' | 'renamed';
     oldPath?: string;
+    /** Deterministic diff hunks, computed when the change set is created */
+    hunks?: DiffHunk[];
 }
 
 export type ReviewAreaDisposition = 'reviewed' | 'needs-work' | 'dismissed';
@@ -52,7 +67,28 @@ export interface ReviewArea {
     developerNotes?: string;
 }
 
+/** A reference to a hunk or a sub-range within a hunk */
+export interface HunkRef {
+    /** The hunk ID (e.g., 'hunk-1') */
+    hunkId: string;
+    /**
+     * Optional sub-range start line (absolute line number in the modified file).
+     * When omitted (together with endLine), the entire hunk range is used.
+     * When provided, clamped to the hunk's modifiedRange bounds during resolution.
+     */
+    startLine?: number;
+    /**
+     * Optional sub-range end line (absolute line number in the modified file).
+     * When omitted (together with startLine), the entire hunk range is used.
+     * When provided, clamped to the hunk's modifiedRange bounds during resolution.
+     */
+    endLine?: number;
+}
+
 export interface ReviewAreaFile {
     path: string;
+    /** References to DiffHunks (or sub-ranges within them) that this area covers */
+    hunkRefs: HunkRef[];
+    /** Resolved ranges — populated by resolving hunkRefs against the change set's hunks */
     ranges: Range[];
 }
