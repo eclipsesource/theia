@@ -371,36 +371,28 @@
   gap: calc(var(--theia-ui-padding) * 2);
 }
 
-.ai-variable-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.ai-variable-group .section-header {
-  margin-top: 0;
-}
-
-.ai-variable-group-count {
+/* One-line explanation of what distinguishes the group's kind of variable, under the group title. */
+.ai-variable-group-description {
   color: var(--theia-descriptionForeground);
-  font-weight: normal;
+  font-size: var(--theia-ui-font-size0);
 }
 
 .ai-variable-row {
   border: var(--theia-border-width) solid var(--theia-widget-border);
   border-radius: 6px;
-  margin-bottom: var(--theia-ui-padding);
   background-color: var(--theia-editorWidget-background);
 }
 
+/* The whole header is the disclosure control (role="button"): the chevron, name, copy button,
+   description and count pills all sit on one clickable row. */
 .ai-variable-row-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--theia-ui-padding);
-  padding: calc(var(--theia-ui-padding) / 1.5) var(--theia-ui-padding);
-  cursor: pointer;
+  padding: var(--theia-ui-padding);
   background-color: var(--theia-editor-background);
   border-radius: 5px;
+  cursor: pointer;
   transition: background-color 0.1s;
 }
 
@@ -418,14 +410,6 @@
   border-bottom: var(--theia-border-width) solid var(--theia-widget-border);
 }
 
-.ai-variable-row-title {
-  display: flex;
-  align-items: center;
-  gap: var(--theia-ui-padding);
-  min-width: 0;
-  flex: 1;
-}
-
 .ai-variable-expansion-icon {
   color: var(--theia-descriptionForeground);
   flex: none;
@@ -434,7 +418,7 @@
 .ai-variable-name {
   font-family: var(--theia-editor-font-family, monospace);
   color: var(--theia-textLink-foreground);
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   flex: none;
 }
@@ -444,6 +428,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Holds the inline description's place in the header while the row is expanded (the description moves into
+   the body), so the name and count pills keep their positions and the header height stays constant. */
+.ai-variable-inline-description-spacer {
+  flex: 1;
   min-width: 0;
 }
 
@@ -456,25 +448,19 @@
   flex: none;
 }
 
+/* Neutral, fully-rounded pills differentiated by a leading icon (not colour) so they stay legible in
+   every theme and don't rely on hue alone: a parameter glyph for arguments, an agent glyph for agents. */
 .ai-variable-count-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--theia-ui-padding) / 2);
   color: var(--theia-descriptionForeground);
-  background-color: var(--theia-editorWidget-background);
+  background-color: var(--theia-badge-background);
   border: var(--theia-border-width) solid var(--theia-widget-border);
-  border-radius: 10px;
+  border-radius: 999px;
   padding: 0 8px;
-  font-size: var(--theia-ui-font-size0);
+  font-size: 0.85em;
   white-space: nowrap;
-}
-
-/* Distinguish the two pill kinds by hue so arguments and agents read apart at a glance. */
-.ai-variable-count-pill-args {
-  color: var(--theia-charts-green);
-  border-color: var(--theia-charts-green);
-}
-
-.ai-variable-count-pill-agents {
-  color: var(--theia-charts-blue);
-  border-color: var(--theia-charts-blue);
 }
 
 /* Agent chips are interactive buttons: reset the native button chrome and add a visible focus ring. */
@@ -489,14 +475,8 @@ button.agent-chip:focus-visible {
   outline-offset: 1px;
 }
 
-.ai-variable-row-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--theia-ui-padding);
-  flex: none;
-}
-
-/* The copy affordance stays out of the way until the row is hovered or something inside it is focused. */
+/* Sits next to the variable name; dimmed at rest and brought to full strength when the row is hovered
+   or something inside it is focused, so the primary "copy variable name" action stays discoverable. */
 .ai-variable-copy-button {
   display: inline-flex;
   align-items: center;
@@ -507,7 +487,7 @@ button.agent-chip:focus-visible {
   cursor: pointer;
   padding: calc(var(--theia-ui-padding) / 2);
   border-radius: 3px;
-  opacity: 0;
+  opacity: 0.6;
   transition: opacity 0.1s, background-color 0.1s;
 }
 
@@ -526,76 +506,113 @@ button.agent-chip:focus-visible {
   outline-offset: 1px;
 }
 
+/* Visually hidden but available to assistive tech (used for the copy confirmation live region). */
+.ai-variable-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Body content is indented to align under the variable name (past the chevron + gap). */
 .ai-variable-row-body {
   padding: var(--theia-ui-padding);
+  padding-left: calc(var(--theia-ui-padding) * 2 + 16px);
   display: flex;
   flex-direction: column;
-  gap: var(--theia-ui-padding);
+  gap: calc(var(--theia-ui-padding) * 1.5);
   border-radius: 0 0 5px 5px;
 }
 
-.ai-variable-referenced-in {
+/* The full description, shown at the top of the expanded body as a wrapping paragraph (it is truncated to a
+   single line in the collapsed header). Line-height keeps multi-line descriptions comfortably readable. */
+.ai-variable-full-description {
+  margin: 0;
+  color: var(--theia-descriptionForeground);
+  line-height: 1.5;
+}
+
+/* A muted label followed by the read-only id in a bordered code chip (never the old error-red style). */
+.ai-variable-id-row {
+  display: flex;
+  align-items: center;
+  gap: var(--theia-ui-padding);
+}
+
+.ai-variable-id-label {
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size0);
+}
+
+.ai-variable-id-value {
+  font-family: var(--theia-editor-font-family, monospace);
+  color: var(--theia-foreground);
+  background-color: var(--theia-editor-background);
+  border: var(--theia-border-width) solid var(--theia-widget-border);
+  border-radius: 4px;
+  padding: 0 6px;
+}
+
+/* Shared layout for the "Arguments" and "Used by agents" sections of an expanded row. */
+.ai-variable-section {
   display: flex;
   flex-direction: column;
   gap: calc(var(--theia-ui-padding) / 2);
 }
 
-.ai-variable-referenced-in-label {
+.ai-variable-section-label {
   color: var(--theia-descriptionForeground);
   font-size: var(--theia-ui-font-size0);
+  font-weight: 600;
 }
 
-.ai-variable-referenced-in .agent-chips-container {
-  flex-wrap: wrap;
+/* A bordered, rounded list of arguments with 1px dividers between rows (no table/zebra look). */
+.ai-variable-args-container {
+  border: var(--theia-border-width) solid var(--theia-widget-border);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
-/* Mirror the collapsed-header count-pill hues in the expanded detail so agents and arguments read
-   as the same entities in both states: agents blue, arguments green. */
-.ai-variable-referenced-in .agent-chip {
-  background-color: var(--theia-editorWidget-background);
-  color: var(--theia-charts-blue);
-  border: var(--theia-border-width) solid var(--theia-charts-blue);
-  box-shadow: none;
-}
-
-.ai-variable-full-description {
-  color: var(--theia-foreground);
-}
-
-.ai-variable-meta {
+.ai-variable-arg-row {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--theia-ui-padding) * 2);
-  color: var(--theia-descriptionForeground);
-  font-size: var(--theia-ui-font-size0);
+  align-items: baseline;
+  gap: var(--theia-ui-padding);
+  padding: calc(var(--theia-ui-padding) * 0.75) var(--theia-ui-padding);
 }
 
-.ai-variable-meta code,
-.ai-variable-arg-name code {
+.ai-variable-arg-row+.ai-variable-arg-row {
+  border-top: var(--theia-border-width) solid var(--theia-widget-border);
+}
+
+/* Fixed-width name column so descriptions line up across rows. */
+.ai-variable-arg-name {
+  flex: none;
+  min-width: 130px;
   font-family: var(--theia-editor-font-family, monospace);
   color: var(--theia-textPreformat-foreground);
 }
 
-.ai-variable-args-title {
-  font-weight: 600;
-  margin-bottom: calc(var(--theia-ui-padding) / 2);
-}
-
-/* Tie argument names to the green "arguments" count pill from the collapsed header. */
-.ai-variable-arg-name code {
-  color: var(--theia-charts-green);
-}
-
-.ai-variable-arg-name {
-  white-space: nowrap;
-  vertical-align: top;
-}
-
-.ai-variable-arg-optional {
-  margin-left: calc(var(--theia-ui-padding) / 2);
+/* Small outlined pill; "optional" vs "required" shown explicitly instead of relying on an absent marker. */
+.ai-variable-arg-badge {
+  flex: none;
+  border: var(--theia-border-width) solid var(--theia-widget-border);
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 0.85em;
   color: var(--theia-descriptionForeground);
-  font-style: italic;
-  font-size: var(--theia-ui-font-size0);
+}
+
+/* Grows to fill the row and wraps under the name on narrow widths instead of overflowing. */
+.ai-variable-arg-description {
+  flex: 1 1 200px;
+  min-width: 0;
+  color: var(--theia-descriptionForeground);
 }
 
 .ai-variable-arg-enum {
@@ -603,6 +620,19 @@ button.agent-chip:focus-visible {
   margin-top: calc(var(--theia-ui-padding) / 2);
   color: var(--theia-descriptionForeground);
   font-size: var(--theia-ui-font-size0);
+}
+
+.ai-variable-agent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Accent-tinted chips (theme badge colours) that read as navigable; they open the agent. */
+.ai-variable-agent-chips .agent-chip {
+  background-color: var(--theia-badge-background);
+  color: var(--theia-badge-foreground);
+  box-shadow: none;
 }
 
 .agent-tag {

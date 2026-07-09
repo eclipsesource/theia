@@ -47,6 +47,11 @@ export class AiConfigurationDetailWidget extends ReactWidget {
     protected init(): void {
         this.id = AiConfigurationDetailWidget.ID;
         this.addClass('ai-configuration-detail-widget');
+        // The page scrolls in its own inner `.ai-configuration-detail-body` (driven by
+        // `applyScrollAndHighlight`). Clear the default `ReactWidget` scroll options so that
+        // `BaseWidget` does not attach a PerfectScrollbar to the outer node, whose forced
+        // `overflow: hidden` and wheel handling would otherwise swallow the inner body's scroll.
+        this.scrollOptions = undefined;
         this.toDispose.push(this.selectionModel.onDidChangeSelection(() => this.onSelectionChanged()));
         this.toDispose.push(this.registry.onDidChange(() => this.update()));
         this.update();

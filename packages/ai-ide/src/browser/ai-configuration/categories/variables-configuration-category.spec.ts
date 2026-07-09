@@ -124,12 +124,16 @@ describe('VariablesConfigurationCategory', () => {
     });
 
     describe('group count formatting', () => {
-        it('shows only the total when not filtering', () => {
-            expect(VariablesConfigurationCategory.formatGroupCount(4, 4, false)).to.equal('4');
+        it('shows the total with a noun when not filtering', () => {
+            expect(VariablesConfigurationCategory.formatGroupCount(4, 4, false)).to.equal('4 variables');
+        });
+
+        it('uses the singular noun for a single variable', () => {
+            expect(VariablesConfigurationCategory.formatGroupCount(1, 1, false)).to.equal('1 variable');
         });
 
         it('shows matching of total when filtering', () => {
-            expect(VariablesConfigurationCategory.formatGroupCount(3, 31, true)).to.equal('3 of 31');
+            expect(VariablesConfigurationCategory.formatGroupCount(3, 31, true)).to.equal('3 of 31 variables');
         });
     });
 
@@ -161,14 +165,4 @@ describe('VariablesConfigurationCategory', () => {
         });
     });
 
-    describe('argument metadata', () => {
-        it('treats arguments with a name or description as rich', () => {
-            const withArgs = { id: 'today', name: 'today', description: '', args: [{ name: 'Format', description: 'The format' }] } as unknown as AIVariable;
-            expect(VariablesConfigurationCategory.hasRichArgs(withArgs)).to.be.true;
-        });
-
-        it('treats a variable without arguments as not rich', () => {
-            expect(VariablesConfigurationCategory.hasRichArgs(variable('file-provider', 'file'))).to.be.false;
-        });
-    });
 });
