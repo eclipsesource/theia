@@ -447,20 +447,34 @@
   min-width: 0;
 }
 
-.ai-variable-arg-hint {
+/* Collapsed rows summarise the payload with count pills (e.g. "2 arguments", "3 agents") rather than
+   listing agent names, so the row always stays on a single line regardless of how many agents use it. */
+.ai-variable-row-meta {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--theia-ui-padding) / 2);
   flex: none;
-  color: var(--theia-badge-foreground);
-  background-color: var(--theia-badge-background);
+}
+
+.ai-variable-count-pill {
+  color: var(--theia-descriptionForeground);
+  background-color: var(--theia-editorWidget-background);
+  border: var(--theia-border-width) solid var(--theia-widget-border);
   border-radius: 10px;
   padding: 0 8px;
   font-size: var(--theia-ui-font-size0);
+  white-space: nowrap;
 }
 
-.ai-variable-row-header .agent-chips-container {
-  flex: none;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  max-width: 55%;
+/* Distinguish the two pill kinds by hue so arguments and agents read apart at a glance. */
+.ai-variable-count-pill-args {
+  color: var(--theia-charts-green);
+  border-color: var(--theia-charts-green);
+}
+
+.ai-variable-count-pill-agents {
+  color: var(--theia-charts-blue);
+  border-color: var(--theia-charts-blue);
 }
 
 /* Agent chips are interactive buttons: reset the native button chrome and add a visible focus ring. */
@@ -473,50 +487,6 @@ button.agent-chip {
 button.agent-chip:focus-visible {
   outline: 1px solid var(--theia-focusBorder);
   outline-offset: 1px;
-}
-
-.ai-variable-agent-overflow {
-  position: relative;
-  display: inline-flex;
-}
-
-.ai-variable-agent-popover {
-  position: absolute;
-  top: calc(100% + 2px);
-  right: 0;
-  z-index: 10;
-  min-width: 140px;
-  max-height: 240px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: calc(var(--theia-ui-padding) / 2);
-  background-color: var(--theia-editorWidget-background);
-  border: var(--theia-border-width) solid var(--theia-widget-border);
-  border-radius: 4px;
-  box-shadow: 0 2px 8px var(--theia-widget-shadow);
-}
-
-.ai-variable-agent-popover-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: transparent;
-  color: var(--theia-foreground);
-  font-family: inherit;
-  font-size: var(--theia-ui-font-size1);
-  padding: calc(var(--theia-ui-padding) / 2) var(--theia-ui-padding);
-  border-radius: 3px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.ai-variable-agent-popover-item:hover,
-.ai-variable-agent-popover-item:focus-visible {
-  background-color: var(--theia-list-hoverBackground);
-  outline: none;
 }
 
 .ai-variable-row-actions {
@@ -579,9 +549,13 @@ button.agent-chip:focus-visible {
   flex-wrap: wrap;
 }
 
-.ai-variable-arg-hint-expanded {
-  color: var(--theia-descriptionForeground);
-  font-size: var(--theia-ui-font-size0);
+/* Mirror the collapsed-header count-pill hues in the expanded detail so agents and arguments read
+   as the same entities in both states: agents blue, arguments green. */
+.ai-variable-referenced-in .agent-chip {
+  background-color: var(--theia-editorWidget-background);
+  color: var(--theia-charts-blue);
+  border: var(--theia-border-width) solid var(--theia-charts-blue);
+  box-shadow: none;
 }
 
 .ai-variable-full-description {
@@ -605,6 +579,11 @@ button.agent-chip:focus-visible {
 .ai-variable-args-title {
   font-weight: 600;
   margin-bottom: calc(var(--theia-ui-padding) / 2);
+}
+
+/* Tie argument names to the green "arguments" count pill from the collapsed header. */
+.ai-variable-arg-name code {
+  color: var(--theia-charts-green);
 }
 
 .ai-variable-arg-name {

@@ -37,9 +37,10 @@ import { AiConfigurationEmptyState } from '@theia/ai-core-ui/lib/browser/ai-conf
 /**
  * The Variables category: a `single-page` category that renders every variable as a flat,
  * expandable list rather than a tree of nodes with per-item detail pages. Each row shows the
- * variable reference, a one-line description and the agents that use it (as chips) at a glance;
- * expanding a row reveals the full description, its id and its arguments. Variables are read-only,
- * so a dedicated detail page per item would be more navigation than the payload warrants.
+ * variable reference, a one-line description and count pills for its arguments and the agents
+ * that use it at a glance; expanding a row reveals the full description, its id, its arguments
+ * and the agents that use it as chips. Variables are read-only, so a dedicated detail page per
+ * item would be more navigation than the payload warrants.
  */
 @injectable()
 export class VariablesConfigurationCategory extends SinglePageCategoryRenderer implements AiConfigurationCategory, AiConfigurationSearchProvider {
@@ -217,20 +218,6 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
             : `${total}`;
     }
 
-    /** Maximum number of agent chips rendered inline on a row before the rest collapse into an overflow chip. */
-    static readonly MAX_VISIBLE_AGENT_CHIPS = 3;
-
-    /** Splits an agent list into the chips shown inline and those hidden behind the `+N` overflow chip. */
-    static splitAgents(agents: Agent[]): { visible: Agent[]; overflow: Agent[] } {
-        if (agents.length <= VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS) {
-            return { visible: agents, overflow: [] };
-        }
-        return {
-            visible: agents.slice(0, VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS),
-            overflow: agents.slice(VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS)
-        };
-    }
-
     /**
      * Whether the variable's arguments carry more than a bare count, i.e. a name, description,
      * optionality or an enum. When they do, the expanded row shows the full argument table and the
@@ -376,6 +363,9 @@ const VariableRow: React.FC<VariableRowProps> = ({ row, expanded, onToggle, onOp
     const argCountLabel = argCount === 1
         ? nls.localize('theia/ai/ide/variableConfiguration/argCountSingular', '1 argument')
         : nls.localize('theia/ai/ide/variableConfiguration/argCountPlural', '{0} arguments', argCount);
+    const agentCountLabel = agents.length === 1
+        ? nls.localizeByDefault('1 agent')
+        : nls.localizeByDefault('{0} agents', agents.length);
     const bodyId = `ai-variable-body-${variable.id}`;
     return <div className='ai-variable-row' data-ai-config-row-id={variable.id}>
         <div
@@ -398,10 +388,12 @@ const VariableRow: React.FC<VariableRowProps> = ({ row, expanded, onToggle, onOp
                 <span aria-hidden='true' className={`ai-variable-expansion-icon ${codicon(expanded ? 'chevron-down' : 'chevron-right')}`}></span>
                 <span className='ai-variable-name'>{reference}</span>
                 <span className='ai-variable-inline-description'>{description}</span>
-                {argCount > 0 && !hasRichArgs && <span className='ai-variable-arg-hint'>{argCountLabel}</span>}
             </div>
             <div className='ai-variable-row-actions'>
-                {agents.length > 0 && <AgentChips agents={agents} onOpenAgent={onOpenAgent} />}
+                <div className='ai-variable-row-meta'>
+                    {argCount > 0 && <span className='ai-variable-count-pill ai-variable-count-pill-args'>{argCountLabel}</span>}
+                    {agents.length > 0 && <span className='ai-variable-count-pill ai-variable-count-pill-agents'>{agentCountLabel}</span>}
+                </div>
                 <CopyReferenceButton reference={reference} onCopy={() => onCopyReference(variable)} />
             </div>
         </div>
@@ -415,9 +407,7 @@ const VariableRow: React.FC<VariableRowProps> = ({ row, expanded, onToggle, onOp
                     {nls.localize('theia/ai/ide/variableConfiguration/idLabel', 'Id')}: <code>{variable.id}</code>
                 </span>
             </div>
-            {hasRichArgs
-                ? <VariableArgs variable={variable} />
-                : argCount > 0 && <div className='ai-variable-arg-hint-expanded'>{argCountLabel}</div>}
+            {hasRichArgs && <VariableArgs variable={variable} />}
             {agents.length > 0 && <div className='ai-variable-referenced-in'>
                 <div className='ai-variable-referenced-in-label'>
                     {nls.localize('theia/ai/ide/variableConfiguration/referencedIn', 'Referenced in prompt templates of:')}
@@ -488,19 +478,6 @@ const VariableArgs: React.FC<{ variable: AIVariable }> = ({ variable }) => {
     </div>;
 };
 
-interface AgentChipsProps {
-    readonly agents: Agent[];
-    readonly onOpenAgent: (agentId: string) => void;
-}
-
-const AgentChips: React.FC<AgentChipsProps> = ({ agents, onOpenAgent }) => {
-    const { visible, overflow } = VariablesConfigurationCategory.splitAgents(agents);
-    return <div className='agent-chips-container'>
-        {visible.map(agent => <AgentChip key={agent.id} agent={agent} onOpenAgent={onOpenAgent} />)}
-        {overflow.length > 0 && <AgentOverflowChip overflow={overflow} onOpenAgent={onOpenAgent} />}
-    </div>;
-};
-
 const AgentChip: React.FC<{ agent: Agent; onOpenAgent: (agentId: string) => void }> = ({ agent, onOpenAgent }) => {
     const label = nls.localize('theia/ai/ide/variableConfiguration/openAgent', 'Open agent {0}', agent.name);
     return <button
@@ -515,77 +492,4 @@ const AgentChip: React.FC<{ agent: Agent; onOpenAgent: (agentId: string) => void
     >
         {agent.name}
     </button>;
-};
-
-/**
- * The `+N` chip that reveals the remaining agents in a small popover. The popover closes on outside
- * click and on Escape (restoring focus to the trigger), and moves keyboard focus onto its first item
- * when opened.
- */
-const AgentOverflowChip: React.FC<{ overflow: Agent[]; onOpenAgent: (agentId: string) => void }> = ({ overflow, onOpenAgent }) => {
-    const [open, setOpen] = React.useState(false);
-    // eslint-disable-next-line no-null/no-null
-    const containerRef = React.useRef<HTMLDivElement>(null);
-    // eslint-disable-next-line no-null/no-null
-    const triggerRef = React.useRef<HTMLButtonElement>(null);
-    // eslint-disable-next-line no-null/no-null
-    const popoverRef = React.useRef<HTMLDivElement>(null);
-
-    React.useEffect(() => {
-        if (!open) {
-            return;
-        }
-        const onDocumentPointerDown = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        };
-        const onDocumentKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setOpen(false);
-                triggerRef.current?.focus();
-            }
-        };
-        document.addEventListener('mousedown', onDocumentPointerDown);
-        document.addEventListener('keydown', onDocumentKeyDown);
-        popoverRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
-        return () => {
-            document.removeEventListener('mousedown', onDocumentPointerDown);
-            document.removeEventListener('keydown', onDocumentKeyDown);
-        };
-    }, [open]);
-
-    const label = nls.localize('theia/ai/ide/variableConfiguration/moreAgents', 'Show {0} more agents', overflow.length);
-    return <div className='ai-variable-agent-overflow' ref={containerRef}>
-        <button
-            ref={triggerRef}
-            type='button'
-            className='agent-chip ai-variable-agent-overflow-trigger'
-            aria-haspopup='true'
-            aria-expanded={open}
-            aria-label={label}
-            title={label}
-            onClick={event => {
-                event.stopPropagation();
-                setOpen(value => !value);
-            }}
-        >
-            +{overflow.length}
-        </button>
-        {open && <div className='ai-variable-agent-popover' role='menu' ref={popoverRef}>
-            {overflow.map(agent => <button
-                key={agent.id}
-                type='button'
-                role='menuitem'
-                className='ai-variable-agent-popover-item'
-                onClick={event => {
-                    event.stopPropagation();
-                    onOpenAgent(agent.id);
-                    setOpen(false);
-                }}
-            >
-                {agent.name}
-            </button>)}
-        </div>}
-    </div>;
 };

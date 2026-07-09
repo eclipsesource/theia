@@ -171,20 +171,4 @@ describe('VariablesConfigurationCategory', () => {
             expect(VariablesConfigurationCategory.hasRichArgs(variable('file-provider', 'file'))).to.be.false;
         });
     });
-
-    describe('agent chip overflow', () => {
-        const agents = (count: number) => Array.from({ length: count }, (_, i) => agent(`a${i}`, `Agent ${i}`));
-
-        it('keeps all chips inline up to the threshold', () => {
-            const { visible, overflow } = VariablesConfigurationCategory.splitAgents(agents(VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS));
-            expect(visible).to.have.length(VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS);
-            expect(overflow).to.be.empty;
-        });
-
-        it('collapses agents beyond the threshold into the overflow chip', () => {
-            const { visible, overflow } = VariablesConfigurationCategory.splitAgents(agents(VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS + 2));
-            expect(visible).to.have.length(VariablesConfigurationCategory.MAX_VISIBLE_AGENT_CHIPS);
-            expect(overflow).to.have.length(2);
-        });
-    });
 });
