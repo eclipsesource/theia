@@ -34,6 +34,7 @@ import { AiConfigurationItemDetailHeader } from '@theia/ai-core-ui/lib/browser/a
 import { AiConfigurationFilterInput } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-filter-input';
 import { AiConfigurationEmptyState } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-empty-state';
 import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
+import { getAgentIconClass } from '../agent-icon';
 
 /**
  * The Variables category: a `single-page` category that renders every variable as a flat,
@@ -480,7 +481,7 @@ const AgentChip: React.FC<{ agent: Agent; onOpenAgent: (agentId: string) => void
             onOpenAgent(agent.id);
         }}
     >
-        <span aria-hidden='true' className={codicon('hubot')}></span>
+        <span aria-hidden='true' className={getAgentIconClass(agent)}></span>
         {agent.name}
     </button>;
 };

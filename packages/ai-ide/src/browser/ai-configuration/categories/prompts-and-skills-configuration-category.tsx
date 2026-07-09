@@ -27,7 +27,6 @@ import {
     PromptFragment,
     PromptService
 } from '@theia/ai-core/lib/common/prompt-service';
-import { isChatAgent } from '@theia/ai-chat';
 import { Emitter, Event, nls, URI } from '@theia/core';
 import { codicon, ConfirmDialog, open, OpenerService } from '@theia/core/lib/browser';
 import { DisposableCollection } from '@theia/core/lib/common';
@@ -45,6 +44,7 @@ import { SinglePageCategoryRenderer } from '@theia/ai-core-ui/lib/browser/ai-con
 import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
 import { AiSettingsRow } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row';
 import { AiSettingsRowService } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
+import { getAgentIconClass } from '../agent-icon';
 
 /**
  * The Prompts & Skills category: a `single-page` category that renders the existing Prompt
@@ -374,7 +374,7 @@ export class PromptsAndSkillsConfigurationCategory extends SinglePageCategoryRen
                         title={nls.localize('theia/ai/core/promptFragmentsConfiguration/usedByAgentTitle', 'Used by agent: {0}', agent.name)}
                         onClick={event => event.stopPropagation()}
                     >
-                        <span className={(isChatAgent(agent) && agent.iconClass) ? agent.iconClass : codicon('copilot')}></span>
+                        <span className={getAgentIconClass(agent)}></span>
                         {agent.name}
                     </span>)}
                 </div>}
@@ -562,7 +562,7 @@ export class PromptsAndSkillsConfigurationCategory extends SinglePageCategoryRen
                     ? <span className='slash-command-all-agents'>{nls.localize('theia/ai/ide/skillsConfiguration/slashCommand/allAgents', 'All agents')}</span>
                     : <div className='slash-command-agent-chips'>
                         {agents.map(agent => <span key={agent.id} className='agent-chip' title={agent.description}>
-                            <span className={(isChatAgent(agent) && agent.iconClass) ? agent.iconClass : codicon('copilot')}></span>
+                            <span className={getAgentIconClass(agent)}></span>
                             {agent.name}
                         </span>)}
                     </div>}

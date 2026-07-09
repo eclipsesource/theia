@@ -52,6 +52,7 @@ import { AiSettingsRow } from '@theia/ai-core-ui/lib/browser/ai-configuration/co
 import { AiSettingsRowService } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
 import { PREFERENCE_NAME_AGENT_MODE_ENABLED, PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST } from '../../../common/ai-ide-preferences';
 import { AgentDetailServices, AgentDetailView } from './agent-detail-view';
+import { getAgentIconClass } from '../agent-icon';
 
 /** A candidate location for creating a new custom agent: its scope directory and `agents/` folder. */
 interface CustomAgentScopeOption {
@@ -169,7 +170,7 @@ export class AgentsConfigurationCategory extends CollectionCategoryRenderer impl
             return {
                 id: agent.id,
                 label: agent.name,
-                iconClass: codicon('hubot'),
+                iconClass: getAgentIconClass(agent),
                 description: agent.description,
                 status: {
                     kind: enabled ? 'on' : 'off',

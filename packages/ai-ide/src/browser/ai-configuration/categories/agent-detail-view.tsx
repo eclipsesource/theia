@@ -34,7 +34,7 @@ import {
 import { LanguageModelAlias } from '@theia/ai-core/lib/common/language-model-alias';
 import { isChatAgent } from '@theia/ai-chat/lib/common';
 import { nls } from '@theia/core';
-import { codicon, CommonCommands } from '@theia/core/lib/browser';
+import { CommonCommands } from '@theia/core/lib/browser';
 import { CommandService } from '@theia/core/lib/common/command';
 import * as React from '@theia/core/shared/react';
 import { AiConfigurationItemDetailHeader } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-item-detail-header';
@@ -42,6 +42,7 @@ import { AiToggleSwitch } from '@theia/ai-core-ui/lib/browser/ai-configuration/c
 import { LanguageModelRenderer } from '../language-model-renderer';
 import { PromptVariantRenderer } from '../template-settings-renderer';
 import { AgentNotificationSettings } from '../components/agent-notification-settings';
+import { getAgentIconClass } from '../agent-icon';
 
 /** The services the {@link AgentDetailView} needs; injected into the owning category and passed down. */
 export interface AgentDetailServices {
@@ -125,7 +126,7 @@ export const AgentDetailView: React.FC<AgentDetailViewProps> = ({ agent, service
 
     const header = <AiConfigurationItemDetailHeader
         title={agent.name}
-        iconClass={codicon('hubot')}
+        iconClass={getAgentIconClass(agent)}
         subtitle={nls.localizeByDefault('Id: {0}', agent.id)}
         actions={<AgentDetailToggles
             enabled={enabled}
