@@ -17,12 +17,22 @@
 import { enableJSDOM } from '@theia/core/lib/browser/test/jsdom';
 let disableJSDOM = enableJSDOM();
 
+// @lumino/dragdrop (pulled in transitively via `codicon` from `@theia/core/lib/browser`) extends the
+// DragEvent DOM global at module load, which JSDOM does not provide; stub it so the import succeeds.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+if (!(global as any).DragEvent) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (global as any).DragEvent = class DragEvent extends (global as any).Event { };
+}
+
 import { expect } from 'chai';
 import * as React from '@theia/core/shared/react';
 import { AiConfigurationItemCard } from './ai-configuration-item-card';
 import { AiConfigurationEmptyState } from './ai-configuration-empty-state';
 import { AiConfigurationSection } from './ai-configuration-section';
 import { AiConfigurationItemDetailHeader } from './ai-configuration-item-detail-header';
+import { AiConfigurationPageHeader } from './ai-configuration-page-header';
+import { AiConfigurationSettingRow } from './ai-configuration-setting-row';
 
 disableJSDOM();
 
@@ -103,5 +113,46 @@ describe('AI Configuration primitives', () => {
     it('AiConfigurationItemDetailHeader renders title and subtitle', () => {
         const tree = AiConfigurationItemDetailHeader({ title: 'Coder', subtitle: 'agent-id-1' });
         expect(textOf(tree)).to.include('Coder').and.to.include('agent-id-1');
+    });
+
+    it('AiConfigurationPageHeader renders the title and optional subtitle', () => {
+        const tree = AiConfigurationPageHeader({ title: 'AI Features', subtitle: 'Configure Theia' });
+        expect(classNames(tree)).to.include('ai-configuration-page-header');
+        expect(textOf(tree)).to.include('AI Features').and.to.include('Configure Theia');
+    });
+
+    it('AiConfigurationSettingRow shows the preference id and, when modified, a reset affordance', () => {
+        const modified = AiConfigurationSettingRow({
+            preferenceId: 'ai-features.demo',
+            title: 'Demo',
+            renderMarkdown: () => document.createElement('div'),
+            modified: true,
+            onReset: () => { /* no-op */ },
+            control: React.createElement('span', {}, 'ctrl')
+        });
+        expect(classNames(modified)).to.include('ai-settings-row').and.to.include('modified').and.to.include('ai-settings-row-reset');
+        expect(textOf(modified)).to.include('Demo').and.to.include('ai-features.demo').and.to.include('ctrl');
+
+        const pristine = AiConfigurationSettingRow({
+            preferenceId: 'ai-features.demo',
+            title: 'Demo',
+            renderMarkdown: () => document.createElement('div'),
+            modified: false,
+            onReset: () => { /* no-op */ }
+        });
+        expect(classNames(pristine)).to.not.include('modified').and.to.not.include('ai-settings-row-reset');
+    });
+
+    it('AiConfigurationSettingRow places a full-width control in the below slot', () => {
+        const tree = AiConfigurationSettingRow({
+            preferenceId: 'ai-features.demo',
+            title: 'Demo',
+            renderMarkdown: () => document.createElement('div'),
+            modified: false,
+            onReset: () => { /* no-op */ },
+            below: React.createElement('span', {}, 'wide')
+        });
+        expect(classNames(tree)).to.include('ai-settings-row-below');
+        expect(textOf(tree)).to.include('wide');
     });
 });

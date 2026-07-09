@@ -29,7 +29,11 @@ import {
     AiConfigurationTreeItem
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AiSettingsRowService } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
-import { AiGeneralPageHeader, AiGeneralSection, AiGeneralSettingControl, AiGeneralSettingRow } from '../components/ai-general-settings-layout';
+import { AiConfigurationPageHeader } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-page-header';
+import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
+import { AiConfigurationItemCard } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-item-card';
+import { AiConfigurationEmptyState } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-empty-state';
+import { AiSettingsRow } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row';
 
 /** Prefix shared by every AI preference. */
 const AI_FEATURES_PREFIX = 'ai-features.';
@@ -62,10 +66,10 @@ interface ModelsSection {
  * registered `ai-features.<provider>.*` preferences, so any installed provider package contributes
  * a node here without ai-ide having to depend on it.
  *
- * The page adopts the shared "AI Features" (General) style — a sticky header plus {@link AiGeneralSection}
- * settings sections — so Models and General render consistently. The overview shows the cross-provider
- * model settings (`ai-features.modelSettings.*`, `ai-features.reasoning.*`) and the provider list;
- * selecting a provider node shows that provider's settings.
+ * The page uses the shared configuration primitives — a sticky {@link AiConfigurationPageHeader} plus
+ * {@link AiConfigurationSection} settings sections — so every category renders consistently. The overview
+ * shows the cross-provider model settings (`ai-features.modelSettings.*`, `ai-features.reasoning.*`) and
+ * the providers as a card grid; selecting a provider node shows that provider's settings.
  */
 @injectable()
 export class ModelsConfigurationCategory implements AiConfigurationCategory, AiConfigurationSearchProvider {
@@ -82,9 +86,6 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
     protected readonly onDidChangeEmitter = new Emitter<void>();
     readonly onDidChange: Event<void> = this.onDidChangeEmitter.event;
     protected readonly toDispose = new DisposableCollection(this.onDidChangeEmitter);
-
-    /** Bound markdown renderer passed to the shared setting rows (stable identity for `useEffect`). */
-    protected readonly renderMarkdown = (markdown: string): HTMLElement => this.settingsRowService.renderMarkdown(markdown);
 
     get renderer(): this {
         return this;
@@ -112,26 +113,33 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
         } satisfies AiConfigurationTreeItem));
     }
 
-    /** Category overview (no node selected): the cross-provider model settings plus the provider list. */
+    /** Category overview (no node selected): the cross-provider model settings plus the provider cards. */
     renderOverview(ctx: AiConfigurationRenderContext): React.ReactNode {
         const modelSettings = this.getModelSettingsSection();
         const providers = this.getProviderSections();
-        return <div className='ai-general-page'>
-            <AiGeneralPageHeader
+        return <div className='ai-configuration-page'>
+            <AiConfigurationPageHeader
                 title={this.label}
                 subtitle={nls.localize('theia/ai/ide/modelsConfiguration/pageSubtitle',
                     'Configure the language-model providers and cross-provider model defaults.')}
             />
-            {modelSettings && <AiGeneralSection title={modelSettings.title}>
+            {modelSettings && <AiConfigurationSection title={modelSettings.title}>
                 {modelSettings.preferenceIds.map(preferenceId => this.renderPreferenceRow(ctx, preferenceId))}
-            </AiGeneralSection>}
-            <AiGeneralSection title={nls.localize('theia/ai/ide/modelsConfiguration/providers', 'Providers')}>
+            </AiConfigurationSection>}
+            <AiConfigurationSection title={nls.localize('theia/ai/ide/modelsConfiguration/providers', 'Providers')}>
                 {providers.length === 0
-                    ? <div className='ai-general-empty'>
-                        {nls.localize('theia/ai/ide/modelsConfiguration/noProviders', 'No language-model providers are installed.')}
-                    </div>
-                    : providers.map(section => this.renderProviderNavRow(section, ctx))}
-            </AiGeneralSection>
+                    ? <AiConfigurationEmptyState
+                        message={nls.localize('theia/ai/ide/modelsConfiguration/noProviders', 'No language-model providers are installed.')}
+                    />
+                    : <div className='ai-configuration-card-grid'>
+                        {providers.map(section => <AiConfigurationItemCard
+                            key={section.id}
+                            label={section.title}
+                            iconClass={this.iconClass}
+                            onSelect={() => ctx.navigate({ categoryId: this.id, itemId: section.id })}
+                        />)}
+                    </div>}
+            </AiConfigurationSection>
         </div>;
     }
 
@@ -141,60 +149,25 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
         if (!section) {
             return undefined;
         }
-        return <div className='ai-general-page'>
-            <AiGeneralPageHeader
+        return <div className='ai-configuration-page'>
+            <AiConfigurationPageHeader
                 title={section.title}
             />
-            <AiGeneralSection title={nls.localizeByDefault('Settings')}>
+            <AiConfigurationSection title={nls.localizeByDefault('Settings')}>
                 {section.preferenceIds.map(preferenceId => this.renderPreferenceRow(ctx, preferenceId))}
-            </AiGeneralSection>
+            </AiConfigurationSection>
         </div>;
     }
 
-    protected renderProviderNavRow(section: ModelsSection, ctx: AiConfigurationRenderContext): React.ReactNode {
-        return <button
-            key={section.id}
-            type='button'
-            className='ai-general-setting ai-general-nav-row'
-            onClick={() => ctx.navigate({ categoryId: this.id, itemId: section.id })}
-        >
-            <div className='ai-general-setting-top'>
-                <div className='ai-general-setting-main'>
-                    <div className='ai-general-setting-title'>{section.title}</div>
-                </div>
-                <span className={`ai-general-nav-chevron ${codicon('chevron-right')}`}></span>
-            </div>
-        </button>;
-    }
-
     protected renderPreferenceRow(ctx: AiConfigurationRenderContext, preferenceId: string): React.ReactNode {
-        const inspection = this.settingsRowService.inspect(preferenceId, ctx.scope);
-        const described = this.settingsRowService.describe(preferenceId);
-        const label = described.label ?? preferenceId;
-        return <AiGeneralSettingRow
+        return <AiSettingsRow
             key={preferenceId}
+            service={this.settingsRowService}
             preferenceId={preferenceId}
-            title={label}
-            description={described.description}
-            renderMarkdown={this.renderMarkdown}
-            modified={inspection.modified}
-            onReset={() => this.reset(preferenceId, ctx)}
-            control={<AiGeneralSettingControl
-                control={this.settingsRowService.controlFor(preferenceId)}
-                value={inspection.value}
-                ariaLabel={label}
-                onCommit={value => this.commit(preferenceId, value, ctx)}
-                onEditInSettings={() => this.settingsRowService.editInSettings(preferenceId)}
-            />}
+            scope={ctx.scope}
+            control={this.settingsRowService.controlFor(preferenceId)}
+            onDidChange={() => ctx.update()}
         />;
-    }
-
-    protected commit(preferenceId: string, value: unknown, ctx: AiConfigurationRenderContext): void {
-        this.settingsRowService.set(preferenceId, value, ctx.scope).then(() => ctx.update());
-    }
-
-    protected reset(preferenceId: string, ctx: AiConfigurationRenderContext): void {
-        this.settingsRowService.reset(preferenceId, ctx.scope).then(() => ctx.update());
     }
 
     /** Discovers the model-settings and provider sections from the registered preference schema. */

@@ -14,11 +14,37 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
  ********************************************************************************/
 
-/* Detail page frame */
+/* Detail page frame. Every category body is centered in a bounded column with a consistent
+   look (adopted from the former "AI Features" General/Models page). */
 .ai-configuration-page {
   display: flex;
   flex-direction: column;
   gap: calc(var(--theia-ui-padding) * 2);
+  max-width: 860px;
+  margin: 0 auto;
+  padding-bottom: calc(var(--theia-ui-padding) * 4);
+}
+
+/* Sticky page header (title + optional subtitle). */
+.ai-configuration-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--theia-editor-background);
+  padding: calc(var(--theia-ui-padding) * 1.5) 0 var(--theia-ui-padding);
+  border-bottom: var(--theia-border-width) solid var(--theia-widget-border);
+}
+
+.ai-configuration-page-header-title {
+  font-size: var(--theia-ui-font-size3);
+  font-weight: 600;
+  margin: 0 0 2px;
+}
+
+.ai-configuration-page-header-subtitle {
+  margin: 0;
+  color: var(--theia-descriptionForeground);
+  font-size: var(--theia-ui-font-size1);
 }
 
 /* Section */
@@ -52,54 +78,137 @@
   gap: calc(var(--theia-ui-padding) * 1.5);
 }
 
-/* Settings row */
+/* Settings row: title (with the real preference id) and description on the left, a control on the
+   right (or full-width below), a left modified edge and a hover-revealed reset when overridden. */
 .ai-settings-row {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--theia-ui-padding) / 2);
+  position: relative;
+  padding: calc(var(--theia-ui-padding) * 1.5) var(--theia-ui-padding) calc(var(--theia-ui-padding) * 1.5) calc(var(--theia-ui-padding) * 1.5);
+  margin: 2px calc(var(--theia-ui-padding) * -1);
+  border-radius: 4px;
 }
 
-.ai-settings-row-header {
+.ai-settings-row:hover {
+  background: var(--theia-list-hoverBackground);
+}
+
+.ai-settings-row.modified::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--theia-editorGutter-modifiedBackground, var(--theia-focusBorder));
+}
+
+.ai-settings-row-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  gap: calc(var(--theia-ui-padding) * 2);
+}
+
+.ai-settings-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-settings-row-title {
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
   gap: var(--theia-ui-padding);
 }
 
-.ai-settings-row-label {
-  font-weight: 600;
-}
-
-.ai-settings-row-modified {
-  color: var(--theia-descriptionForeground);
+.ai-settings-row-id {
+  font-family: var(--theia-code-font-family);
   font-size: var(--theia-ui-font-size0);
-  font-style: italic;
-}
-
-.ai-settings-row-reset {
-  background: transparent;
-  border: none;
-  color: var(--theia-icon-foreground);
-  cursor: pointer;
-  padding: calc(var(--theia-ui-padding) / 4);
-  border-radius: 3px;
-}
-
-.ai-settings-row-reset:hover {
-  background-color: var(--theia-toolbar-hoverBackground, var(--theia-list-hoverBackground));
+  color: var(--theia-descriptionForeground);
+  user-select: all;
+  font-weight: normal;
 }
 
 .ai-settings-row-description {
   color: var(--theia-descriptionForeground);
   font-size: var(--theia-ui-font-size1);
+  margin-top: 3px;
+  max-width: 60ch;
 }
 
 .ai-settings-row-description p {
   margin: 0;
 }
 
+.ai-settings-row-description code {
+  font-family: var(--theia-code-font-family);
+  font-size: var(--theia-ui-font-size0);
+  background: var(--theia-textCodeBlock-background);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
 .ai-settings-row-control {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
+  gap: var(--theia-ui-padding);
+}
+
+.ai-settings-row-below {
+  margin-top: var(--theia-ui-padding);
+}
+
+/* Reset affordance (revealed on hover of a modified row). */
+.ai-settings-row-reset {
+  visibility: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--theia-ui-padding) / 2);
+  border: none;
+  background: none;
+  color: var(--theia-descriptionForeground);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--theia-ui-font-size0);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.ai-settings-row.modified:hover .ai-settings-row-reset,
+.ai-settings-row-reset:focus-visible {
+  visibility: visible;
+}
+
+.ai-settings-row-reset:hover {
+  color: var(--theia-textLink-foreground);
+  background: var(--theia-list-hoverBackground);
+}
+
+.ai-settings-row-reset:focus-visible {
+  outline: 1px solid var(--theia-focusBorder);
+}
+
+/* A settings-styled row that navigates instead of editing a value (kept for non-card lists). */
+.ai-settings-nav-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ai-settings-nav-row:focus-visible {
+  outline: 1px solid var(--theia-focusBorder);
+  outline-offset: -1px;
+}
+
+.ai-settings-nav-chevron {
+  align-self: center;
+  color: var(--theia-descriptionForeground);
 }
 
 /* ------------------------------------------------------------------------- *
@@ -532,4 +641,115 @@
 .ai-configuration-empty-state-icon {
   font-size: var(--theia-ui-font-size3);
   opacity: 0.7;
+}
+
+/* ------------------------------------------------------------------------- *
+ * General ("AI Features") page specifics: the hero master-toggle card, the
+ * gating treatment for dependent settings, the provider status line and the
+ * cost/data disclosure. These build on the shared row/section primitives above.
+ * ------------------------------------------------------------------------- */
+
+/* Hero master toggle card */
+.ai-configuration-hero {
+  border: var(--theia-border-width) solid var(--theia-widget-border);
+  border-radius: 8px;
+  padding: calc(var(--theia-ui-padding) * 2);
+  background: var(--theia-editorWidget-background);
+}
+
+.ai-configuration-hero .ai-settings-row-top {
+  align-items: center;
+}
+
+.ai-configuration-hero .ai-settings-row-title {
+  font-size: var(--theia-ui-font-size2);
+}
+
+.ai-configuration-status-line {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--theia-ui-padding) / 1.5);
+  margin-top: var(--theia-ui-padding);
+  font-size: var(--theia-ui-font-size1);
+  color: var(--theia-descriptionForeground);
+}
+
+.ai-configuration-status-line a {
+  color: var(--theia-textLink-foreground);
+  cursor: pointer;
+}
+
+/* Cost/data disclosure */
+.ai-configuration-risks {
+  margin-top: var(--theia-ui-padding);
+  font-size: var(--theia-ui-font-size1);
+  color: var(--theia-descriptionForeground);
+}
+
+.ai-configuration-risks > summary {
+  cursor: pointer;
+  color: var(--theia-textLink-foreground);
+  font-weight: 500;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--theia-ui-padding) / 2);
+}
+
+.ai-configuration-risks > summary::before {
+  content: "\25B8"; /* ▸ */
+  font-size: var(--theia-ui-font-size0);
+  transition: transform 0.15s;
+}
+
+.ai-configuration-risks[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.ai-configuration-risks > summary:focus-visible {
+  outline: 1px solid var(--theia-focusBorder);
+  outline-offset: 2px;
+}
+
+.ai-configuration-risk-body {
+  margin-top: calc(var(--theia-ui-padding) / 1.5);
+  padding: var(--theia-ui-padding);
+  background: var(--theia-inputValidation-warningBackground);
+  border: var(--theia-border-width) solid var(--theia-inputValidation-warningBorder, var(--theia-editorWarning-foreground));
+  border-radius: 4px;
+  color: var(--theia-foreground);
+  max-width: 66ch;
+}
+
+.ai-configuration-risk-body p {
+  margin: 0;
+}
+
+.ai-configuration-risk-body a {
+  color: var(--theia-textLink-foreground);
+}
+
+/* Gating: dependent settings shown but visually/interactively disabled while the master toggle is off. */
+.ai-configuration-gate-note {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--theia-ui-padding) / 1.5);
+  padding: calc(var(--theia-ui-padding) / 1.5) var(--theia-ui-padding);
+  font-size: var(--theia-ui-font-size1);
+  border-radius: 4px;
+  border-left: 3px solid var(--theia-focusBorder);
+  background: var(--theia-editorWidget-background);
+  color: var(--theia-foreground);
+}
+
+.ai-configuration-sections {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--theia-ui-padding) * 2);
+}
+
+.ai-configuration-sections.ai-configuration-sections-off {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
 }

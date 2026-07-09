@@ -37,15 +37,17 @@ import {
     AiConfigurationSearchProvider
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AiSettingsRowService } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
-import { PREFERENCE_NAME_ENABLE_AI } from '../../../common/ai-ide-preferences';
 import {
     AiEnumSelect,
-    AiMarkdownDescription,
     AiNumberStepper,
     AiSessionLimitControl,
     AiToggleSwitch
-} from '../components/ai-general-settings-controls';
-import { AiGeneralPageHeader, AiGeneralSection, AiGeneralSettingRow } from '../components/ai-general-settings-layout';
+} from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-controls';
+import { AiMarkdownDescription } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-markdown-description';
+import { AiConfigurationPageHeader } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-page-header';
+import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
+import { AiConfigurationSettingRow } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-setting-row';
+import { PREFERENCE_NAME_ENABLE_AI } from '../../../common/ai-ide-preferences';
 
 /** Documentation on Theia's AI capabilities, linked from the hero's cost/data disclosure. */
 const AI_DOCUMENTATION_URL = 'https://theia-ide.org/docs/user_ai/';
@@ -165,11 +167,11 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
 
     renderPage(ctx: AiConfigurationRenderContext): React.ReactNode {
         const enabled = this.isEnabled(ctx);
-        return <div className='ai-general-page'>
+        return <div className='ai-configuration-page'>
             {this.renderHeader()}
             {this.renderHero(ctx, enabled)}
             {!enabled && this.renderGateNote()}
-            <div className={`ai-general-sections${enabled ? '' : ' ai-general-off'}`}>
+            <div className={`ai-configuration-sections${enabled ? '' : ' ai-configuration-sections-off'}`}>
                 {this.renderRequestsSection(ctx, !enabled)}
                 {this.renderChatSection(ctx, !enabled)}
             </div>
@@ -182,26 +184,26 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
 
     protected renderHeader(): React.ReactNode {
         const title = nls.localize('theia/ai/ide/generalConfiguration/pageTitle', 'AI Features');
-        return <AiGeneralPageHeader
+        return <AiConfigurationPageHeader
             title={title}
             subtitle={nls.localize('theia/ai/ide/generalConfiguration/pageSubtitle', "Configure Theia's built-in AI capabilities, agents, and chat behavior.")}
         />;
     }
 
     protected renderHero(ctx: AiConfigurationRenderContext, enabled: boolean): React.ReactNode {
-        return <div className='ai-general-hero'>
-            <div className='ai-general-setting-top'>
-                <div className='ai-general-setting-main'>
-                    <div className='ai-general-setting-title'>
+        return <div className='ai-configuration-hero'>
+            <div className='ai-settings-row-top'>
+                <div className='ai-settings-row-main'>
+                    <div className='ai-settings-row-title'>
                         {this.titleFor(PREFERENCE_NAME_ENABLE_AI)}
-                        <span className='ai-general-setting-id'>{PREFERENCE_NAME_ENABLE_AI}</span>
+                        <span className='ai-settings-row-id'>{PREFERENCE_NAME_ENABLE_AI}</span>
                     </div>
-                    <div className='ai-general-setting-description'>
+                    <div className='ai-settings-row-description'>
                         {nls.localize('theia/ai/ide/generalConfiguration/enableAiDescription',
                             'Turns on all AI capabilities of the Theia IDE. Requires at least one configured language model provider.')}
                     </div>
                 </div>
-                <div className='ai-general-setting-ctrl'>
+                <div className='ai-settings-row-control'>
                     <AiToggleSwitch
                         large
                         checked={enabled}
@@ -211,9 +213,9 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
                 </div>
             </div>
             {this.renderProviderStatus(ctx)}
-            <details className='ai-general-risks'>
+            <details className='ai-configuration-risks'>
                 <summary>{nls.localize('theia/ai/ide/generalConfiguration/aboutCosts', 'About costs and data usage')}</summary>
-                <div className='ai-general-risk-body'>
+                <div className='ai-configuration-risk-body'>
                     <AiMarkdownDescription
                         renderMarkdown={this.renderMarkdown}
                         markdown={nls.localize('theia/ai/ide/generalConfiguration/costsBody',
@@ -228,12 +230,12 @@ costs — monitor them closely. Requests may run continuously while agents are a
 
     protected renderProviderStatus(ctx: AiConfigurationRenderContext): React.ReactNode {
         if (this.hasReadyProvider) {
-            return <div className='ai-general-status-line'>
+            return <div className='ai-configuration-status-line'>
                 <span className='ai-configuration-status ai-configuration-status-on'></span>
                 <span>{nls.localize('theia/ai/ide/generalConfiguration/providerReady', 'A language model provider is configured and ready.')}</span>
             </div>;
         }
-        return <div className='ai-general-status-line'>
+        return <div className='ai-configuration-status-line'>
             <span className='ai-configuration-status ai-configuration-status-warn'></span>
             <span>
                 {nls.localize('theia/ai/ide/generalConfiguration/noProvider', 'No language model provider is configured yet.')}{' '}
@@ -246,7 +248,7 @@ costs — monitor them closely. Requests may run continuously while agents are a
     }
 
     protected renderGateNote(): React.ReactNode {
-        return <div className='ai-general-gate-note'>
+        return <div className='ai-configuration-gate-note'>
             <span className={codicon('info')}></span>
             <span>{nls.localize('theia/ai/ide/generalConfiguration/gateNote', 'The settings below take effect once Enable AI features is turned on.')}</span>
         </div>;
@@ -333,11 +335,11 @@ costs — monitor them closely. Requests may run continuously while agents are a
     }
 
     protected renderSection(title: string, rows: React.ReactNode[]): React.ReactNode {
-        return <AiGeneralSection title={title} key={title}>{rows}</AiGeneralSection>;
+        return <AiConfigurationSection title={title} key={title}>{rows}</AiConfigurationSection>;
     }
 
     /**
-     * Renders one setting row via the shared {@link AiGeneralSettingRow}: title with the real
+     * Renders one setting row via the shared {@link AiConfigurationSettingRow}: title with the real
      * preference id, the schema description, a control (inline via {@link options.control} or
      * full-width via {@link options.below}), and — when the value is overridden in the current
      * scope — a modified edge and a hover reset that clears the override.
@@ -349,7 +351,7 @@ costs — monitor them closely. Requests may run continuously while agents are a
         options: { control?: React.ReactNode; below?: React.ReactNode }
     ): React.ReactNode {
         const inspection = this.settingsRowService.inspect(preferenceId, ctx.scope);
-        return <AiGeneralSettingRow
+        return <AiConfigurationSettingRow
             key={preferenceId}
             preferenceId={preferenceId}
             title={this.titleFor(preferenceId)}

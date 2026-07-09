@@ -16,23 +16,19 @@
 
 import * as React from '@theia/core/shared/react';
 
-// The form controls used by the AI Features (General) page are the same unified controls shared by
-// every AI configuration page. They live in `@theia/ai-core-ui` so that all categories render them
-// identically; re-export them here so this package's existing import sites keep working.
-export {
-    AiChipEditor,
-    AiEditInSettingsButton,
-    AiEnumSelect,
-    AiNumberStepper,
-    AiPathInput,
-    AiSessionLimitControl,
-    AiTextInput,
-    AiToggleSwitch
-} from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-controls';
-export type { AiEnumOption, SessionLimitSpecialOption } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-controls';
+export interface AiMarkdownDescriptionProps {
+    /** Renders (trusted, already-localized) markdown into an element, e.g. via the core `MarkdownRenderer`. */
+    readonly renderMarkdown: (markdown: string) => HTMLElement;
+    readonly markdown: string;
+    /** Wrapper class; defaults to the shared settings-row description styling. */
+    readonly className?: string;
+}
 
-/** Renders a (trusted, already-localized) markdown description via the core renderer into a managed element. */
-export const AiMarkdownDescription: React.FC<{ renderMarkdown: (markdown: string) => HTMLElement; markdown: string }> = ({ renderMarkdown, markdown }) => {
+/**
+ * Renders a (trusted, already-localized) markdown description via the provided renderer into a
+ * managed element. Shared by every AI configuration page so descriptions render consistently.
+ */
+export const AiMarkdownDescription: React.FC<AiMarkdownDescriptionProps> = ({ renderMarkdown, markdown, className }) => {
     // eslint-disable-next-line no-null/no-null
     const host = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => {
@@ -43,5 +39,5 @@ export const AiMarkdownDescription: React.FC<{ renderMarkdown: (markdown: string
         node.replaceChildren(renderMarkdown(markdown));
         return () => node.replaceChildren();
     }, [renderMarkdown, markdown]);
-    return <div className='ai-general-setting-description' ref={host}></div>;
+    return <div className={className ?? 'ai-settings-row-description'} ref={host}></div>;
 };

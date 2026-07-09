@@ -64,8 +64,8 @@ describe('GeneralConfigurationCategory', () => {
     it('indexes one search item per setting, deep-linking to the row', () => {
         const category = createCategory();
         const items = category.getSearchItems();
-        // master toggle (hero) + Agents (2) + Prompts & requests (2) + Chat (5) + Notifications (1)
-        expect(items).to.have.lengthOf(11);
+        // master toggle (hero) + Requests (1) + Chat (5)
+        expect(items).to.have.lengthOf(7);
         const enableAi = items.find(item => item.keywords?.startsWith('ai-features.AiEnable.enableAI'));
         expect(enableAi).to.not.equal(undefined);
         // The master toggle authors its own title, so it does not fall back to the schema label.

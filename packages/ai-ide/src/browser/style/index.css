@@ -21,7 +21,6 @@
 @import "./ai-configuration-cards.css";
 @import "./ai-configuration-table.css";
 @import "./ai-configuration-hierarchical.css";
-@import "./ai-general-configuration.css";
 
 /* Import widget-specific styles */
 @import "./widgets/model-aliases-configuration.css";
