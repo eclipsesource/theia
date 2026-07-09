@@ -1,0 +1,299 @@
+/* Review Area Block Decoration Colors */
+.ai-review-block {
+    border-radius: 2px;
+}
+
+.ai-review-block.ai-review-area-color-0 {
+    background-color: rgba(30, 144, 255, 0.08);
+    border-left: 3px solid rgba(30, 144, 255, 0.5);
+}
+
+.ai-review-block.ai-review-area-color-1 {
+    background-color: rgba(50, 205, 50, 0.08);
+    border-left: 3px solid rgba(50, 205, 50, 0.5);
+}
+
+.ai-review-block.ai-review-area-color-2 {
+    background-color: rgba(255, 165, 0, 0.08);
+    border-left: 3px solid rgba(255, 165, 0, 0.5);
+}
+
+.ai-review-block.ai-review-area-color-3 {
+    background-color: rgba(186, 85, 211, 0.08);
+    border-left: 3px solid rgba(186, 85, 211, 0.5);
+}
+
+.ai-review-block.ai-review-area-color-4 {
+    background-color: rgba(255, 99, 71, 0.08);
+    border-left: 3px solid rgba(255, 99, 71, 0.5);
+}
+
+.ai-review-block.ai-review-area-color-5 {
+    background-color: rgba(0, 206, 209, 0.08);
+    border-left: 3px solid rgba(0, 206, 209, 0.5);
+}
+
+/* Glyph margin icons for review areas */
+.ai-review-glyph {
+    width: 10px !important;
+    height: 10px !important;
+    border-radius: 50%;
+    margin: auto;
+}
+
+.ai-review-glyph.ai-review-area-color-0 {
+    background-color: rgba(30, 144, 255, 0.7);
+}
+
+.ai-review-glyph.ai-review-area-color-1 {
+    background-color: rgba(50, 205, 50, 0.7);
+}
+
+.ai-review-glyph.ai-review-area-color-2 {
+    background-color: rgba(255, 165, 0, 0.7);
+}
+
+.ai-review-glyph.ai-review-area-color-3 {
+    background-color: rgba(186, 85, 211, 0.7);
+}
+
+.ai-review-glyph.ai-review-area-color-4 {
+    background-color: rgba(255, 99, 71, 0.7);
+}
+
+.ai-review-glyph.ai-review-area-color-5 {
+    background-color: rgba(0, 206, 209, 0.7);
+}
+
+/* AI Review Widget Styles */
+.ai-review-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.ai-review-view-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--theia-ui-padding) 0;
+}
+
+.ai-review-view-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--theia-descriptionForeground);
+    gap: var(--theia-ui-padding);
+}
+
+.ai-review-view-empty .codicon {
+    font-size: calc(var(--theia-ui-font-size1) * 2.5);
+    opacity: 0.5;
+}
+
+/* Change Set */
+.ai-review-changeset {
+    border-bottom: var(--theia-border-width) solid var(--theia-widget-border);
+}
+
+.ai-review-changeset-header {
+    display: flex;
+    align-items: center;
+    gap: var(--theia-ui-padding);
+    padding: var(--theia-ui-padding) calc(var(--theia-ui-padding) * 2);
+    cursor: pointer;
+}
+
+.ai-review-changeset-header:hover {
+    background-color: var(--theia-list-hoverBackground);
+}
+
+.ai-review-changeset-label {
+    flex: 1;
+    font-weight: 500;
+}
+
+.ai-review-changeset-badge {
+    font-size: var(--theia-ui-font-size0);
+    color: var(--theia-descriptionForeground);
+}
+
+.ai-review-changeset-body {
+    padding: 0 calc(var(--theia-ui-padding) * 2) var(--theia-ui-padding);
+}
+
+.ai-review-button {
+    padding: calc(var(--theia-ui-padding) / 2) var(--theia-ui-padding);
+    font-size: var(--theia-ui-font-size0);
+}
+
+/* Review Result */
+.ai-review-result {
+    margin-bottom: var(--theia-ui-padding);
+}
+
+.ai-review-summary {
+    display: flex;
+    gap: var(--theia-ui-padding);
+    padding: var(--theia-ui-padding);
+    background-color: var(--theia-editorWidget-background);
+    border-radius: 3px;
+    margin-bottom: var(--theia-ui-padding);
+    font-size: var(--theia-ui-font-size1);
+    line-height: 1.5;
+}
+
+/* Review Area */
+.ai-review-area {
+    border: var(--theia-border-width) solid var(--theia-widget-border);
+    border-radius: 3px;
+    margin-bottom: var(--theia-ui-padding);
+    overflow: hidden;
+}
+
+.ai-review-area.disposition-reviewed {
+    border-color: var(--theia-successBackground);
+}
+
+.ai-review-area.disposition-needs-work {
+    border-color: var(--theia-editorWarning-foreground);
+}
+
+.ai-review-area.disposition-dismissed {
+    opacity: 0.6;
+}
+
+.ai-review-area-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--theia-ui-padding);
+    background-color: var(--theia-editor-background);
+}
+
+.ai-review-area-label {
+    font-weight: 500;
+}
+
+.ai-review-area-disposition {
+    font-size: var(--theia-ui-font-size0);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.ai-review-area-disposition.reviewed {
+    background-color: var(--theia-successBackground);
+    color: var(--theia-editor-background);
+}
+
+.ai-review-area-disposition.needs-work {
+    background-color: var(--theia-editorWarning-foreground);
+    color: var(--theia-editor-background);
+}
+
+.ai-review-area-disposition.dismissed {
+    background-color: var(--theia-descriptionForeground);
+    color: var(--theia-editor-background);
+}
+
+.ai-review-area-description {
+    padding: var(--theia-ui-padding);
+    color: var(--theia-descriptionForeground);
+    font-size: var(--theia-ui-font-size1);
+    line-height: 1.4;
+}
+
+.ai-review-area-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--theia-ui-padding) / 2);
+    padding: 0 var(--theia-ui-padding) var(--theia-ui-padding);
+}
+
+.ai-review-area-file-link {
+    color: var(--theia-textLink-foreground);
+    cursor: pointer;
+    font-size: var(--theia-ui-font-size0);
+}
+
+.ai-review-area-file-link:hover {
+    color: var(--theia-textLink-activeForeground);
+    text-decoration: underline;
+}
+
+.ai-review-area-actions {
+    display: flex;
+    gap: calc(var(--theia-ui-padding) / 2);
+    padding: 0 var(--theia-ui-padding) var(--theia-ui-padding);
+}
+
+.ai-review-disposition-btn {
+    padding: 2px 8px;
+    font-size: var(--theia-ui-font-size0);
+    background-color: var(--theia-button-secondaryBackground);
+    color: var(--theia-button-secondaryForeground);
+    border: var(--theia-border-width) solid var(--theia-widget-border);
+}
+
+.ai-review-disposition-btn.active {
+    background-color: var(--theia-button-background);
+    color: var(--theia-button-foreground);
+    border-color: var(--theia-button-background);
+}
+
+/* File List */
+.ai-review-file-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.ai-review-file-item {
+    display: flex;
+    align-items: center;
+    gap: var(--theia-ui-padding);
+    padding: calc(var(--theia-ui-padding) / 2) var(--theia-ui-padding);
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.ai-review-file-item:hover {
+    background-color: var(--theia-list-hoverBackground);
+}
+
+.ai-review-file-status {
+    font-family: var(--theia-code-font-family);
+    font-size: var(--theia-ui-font-size0);
+    font-weight: 600;
+    width: 16px;
+    text-align: center;
+}
+
+.ai-review-file-status.added {
+    color: var(--theia-gitDecoration-addedResourceForeground, #81b88b);
+}
+
+.ai-review-file-status.deleted {
+    color: var(--theia-errorForeground);
+}
+
+.ai-review-file-status.modified {
+    color: var(--theia-gitDecoration-modifiedResourceForeground, #e2c08d);
+}
+
+.ai-review-file-status.renamed {
+    color: var(--theia-descriptionForeground);
+}
+
+.ai-review-file-name {
+    font-weight: 500;
+}
+
+.ai-review-file-path {
+    color: var(--theia-descriptionForeground);
+    font-size: var(--theia-ui-font-size0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

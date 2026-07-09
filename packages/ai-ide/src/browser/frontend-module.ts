@@ -130,6 +130,14 @@ import { AIFirstPerspectiveContribution } from './ai-first-perspective-contribut
 import { ChatSessionListService } from './chat-session-list-service';
 import { AISessionsWidget } from './ai-sessions-widget';
 import { AISessionsViewContribution } from './ai-sessions-view-contribution';
+import { ReviewChangeSetProvider } from './review/review-changeset-provider';
+import { ReviewChangeSetService } from './review/review-changeset-service';
+import { GitWorktreeChangeSetProvider } from './review/git-worktree-changeset-provider';
+import { ReviewStorageService } from './review/review-storage-service';
+import { ReviewSummaryService } from './review/review-summary-agent';
+import { ReviewDiffDecorator } from './review/review-diff-decorator';
+import { AIReviewWidget } from './review/ai-review-widget';
+import { AIReviewViewContribution } from './review/ai-review-view-contribution';
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(PreferenceContribution).toConstantValue({ schema: aiIdePreferenceSchema });
@@ -370,4 +378,22 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
         .inSingletonScope();
     bindViewContribution(bind, AISessionsViewContribution);
     bind(TabBarToolbarContribution).toService(AISessionsViewContribution);
+
+    bind(ReviewChangeSetService).toSelf().inSingletonScope();
+    bindRootContributionProvider(bind, ReviewChangeSetProvider);
+    bind(GitWorktreeChangeSetProvider).toSelf().inSingletonScope();
+    bind(ReviewChangeSetProvider).toService(GitWorktreeChangeSetProvider);
+    bind(ReviewStorageService).toSelf().inSingletonScope();
+    bind(ReviewSummaryService).toSelf().inSingletonScope();
+    bind(ReviewDiffDecorator).toSelf().inSingletonScope();
+
+    bind(AIReviewWidget).toSelf();
+    bind(WidgetFactory)
+        .toDynamicValue(ctx => ({
+            id: AIReviewWidget.ID,
+            createWidget: () => ctx.container.get(AIReviewWidget)
+        }))
+        .inSingletonScope();
+    bindViewContribution(bind, AIReviewViewContribution);
+    bind(TabBarToolbarContribution).toService(AIReviewViewContribution);
 });
