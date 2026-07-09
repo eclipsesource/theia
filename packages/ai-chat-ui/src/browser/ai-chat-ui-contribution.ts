@@ -314,8 +314,7 @@ export class AIChatContribution extends AbstractViewContribution<ChatViewWidget>
                 await this.openView({ activate: true });
                 this.chatService.setActiveSession(sessionId, { focus: false });
             },
-            isVisible: () => this.activationService.isActive,
-            isEnabled: () => this.activationService.canRun,
+            isVisible: () => false,
         });
         registry.registerCommand(AI_CHAT_SHOW_CHATS_COMMAND, {
             execute: async () => {
