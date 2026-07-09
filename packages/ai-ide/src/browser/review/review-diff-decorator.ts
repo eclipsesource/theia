@@ -20,6 +20,7 @@ import { EditorDecoration, EditorDecorationOptions, EditorManager, TextEditor, T
 import { MonacoDiffEditor } from '@theia/monaco/lib/browser/monaco-diff-editor';
 import { DiffUris } from '@theia/core/lib/browser/diff-uris';
 import URI from '@theia/core/lib/common/uri';
+import { Range } from '@theia/core/shared/vscode-languageserver-protocol';
 import { ReviewResult, ReviewArea } from './review-model';
 
 const AREA_COLORS = [
@@ -145,6 +146,15 @@ export class ReviewDiffDecorator {
             const colorClass = AREA_COLORS[areaIndex % AREA_COLORS.length];
             const matchingFiles = area.files.filter(f => filePath.endsWith(f.path));
             for (const areaFile of matchingFiles) {
+                const hasHunkComments = areaFile.hunkRefs.some(ref => ref.comment);
+
+                // If the file has its own comment AND hunks have their own comments,
+                // add a file-level marker on line 1 so the file comment is visible
+                if (areaFile.comment && hasHunkComments) {
+                    const fileRange = Range.create(0, 0, 0, 0);
+                    decorations.push(this.createAreaDecoration(area, colorClass, fileRange, areaFile.comment));
+                }
+
                 for (let rangeIndex = 0; rangeIndex < areaFile.ranges.length; rangeIndex++) {
                     const range = areaFile.ranges[rangeIndex];
                     const hunkRef = areaFile.hunkRefs[rangeIndex];
@@ -196,7 +206,7 @@ export class ReviewDiffDecorator {
     protected createAreaDecoration(
         area: ReviewArea,
         colorClass: string,
-        range: import('@theia/core/shared/vscode-languageserver-protocol').Range,
+        range: Range,
         comment: string
     ): EditorDecoration {
         const options: EditorDecorationOptions = {
