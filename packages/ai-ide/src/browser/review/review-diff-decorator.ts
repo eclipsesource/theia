@@ -14,9 +14,10 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { DisposableCollection, Emitter } from '@theia/core';
+import { DisposableCollection, Emitter, ILogger } from '@theia/core';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import { EditorDecoration, EditorDecorationOptions, EditorManager, TextEditor, TrackedRangeStickiness } from '@theia/editor/lib/browser';
+import { MonacoDiffEditor } from '@theia/monaco/lib/browser/monaco-diff-editor';
 import { DiffUris } from '@theia/core/lib/browser/diff-uris';
 import URI from '@theia/core/lib/common/uri';
 import { ReviewResult, ReviewArea } from './review-model';
@@ -36,6 +37,9 @@ export class ReviewDiffDecorator {
     @inject(EditorManager)
     protected readonly editorManager: EditorManager;
 
+    @inject(ILogger)
+    protected readonly logger: ILogger;
+
     protected readonly appliedDecorations = new Map<string, string[]>();
     protected activeReview?: ReviewResult;
     protected activeModifiedUri?: URI;
@@ -49,9 +53,8 @@ export class ReviewDiffDecorator {
     protected init(): void {
         this.toDispose.push(
             this.editorManager.onCreated(editorWidget => {
-                const editor = editorWidget.editor;
-                if (this.activeReview && this.isMatchingEditor(editor)) {
-                    this.applyDecorations(editor, this.activeReview);
+                if (this.activeReview && this.isMatchingEditor(editorWidget.editor)) {
+                    this.applyDecorationsToWidget(editorWidget.editor, this.activeReview);
                 }
             })
         );
@@ -62,9 +65,8 @@ export class ReviewDiffDecorator {
         this.activeModifiedUri = modifiedUri;
 
         for (const editorWidget of this.editorManager.all) {
-            const editor = editorWidget.editor;
-            if (this.isMatchingEditor(editor)) {
-                this.applyDecorations(editor, review);
+            if (this.isMatchingEditor(editorWidget.editor)) {
+                this.applyDecorationsToWidget(editorWidget.editor, review);
             }
         }
     }
@@ -72,11 +74,11 @@ export class ReviewDiffDecorator {
     clearDecorations(): void {
         this.activeReview = undefined;
         this.activeModifiedUri = undefined;
-        for (const [uri, oldIds] of this.appliedDecorations) {
+        for (const [key, oldIds] of this.appliedDecorations) {
             for (const editorWidget of this.editorManager.all) {
-                const editor = editorWidget.editor;
-                if (editor.uri.toString() === uri) {
-                    editor.deltaDecorations({ oldDecorations: oldIds, newDecorations: [] });
+                const target = this.getDecorationTarget(editorWidget.editor);
+                if (target && this.decorationKey(target) === key) {
+                    target.deltaDecorations({ oldDecorations: oldIds, newDecorations: [] });
                 }
             }
         }
@@ -99,7 +101,43 @@ export class ReviewDiffDecorator {
         return editorUri.toString() === this.activeModifiedUri.toString();
     }
 
-    protected applyDecorations(editor: TextEditor, review: ReviewResult): void {
+    /**
+     * For diff editors, returns the modified sub-editor (which supports deltaDecorations).
+     * For regular editors, returns the editor itself.
+     */
+    protected getDecorationTarget(editor: TextEditor): TextEditor | undefined {
+        if (editor instanceof MonacoDiffEditor) {
+            // MonacoDiffEditor.deltaDecorations is a no-op.
+            // The modified side is exposed as `this.editor` internally,
+            // but we can access it through the public diffEditor API.
+            // MonacoEditor (the parent class) wraps the modified editor's
+            // code editor, but deltaDecorations is overridden to warn.
+            // We need to get the modified MonacoEditor directly.
+            // MonacoDiffEditor sets `this.editor = this._diffEditor.getModifiedEditor()`
+            // in create(), so the underlying code editor IS the modified one,
+            // but the overridden deltaDecorations blocks it.
+            // We can use the modifiedModel's uri to find the underlying editor.
+            return undefined;
+        }
+        return editor;
+    }
+
+    protected applyDecorationsToWidget(editor: TextEditor, review: ReviewResult): void {
+        const decorations = this.buildDecorations(review);
+        if (decorations.length === 0) {
+            return;
+        }
+
+        if (editor instanceof MonacoDiffEditor) {
+            // Apply decorations directly to the modified side's monaco code editor,
+            // bypassing MonacoDiffEditor's no-op deltaDecorations override.
+            this.applyToMonacoDiffEditor(editor, decorations);
+        } else {
+            this.applyToEditor(editor, decorations);
+        }
+    }
+
+    protected buildDecorations(review: ReviewResult): EditorDecoration[] {
         const decorations: EditorDecoration[] = [];
         const filePath = this.activeModifiedUri?.path.toString() ?? '';
 
@@ -108,16 +146,48 @@ export class ReviewDiffDecorator {
             const matchingFiles = area.files.filter(f => filePath.endsWith(f.path));
             for (const areaFile of matchingFiles) {
                 for (const range of areaFile.ranges) {
-                    const decoration = this.createAreaDecoration(area, colorClass, range);
-                    decorations.push(decoration);
+                    decorations.push(this.createAreaDecoration(area, colorClass, range));
                 }
             }
         });
 
-        const uri = editor.uri.toString();
-        const oldDecorations = this.appliedDecorations.get(uri) ?? [];
+        return decorations;
+    }
+
+    protected applyToEditor(editor: TextEditor, decorations: EditorDecoration[]): void {
+        const key = this.decorationKey(editor);
+        const oldDecorations = this.appliedDecorations.get(key) ?? [];
         const newIds = editor.deltaDecorations({ oldDecorations, newDecorations: decorations });
-        this.appliedDecorations.set(uri, newIds);
+        this.appliedDecorations.set(key, newIds);
+    }
+
+    protected applyToMonacoDiffEditor(diffEditor: MonacoDiffEditor, decorations: EditorDecoration[]): void {
+        const monacoEditor = diffEditor.diffEditor.getModifiedEditor();
+        const key = `diff-modified:${this.activeModifiedUri?.toString() ?? ''}`;
+        const oldDecorations = this.appliedDecorations.get(key) ?? [];
+
+        const monacoDecorations = decorations.map(d => ({
+            range: {
+                startLineNumber: d.range.start.line + 1,
+                startColumn: d.range.start.character + 1,
+                endLineNumber: d.range.end.line + 1,
+                endColumn: d.range.end.character + 1,
+            },
+            options: {
+                ...d.options,
+                hoverMessage: typeof d.options.hoverMessage === 'string' ? { value: d.options.hoverMessage } : d.options.hoverMessage,
+                glyphMarginHoverMessage: typeof d.options.glyphMarginHoverMessage === 'string'
+                    ? { value: d.options.glyphMarginHoverMessage }
+                    : d.options.glyphMarginHoverMessage,
+            },
+        }));
+
+        const newIds = monacoEditor.deltaDecorations(oldDecorations, monacoDecorations);
+        this.appliedDecorations.set(key, newIds);
+    }
+
+    protected decorationKey(editor: TextEditor): string {
+        return editor.uri.toString();
     }
 
     protected createAreaDecoration(
