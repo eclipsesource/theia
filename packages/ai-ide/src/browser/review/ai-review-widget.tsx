@@ -175,9 +175,10 @@ export class AIReviewWidget extends ReactWidget {
                         <span
                             key={f.path}
                             className='ai-review-area-file-link'
+                            title={f.path}
                             onClick={() => this.openAreaFile(reviewId, area, f.path)}
                         >
-                            {f.path}
+                            {f.path.split('/').pop()}
                         </span>
                     ))}
                 </div>
