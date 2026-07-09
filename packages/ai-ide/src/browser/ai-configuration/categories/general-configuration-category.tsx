@@ -14,7 +14,6 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { PREFERENCE_NAME_MAX_RETRIES } from '@theia/ai-core/lib/common/ai-core-preferences';
 import { FrontendLanguageModelRegistry } from '@theia/ai-core/lib/common/language-model';
 import {
     BYPASS_MODEL_REQUIREMENT_PREF,
@@ -39,7 +38,6 @@ import {
 import { AiSettingsRowService } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
 import {
     AiEnumSelect,
-    AiNumberStepper,
     AiSessionLimitControl,
     AiToggleSwitch
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-controls';
@@ -60,8 +58,8 @@ interface GeneralSettingRef {
 /**
  * The General category: a `single-page` category that presents the top-level `ai-features.*`
  * preferences as a curated "AI Features" page. A hero card hosts the master enablement toggle
- * and LLM-provider status; the dependent settings are grouped into Agents, Prompts & requests,
- * Chat and Notifications sections and are visually gated while the master toggle is off.
+ * and LLM-provider status; the dependent settings are grouped into a Chat section and are
+ * visually gated while the master toggle is off.
  *
  * All values are read and written through {@link AiSettingsRowService} (backed by the
  * {@link PreferenceService}), so the page stays live-synced with `settings.json` and the
@@ -126,7 +124,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
     /** The page's sections and their settings, shared by rendering and the search index. */
     protected getSectionRefs(): GeneralSettingRef[] {
         return [
-            { section: this.sectionRequests, preferenceId: PREFERENCE_NAME_MAX_RETRIES },
             { section: this.sectionChat, preferenceId: PIN_CHAT_AGENT_PREF },
             { section: this.sectionChat, preferenceId: BYPASS_MODEL_REQUIREMENT_PREF },
             { section: this.sectionChat, preferenceId: PERSISTED_SESSION_LIMIT_PREF },
@@ -135,9 +132,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
         ];
     }
 
-    protected get sectionRequests(): string {
-        return nls.localize('theia/ai/ide/generalConfiguration/requestsSection', 'Requests');
-    }
     protected get sectionChat(): string {
         return nls.localizeByDefault('Chat');
     }
@@ -147,8 +141,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
         switch (preferenceId) {
             case PREFERENCE_NAME_ENABLE_AI:
                 return nls.localizeByDefault('Enable AI features');
-            case PREFERENCE_NAME_MAX_RETRIES:
-                return nls.localize('theia/ai/ide/generalConfiguration/maxRetriesTitle', 'Maximum retries');
             case PIN_CHAT_AGENT_PREF:
                 return nls.localize('theia/ai/ide/generalConfiguration/pinAgentTitle', 'Pin mentioned agents');
             case BYPASS_MODEL_REQUIREMENT_PREF:
@@ -170,7 +162,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
             {this.renderHero(ctx, enabled)}
             {!enabled && this.renderGateNote()}
             <div className={`ai-configuration-sections${enabled ? '' : ' ai-configuration-sections-off'}`}>
-                {this.renderRequestsSection(ctx, !enabled)}
                 {this.renderChatSection(ctx, !enabled)}
             </div>
         </div>;
@@ -242,22 +233,6 @@ costs — monitor them closely. Requests may run continuously while agents are a
             <span className={codicon('info')}></span>
             <span>{nls.localize('theia/ai/ide/generalConfiguration/gateNote', 'The settings below take effect once Enable AI features is turned on.')}</span>
         </div>;
-    }
-
-    protected renderRequestsSection(ctx: AiConfigurationRenderContext, disabled: boolean): React.ReactNode {
-        return this.renderSection(this.sectionRequests, [
-            this.renderSettingRow(ctx, PREFERENCE_NAME_MAX_RETRIES, disabled, {
-                control: <AiNumberStepper
-                    value={this.numberValue(PREFERENCE_NAME_MAX_RETRIES, ctx, 3)}
-                    ariaLabel={this.titleFor(PREFERENCE_NAME_MAX_RETRIES)}
-                    min={0}
-                    max={10}
-                    unit={nls.localize('theia/ai/ide/generalConfiguration/retriesUnit', 'retries')}
-                    disabled={disabled}
-                    onCommit={value => this.commit(PREFERENCE_NAME_MAX_RETRIES, value, ctx)}
-                />
-            })
-        ]);
     }
 
     protected renderChatSection(ctx: AiConfigurationRenderContext, disabled: boolean): React.ReactNode {
