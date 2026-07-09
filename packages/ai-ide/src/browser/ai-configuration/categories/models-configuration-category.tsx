@@ -118,7 +118,6 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
         const providers = this.getProviderSections();
         return <div className='ai-general-page'>
             <AiGeneralPageHeader
-                crumbs={[nls.localizeByDefault('Preferences'), this.label]}
                 title={this.label}
                 subtitle={nls.localize('theia/ai/ide/modelsConfiguration/pageSubtitle',
                     'Configure the language-model providers and cross-provider model defaults.')}
@@ -144,7 +143,6 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
         }
         return <div className='ai-general-page'>
             <AiGeneralPageHeader
-                crumbs={[nls.localizeByDefault('Preferences'), this.label, section.title]}
                 title={section.title}
             />
             <AiGeneralSection title={nls.localizeByDefault('Settings')}>

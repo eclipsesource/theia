@@ -183,7 +183,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
     protected renderHeader(): React.ReactNode {
         const title = nls.localize('theia/ai/ide/generalConfiguration/pageTitle', 'AI Features');
         return <AiGeneralPageHeader
-            crumbs={[nls.localizeByDefault('Preferences'), title]}
             title={title}
             subtitle={nls.localize('theia/ai/ide/generalConfiguration/pageSubtitle', "Configure Theia's built-in AI capabilities, agents, and chat behavior.")}
         />;

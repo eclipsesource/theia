@@ -35,18 +35,12 @@ import {
  * renderer and the commit/reset callbacks (wired to `AiSettingsRowService`).
  */
 
-/** Sticky page header: breadcrumb trail (last crumb emphasized), title and optional subtitle. */
-export const AiGeneralPageHeader: React.FC<{ crumbs: string[]; title: string; subtitle?: string }> = ({ crumbs, title, subtitle }) => (
+/**
+ * Sticky page header: title and optional subtitle. The `Category / Item` breadcrumb is owned by the
+ * detail host (shell) and rendered once above the page, so the header itself carries no breadcrumb.
+ */
+export const AiGeneralPageHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
     <div className='ai-general-head'>
-        <div className='ai-general-crumbs'>
-            {crumbs.map((crumb, index) => {
-                const last = index === crumbs.length - 1;
-                return <React.Fragment key={`${crumb}-${index}`}>
-                    {index > 0 && <span className={`ai-general-crumbs-sep ${codicon('chevron-right')}`}></span>}
-                    {last ? <b>{crumb}</b> : <span>{crumb}</span>}
-                </React.Fragment>;
-            })}
-        </div>
         <h1 className='ai-general-head-title'>{title}</h1>
         {subtitle && <p className='ai-general-head-subtitle'>{subtitle}</p>}
     </div>

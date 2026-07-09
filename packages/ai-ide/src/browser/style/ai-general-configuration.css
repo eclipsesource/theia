@@ -33,24 +33,6 @@
   border-bottom: var(--theia-border-width) solid var(--theia-widget-border);
 }
 
-.ai-general-crumbs {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--theia-ui-padding) / 2);
-  font-size: var(--theia-ui-font-size0);
-  color: var(--theia-descriptionForeground);
-  margin-bottom: calc(var(--theia-ui-padding) / 2);
-}
-
-.ai-general-crumbs-sep {
-  font-size: var(--theia-ui-font-size0);
-}
-
-.ai-general-crumbs b {
-  color: var(--theia-foreground);
-  font-weight: 600;
-}
-
 .ai-general-head-title {
   font-size: var(--theia-ui-font-size3);
   font-weight: 600;
