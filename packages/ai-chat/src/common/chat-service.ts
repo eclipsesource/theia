@@ -224,6 +224,31 @@ export class ChatServiceImpl implements ChatService {
     }
 
     async deleteSession(sessionId: string): Promise<void> {
+        // Delete children (sessions whose rootSessionId points to this session) first. Children may
+        // live only in memory, only in persisted storage (e.g. after a reload, not yet restored),
+        // or both, so collect ids from both sources to avoid orphaning persisted-only children.
+        const childIds = new Set<string>();
+        for (const s of this._sessions) {
+            if (s.rootSessionId === sessionId) {
+                childIds.add(s.id);
+            }
+        }
+        if (this.sessionStore) {
+            try {
+                const index = await this.sessionStore.getSessionIndex();
+                for (const metadata of Object.values(index)) {
+                    if (metadata.rootSessionId === sessionId) {
+                        childIds.add(metadata.sessionId);
+                    }
+                }
+            } catch (error) {
+                this.logger.error('Failed to read session index for cascade delete', { sessionId, error });
+            }
+        }
+        for (const childId of childIds) {
+            await this.deleteSession(childId);
+        }
+
         const sessionIndex = this._sessions.findIndex(candidate => candidate.id === sessionId);
 
         // If session is in memory, remove it
@@ -458,9 +483,14 @@ export class ChatServiceImpl implements ChatService {
         // Store session with title, pinned agent info, last interaction timestamp, and error state
         const lastRequest = session.model.getRequests().at(-1);
         const hasError = lastRequest?.response.isComplete === true && lastRequest?.response.isError === true;
-        return this.sessionStore.storeSessions(
-            { model: session.model, title: session.title, pinnedAgentId: session.pinnedAgent?.id, lastInteraction: session.lastInteraction?.getTime(), hasError }
-        ).catch(error => {
+        return this.sessionStore.storeSessions({
+            model: session.model,
+            title: session.title,
+            pinnedAgentId: session.pinnedAgent?.id,
+            lastInteraction: session.lastInteraction?.getTime(),
+            hasError,
+            rootSessionId: session.rootSessionId
+        }).catch(error => {
             this.logger.error('Failed to store chat sessions', error);
         });
     }
@@ -517,8 +547,10 @@ export class ChatServiceImpl implements ChatService {
             lastInteraction: new Date(serialized.saveDate),
             model,
             isActive: false,
-            pinnedAgent
+            pinnedAgent,
+            rootSessionId: serialized.rootSessionId
         };
+        session.model.rootSessionId = serialized.rootSessionId;
         this._sessions.push(session);
         this.setupAutoSaveForSession(session);
         this.onSessionEventEmitter.fire({ type: 'created', sessionId: session.id });
