@@ -44,7 +44,6 @@ import {
     AiToggleSwitch
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-controls';
 import { AiMarkdownDescription } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-markdown-description';
-import { AiConfigurationPageHeader } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-page-header';
 import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
 import { AiConfigurationSettingRow } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-setting-row';
 import { PREFERENCE_NAME_ENABLE_AI } from '../../../common/ai-ide-preferences';
@@ -168,7 +167,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
     renderPage(ctx: AiConfigurationRenderContext): React.ReactNode {
         const enabled = this.isEnabled(ctx);
         return <div className='ai-configuration-page'>
-            {this.renderHeader()}
             {this.renderHero(ctx, enabled)}
             {!enabled && this.renderGateNote()}
             <div className={`ai-configuration-sections${enabled ? '' : ' ai-configuration-sections-off'}`}>
@@ -180,14 +178,6 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
 
     protected isEnabled(ctx: AiConfigurationRenderContext): boolean {
         return this.settingsRowService.inspect(PREFERENCE_NAME_ENABLE_AI, ctx.scope).value === true;
-    }
-
-    protected renderHeader(): React.ReactNode {
-        const title = nls.localize('theia/ai/ide/generalConfiguration/pageTitle', 'AI Features');
-        return <AiConfigurationPageHeader
-            title={title}
-            subtitle={nls.localize('theia/ai/ide/generalConfiguration/pageSubtitle', "Configure Theia's built-in AI capabilities, agents, and chat behavior.")}
-        />;
     }
 
     protected renderHero(ctx: AiConfigurationRenderContext, enabled: boolean): React.ReactNode {

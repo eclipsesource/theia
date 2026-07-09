@@ -31,7 +31,6 @@ import { AiConfigurationItemCard } from './ai-configuration-item-card';
 import { AiConfigurationEmptyState } from './ai-configuration-empty-state';
 import { AiConfigurationSection } from './ai-configuration-section';
 import { AiConfigurationItemDetailHeader } from './ai-configuration-item-detail-header';
-import { AiConfigurationPageHeader } from './ai-configuration-page-header';
 import { AiConfigurationSettingRow } from './ai-configuration-setting-row';
 
 disableJSDOM();
@@ -113,12 +112,6 @@ describe('AI Configuration primitives', () => {
     it('AiConfigurationItemDetailHeader renders title and subtitle', () => {
         const tree = AiConfigurationItemDetailHeader({ title: 'Coder', subtitle: 'agent-id-1' });
         expect(textOf(tree)).to.include('Coder').and.to.include('agent-id-1');
-    });
-
-    it('AiConfigurationPageHeader renders the title and optional subtitle', () => {
-        const tree = AiConfigurationPageHeader({ title: 'AI Features', subtitle: 'Configure Theia' });
-        expect(classNames(tree)).to.include('ai-configuration-page-header');
-        expect(textOf(tree)).to.include('AI Features').and.to.include('Configure Theia');
     });
 
     it('AiConfigurationSettingRow shows the preference id and, when modified, a reset affordance', () => {

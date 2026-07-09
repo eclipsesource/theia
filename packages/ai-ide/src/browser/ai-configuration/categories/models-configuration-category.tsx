@@ -29,7 +29,6 @@ import {
     AiConfigurationTreeItem
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
 import { AiSettingsRowService } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-settings-row-service';
-import { AiConfigurationPageHeader } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-page-header';
 import { AiConfigurationSection } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-section';
 import { AiConfigurationItemCard } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-item-card';
 import { AiConfigurationEmptyState } from '@theia/ai-core-ui/lib/browser/ai-configuration/components/ai-configuration-empty-state';
@@ -66,10 +65,10 @@ interface ModelsSection {
  * registered `ai-features.<provider>.*` preferences, so any installed provider package contributes
  * a node here without ai-ide having to depend on it.
  *
- * The page uses the shared configuration primitives — a sticky {@link AiConfigurationPageHeader} plus
- * {@link AiConfigurationSection} settings sections — so every category renders consistently. The overview
- * shows the cross-provider model settings (`ai-features.modelSettings.*`, `ai-features.reasoning.*`) and
- * the providers as a card grid; selecting a provider node shows that provider's settings.
+ * The page uses the shared {@link AiConfigurationSection} settings sections so every category renders
+ * consistently. The overview shows the cross-provider model settings (`ai-features.modelSettings.*`,
+ * `ai-features.reasoning.*`) and the providers as a card grid; selecting a provider node shows that
+ * provider's settings.
  */
 @injectable()
 export class ModelsConfigurationCategory implements AiConfigurationCategory, AiConfigurationSearchProvider {
@@ -118,11 +117,6 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
         const modelSettings = this.getModelSettingsSection();
         const providers = this.getProviderSections();
         return <div className='ai-configuration-page'>
-            <AiConfigurationPageHeader
-                title={this.label}
-                subtitle={nls.localize('theia/ai/ide/modelsConfiguration/pageSubtitle',
-                    'Configure the language-model providers and cross-provider model defaults.')}
-            />
             {modelSettings && <AiConfigurationSection title={modelSettings.title}>
                 {modelSettings.preferenceIds.map(preferenceId => this.renderPreferenceRow(ctx, preferenceId))}
             </AiConfigurationSection>}
@@ -150,9 +144,6 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
             return undefined;
         }
         return <div className='ai-configuration-page'>
-            <AiConfigurationPageHeader
-                title={section.title}
-            />
             <AiConfigurationSection title={nls.localizeByDefault('Settings')}>
                 {section.preferenceIds.map(preferenceId => this.renderPreferenceRow(ctx, preferenceId))}
             </AiConfigurationSection>

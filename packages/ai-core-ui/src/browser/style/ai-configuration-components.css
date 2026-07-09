@@ -25,28 +25,6 @@
   padding-bottom: calc(var(--theia-ui-padding) * 4);
 }
 
-/* Sticky page header (title + optional subtitle). */
-.ai-configuration-page-header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--theia-editor-background);
-  padding: calc(var(--theia-ui-padding) * 1.5) 0 var(--theia-ui-padding);
-  border-bottom: var(--theia-border-width) solid var(--theia-widget-border);
-}
-
-.ai-configuration-page-header-title {
-  font-size: var(--theia-ui-font-size3);
-  font-weight: 600;
-  margin: 0 0 2px;
-}
-
-.ai-configuration-page-header-subtitle {
-  margin: 0;
-  color: var(--theia-descriptionForeground);
-  font-size: var(--theia-ui-font-size1);
-}
-
 /* Section */
 .ai-configuration-section {
   display: flex;
