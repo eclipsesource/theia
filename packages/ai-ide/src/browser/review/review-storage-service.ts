@@ -187,7 +187,9 @@ export class ReviewStorageService {
     }
 
     async store(review: ReviewResult): Promise<void> {
-        await this.deleteByChangeSetId(review.changeSetId);
+        // Remove other reviews for the same change set (enforces 1:1),
+        // but skip the review being stored (avoids delete/recreate on update)
+        await this.deleteOtherReviewsForChangeSet(review.changeSetId, review.id);
 
         this.reviews.set(review.id, review);
         const storageUri = this.getStorageLocation();
@@ -204,6 +206,18 @@ export class ReviewStorageService {
         const toDelete: string[] = [];
         for (const [id, review] of this.reviews) {
             if (review.changeSetId === changeSetId) {
+                toDelete.push(id);
+            }
+        }
+        for (const id of toDelete) {
+            await this.delete(id);
+        }
+    }
+
+    protected async deleteOtherReviewsForChangeSet(changeSetId: string, excludeId: string): Promise<void> {
+        const toDelete: string[] = [];
+        for (const [id, review] of this.reviews) {
+            if (review.changeSetId === changeSetId && id !== excludeId) {
                 toDelete.push(id);
             }
         }
@@ -254,6 +268,9 @@ export class ReviewStorageService {
         }
         const area = review.areas.find(a => a.id === areaId);
         if (!area) {
+            return;
+        }
+        if (area.disposition === disposition) {
             return;
         }
         area.disposition = disposition;

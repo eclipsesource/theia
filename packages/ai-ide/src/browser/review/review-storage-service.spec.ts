@@ -175,6 +175,123 @@ describe('ReviewStorageService', () => {
         });
     });
 
+    describe('store (in-place update)', () => {
+
+        it('should not delete the review being stored (same ID, same changeSetId)', async () => {
+            const review = createReview('review-cs1', 'cs-1');
+            review.areas = [{
+                id: 'area-1',
+                label: 'Area 1',
+                description: 'Desc',
+                files: [],
+            }];
+            await service.store(review);
+
+            // Mutate and store again with the same ID
+            review.areas[0].disposition = 'reviewed';
+            await service.store(review);
+
+            expect(service.get('review-cs1')).to.not.be.undefined;
+            expect(service.get('review-cs1')!.areas[0].disposition).to.equal('reviewed');
+            expect(service.getAll()).to.have.length(1);
+        });
+
+        it('should delete other reviews for same changeSetId but keep the one being stored', async () => {
+            const old = createReview('review-old', 'cs-1');
+            service.reviewMap.set(old.id, old);
+
+            const fresh = createReview('review-new', 'cs-1');
+            await service.store(fresh);
+
+            expect(service.get('review-old')).to.be.undefined;
+            expect(service.get('review-new')).to.deep.equal(fresh);
+            expect(service.getAll()).to.have.length(1);
+        });
+    });
+
+    describe('updateDisposition', () => {
+
+        it('should update the disposition of an area', async () => {
+            const review = createReview('review-1', 'cs-1');
+            review.areas = [{
+                id: 'area-1',
+                label: 'Area 1',
+                description: 'Desc',
+                files: [],
+            }];
+            service.reviewMap.set(review.id, review);
+
+            await service.updateDisposition('review-1', 'area-1', 'reviewed');
+
+            expect(service.get('review-1')!.areas[0].disposition).to.equal('reviewed');
+        });
+
+        it('should skip store when disposition is unchanged (no-op)', async () => {
+            const review = createReview('review-1', 'cs-1');
+            review.areas = [{
+                id: 'area-1',
+                label: 'Area 1',
+                description: 'Desc',
+                files: [],
+                disposition: 'reviewed',
+            }];
+            service.reviewMap.set(review.id, review);
+
+            let changeCount = 0;
+            service.onDidChange(() => changeCount++);
+
+            await service.updateDisposition('review-1', 'area-1', 'reviewed');
+
+            // No event should have fired since disposition didn't change
+            expect(changeCount).to.equal(0);
+        });
+
+        it('should fire onDidChange when disposition actually changes', async () => {
+            const review = createReview('review-1', 'cs-1');
+            review.areas = [{
+                id: 'area-1',
+                label: 'Area 1',
+                description: 'Desc',
+                files: [],
+            }];
+            service.reviewMap.set(review.id, review);
+
+            let changeCount = 0;
+            service.onDidChange(() => changeCount++);
+
+            await service.updateDisposition('review-1', 'area-1', 'reviewed');
+
+            expect(changeCount).to.equal(1);
+        });
+
+        it('should be a no-op when reviewId does not exist', async () => {
+            let changeCount = 0;
+            service.onDidChange(() => changeCount++);
+
+            await service.updateDisposition('nonexistent', 'area-1', 'reviewed');
+
+            expect(changeCount).to.equal(0);
+        });
+
+        it('should be a no-op when areaId does not exist', async () => {
+            const review = createReview('review-1', 'cs-1');
+            review.areas = [{
+                id: 'area-1',
+                label: 'Area 1',
+                description: 'Desc',
+                files: [],
+            }];
+            service.reviewMap.set(review.id, review);
+
+            let changeCount = 0;
+            service.onDidChange(() => changeCount++);
+
+            await service.updateDisposition('review-1', 'nonexistent', 'reviewed');
+
+            expect(changeCount).to.equal(0);
+        });
+    });
+
     describe('serialization round-trip for comments', () => {
 
         it('should preserve file-level and hunk-level comments through serialize/parse', () => {
