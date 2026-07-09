@@ -173,9 +173,15 @@ ${diffs}`;
         for (const area of areas) {
             for (const areaFile of area.files) {
                 const fileHunks = this.findFileHunks(hunkMap, areaFile.path);
-                areaFile.ranges = (areaFile.hunkRefs ?? [])
-                    .map(ref => this.resolveRef(ref, fileHunks))
-                    .filter((r): r is Range => r !== undefined);
+
+                if ((!areaFile.hunkRefs || areaFile.hunkRefs.length === 0) && fileHunks && fileHunks.size > 0) {
+                    // AI listed the file but provided no hunk references — default to all hunks
+                    areaFile.ranges = [...fileHunks.values()].map(h => h.modifiedRange);
+                } else {
+                    areaFile.ranges = (areaFile.hunkRefs ?? [])
+                        .map(ref => this.resolveRef(ref, fileHunks))
+                        .filter((r): r is Range => r !== undefined);
+                }
             }
         }
     }

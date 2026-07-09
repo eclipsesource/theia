@@ -54,6 +54,9 @@ How to reference hunks:
 - You MAY split a single hunk across multiple areas when the hunk contains distinct logical changes \
 (e.g., two function definitions added in the same block)
 - You MUST NOT reference lines outside of any hunk — only changed lines are reviewable
+- Every file listed in an area MUST include at least one hunkRef. If the entire file belongs to the area, \
+reference all of its hunks (e.g., {"hunkId": "hunk-1"} for a new file with one hunk). Do NOT leave \
+hunkRefs as an empty array
 
 Guidelines:
 - Group related changes into logical "areas" (e.g., "New authentication middleware", "Database schema migration")

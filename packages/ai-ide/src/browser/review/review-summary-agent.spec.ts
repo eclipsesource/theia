@@ -234,8 +234,45 @@ describe('ReviewSummaryService — hunk resolution', () => {
             expect(warnings).to.have.length(1);
         });
 
-        it('should handle empty hunkRefs gracefully', () => {
-            const cs = makeChangeSet([makeHunk('hunk-1', 10, 20)]);
+        it('should fall back to all file hunks when hunkRefs is empty', () => {
+            const cs = makeChangeSet([
+                makeHunk('hunk-1', 10, 20),
+                makeHunk('hunk-2', 50, 60),
+            ]);
+            const areas: ReviewArea[] = [
+                makeArea([makeAreaFile('src/module.ts', [])]),
+            ];
+
+            service.resolveHunkRanges(areas, cs);
+
+            expect(areas[0].files[0].ranges).to.have.length(2);
+            expect(areas[0].files[0].ranges[0]).to.deep.equal(Range.create(10, 0, 20, 0));
+            expect(areas[0].files[0].ranges[1]).to.deep.equal(Range.create(50, 0, 60, 0));
+        });
+
+        it('should fall back to all file hunks when hunkRefs field is missing', () => {
+            const cs = makeChangeSet([makeHunk('hunk-1', 5, 15)]);
+            const areas: ReviewArea[] = [
+                makeArea([{ path: 'src/module.ts', hunkRefs: undefined as unknown as HunkRef[], ranges: [] }]),
+            ];
+
+            service.resolveHunkRanges(areas, cs);
+
+            expect(areas[0].files[0].ranges).to.have.length(1);
+            expect(areas[0].files[0].ranges[0]).to.deep.equal(Range.create(5, 0, 15, 0));
+        });
+
+        it('should return empty ranges when hunkRefs is empty and file has no hunks', () => {
+            const cs: ReviewChangeSet = {
+                id: 'cs-1',
+                label: 'test',
+                source: 'test',
+                files: [{
+                    uri: new URI('file:///test/src/module.ts'),
+                    status: 'modified',
+                    hunks: [],
+                }],
+            };
             const areas: ReviewArea[] = [
                 makeArea([makeAreaFile('src/module.ts', [])]),
             ];
