@@ -122,7 +122,34 @@ export class AiSettingsRowService {
 
     /** Renders a markdown description into a detached element for use in a React `ref`. */
     renderMarkdown(markdown: string): HTMLElement {
-        return this.markdownRenderer.render(new MarkdownStringImpl(markdown)).element;
+        return this.markdownRenderer.render(new MarkdownStringImpl(this.normalizeMarkdown(markdown))).element;
+    }
+
+    /**
+     * Strips the common leading indentation from a markdown description before rendering.
+     *
+     * Preference `markdownDescription`s are commonly authored as indented, multi-line JavaScript
+     * string literals, which leaves every continuation line prefixed with the source indentation.
+     * That accidental indentation makes markdown-it collapse bullet lists and paragraphs into a
+     * single dense block, so the description reads as an unstructured run-on. Removing the shared
+     * indentation (ignoring the first line, which starts right after the opening quote) restores
+     * the intended paragraph and list structure while preserving relative indentation, so nested
+     * lists stay nested.
+     */
+    protected normalizeMarkdown(markdown: string): string {
+        const lines = markdown.split('\n');
+        let common = Number.POSITIVE_INFINITY;
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line.trim()) {
+                continue;
+            }
+            common = Math.min(common, line.length - line.trimStart().length);
+        }
+        if (!Number.isFinite(common) || common === 0) {
+            return markdown;
+        }
+        return lines.map((line, index) => (index === 0 ? line : line.slice(common))).join('\n');
     }
 
     /**

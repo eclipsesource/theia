@@ -167,6 +167,38 @@ describe('AiSettingsRowService', () => {
         });
     });
 
+    describe('normalizeMarkdown', () => {
+        const normalize = (markdown: string): string =>
+            (new AiSettingsRowService() as unknown as { normalizeMarkdown(md: string): string }).normalizeMarkdown(markdown);
+
+        it('strips the shared indentation of continuation lines so lists render as lists', () => {
+            const raw = [
+                'Allows custom settings.',
+                '            Each setting consists of:',
+                '            - `scope`: when it applies',
+                '              - `modelId` (optional)',
+                '            - `requestSettings`: values'
+            ].join('\n');
+            const expected = [
+                'Allows custom settings.',
+                'Each setting consists of:',
+                '- `scope`: when it applies',
+                '  - `modelId` (optional)',
+                '- `requestSettings`: values'
+            ].join('\n');
+            expect(normalize(raw)).to.equal(expected);
+        });
+
+        it('leaves single-line and already-flush descriptions untouched', () => {
+            expect(normalize('A short description.')).to.equal('A short description.');
+            expect(normalize('First line.\nSecond line.')).to.equal('First line.\nSecond line.');
+        });
+
+        it('ignores blank lines when computing the shared indentation', () => {
+            expect(normalize('Intro.\n\n    - item')).to.equal('Intro.\n\n- item');
+        });
+    });
+
     describe('set / reset', () => {
         it('writes to the mapped preference scope', () => {
             const { service, preferences } = createService({});

@@ -133,12 +133,40 @@
 .ai-settings-row-description {
   color: var(--theia-descriptionForeground);
   font-size: var(--theia-ui-font-size1);
-  margin-top: 3px;
-  max-width: 60ch;
+  line-height: 1.5;
+  margin-top: 4px;
+  max-width: 68ch;
 }
 
-.ai-settings-row-description p {
+.ai-settings-row-description p,
+.ai-settings-row-description ul,
+.ai-settings-row-description ol {
   margin: 0;
+}
+
+/* Vertical rhythm between adjacent markdown blocks so long, structured descriptions
+   (paragraphs followed by lists) stay scannable instead of collapsing together. */
+.ai-settings-row-description :is(p, ul, ol) + :is(p, ul, ol) {
+  margin-top: calc(var(--theia-ui-padding) / 1.5);
+}
+
+.ai-settings-row-description ul,
+.ai-settings-row-description ol {
+  padding-left: 1.6em;
+}
+
+.ai-settings-row-description li + li {
+  margin-top: 3px;
+}
+
+/* Keep nested lists snug under their parent item. */
+.ai-settings-row-description li > ul,
+.ai-settings-row-description li > ol {
+  margin-top: 3px;
+}
+
+.ai-settings-row-description a {
+  color: var(--theia-textLink-foreground);
 }
 
 .ai-settings-row-description code {
