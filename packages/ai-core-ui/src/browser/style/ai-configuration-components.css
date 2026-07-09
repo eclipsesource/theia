@@ -82,7 +82,7 @@
    right (or full-width below), a left modified edge and a hover-revealed reset when overridden. */
 .ai-settings-row {
   position: relative;
-  padding: calc(var(--theia-ui-padding) * 1.5) var(--theia-ui-padding) calc(var(--theia-ui-padding) * 1.5) calc(var(--theia-ui-padding) * 1.5);
+  padding: calc(var(--theia-ui-padding) * 1.5) var(--theia-ui-padding) calc(var(--theia-ui-padding) * 1.5) calc(var(--theia-ui-padding) * 2);
   margin: 2px calc(var(--theia-ui-padding) * -1);
   border-radius: 4px;
 }
@@ -94,11 +94,12 @@
 .ai-settings-row.modified::before {
   content: "";
   position: absolute;
-  left: 4px;
-  top: 16px;
-  bottom: 16px;
+  left: 0;
+  top: 0;
+  bottom: 0;
   width: 3px;
-  border-radius: 2px;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
   background: var(--theia-editorGutter-modifiedBackground, var(--theia-focusBorder));
 }
 
