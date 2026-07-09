@@ -307,6 +307,7 @@ export class AIReviewWidget extends ReactWidget {
             } else {
                 const uri = file.modifiedUri ?? file.originalUri ?? file.uri;
                 await open(this.openerService, uri);
+                this.diffDecorator.setActiveReview(review, uri);
             }
         } catch (error) {
             this.logger.error(`Failed to open area file '${filePath}':`, error);
