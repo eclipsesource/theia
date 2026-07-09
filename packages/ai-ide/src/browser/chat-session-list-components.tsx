@@ -15,6 +15,7 @@
 // *****************************************************************************
 
 import { ChatAgentService, ChatService, ChatSessionMetadata } from '@theia/ai-chat';
+import { AI_CHAT_OPEN_SESSION } from '@theia/ai-chat-ui/lib/browser/chat-view-commands';
 import { formatTimeAgo } from '@theia/ai-chat-ui/lib/browser/chat-date-utils';
 import { buttonKeyboardProps, HoverService, isActivationKey } from '@theia/core/lib/browser';
 import { MarkdownRenderer } from '@theia/core/lib/browser/markdown-rendering/markdown-renderer';
@@ -98,8 +99,7 @@ export function createSessionItemRenderer(deps: SessionItemHandlerDeps): {
                 markdownRenderer={deps.markdownRenderer}
                 unreadState={deps.unreadState}
                 onClick={async () => {
-                    await deps.chatService.getOrRestoreSession(session.sessionId);
-                    deps.chatService.setActiveSession(session.sessionId, { focus: true });
+                    await deps.commandRegistry.executeCommand(AI_CHAT_OPEN_SESSION.id, session.sessionId);
                 }}
                 actions={actions}
                 onAction={(action: ChatSessionItemAction, s: ChatSessionMetadata) => {

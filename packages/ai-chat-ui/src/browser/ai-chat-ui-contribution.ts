@@ -25,6 +25,7 @@ import { PerspectiveService } from '@theia/core/lib/browser/perspective-service'
 import { ContextKey, ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import {
     AI_CHAT_HOME,
+    AI_CHAT_OPEN_SESSION,
     AI_CHAT_SHOW_CHATS_COMMAND,
     AI_FIRST_PERSPECTIVE_ID,
     ChatCommands
@@ -303,6 +304,18 @@ export class AIChatContribution extends AbstractViewContribution<ChatViewWidget>
             },
             isVisible: () => this.activationService.isActive,
             isEnabled: () => this.activationService.canRun
+        });
+        registry.registerCommand(AI_CHAT_OPEN_SESSION, {
+            execute: async (sessionId: string) => {
+                const session = await this.chatService.getOrRestoreSession(sessionId);
+                if (!session) {
+                    throw new Error(`Chat session '${sessionId}' not found`);
+                }
+                await this.openView({ activate: true });
+                this.chatService.setActiveSession(sessionId, { focus: false });
+            },
+            isVisible: () => this.activationService.isActive,
+            isEnabled: () => this.activationService.canRun,
         });
         registry.registerCommand(AI_CHAT_SHOW_CHATS_COMMAND, {
             execute: async () => {
