@@ -154,10 +154,14 @@ export class GitWorktreeChangeSetProvider implements ReviewChangeSetProvider {
         if (!file.originalUri || !file.modifiedUri) {
             return [];
         }
-        const [originalContent, modifiedContent] = await Promise.all([
-            this.readOriginalContent(file.originalUri),
-            this.readFileContent(file.modifiedUri),
-        ]);
+        let originalContent: string;
+        try {
+            originalContent = await this.readOriginalContent(file.originalUri);
+        } catch {
+            this.logger.info(`Cannot read original for ${file.uri.path.base}, treating as new file`);
+            return this.computeAddedFileHunks(file);
+        }
+        const modifiedContent = await this.readFileContent(file.modifiedUri);
 
         const originalLines = ContentLines.arrayLike(ContentLines.fromString(originalContent));
         const modifiedLines = ContentLines.arrayLike(ContentLines.fromString(modifiedContent));
@@ -231,7 +235,9 @@ export class GitWorktreeChangeSetProvider implements ReviewChangeSetProvider {
 
     protected resolveStatus(letter?: string): ReviewFileChange['status'] {
         switch (letter) {
-            case 'A': return 'added';
+            case 'A':
+            case 'U':
+                return 'added';
             case 'D': return 'deleted';
             case 'R': return 'renamed';
             default: return 'modified';

@@ -32,8 +32,9 @@ describe('GitWorktreeChangeSetProvider — hunk computation', () => {
         readOriginalStub = sinon.stub(provider as unknown as { readOriginalContent: unknown }, 'readOriginalContent');
 
         // Provide a mock logger
-        (provider as unknown as { logger: { warn: (msg: string) => void } }).logger = {
+        (provider as unknown as { logger: { warn: (msg: string) => void; info: (msg: string) => void } }).logger = {
             warn: () => { },
+            info: () => { },
         };
     });
 
@@ -186,14 +187,50 @@ describe('GitWorktreeChangeSetProvider — hunk computation', () => {
             expect(hunks).to.be.empty;
         });
 
-        it('should return empty hunks on read error', async () => {
+        it('should fall back to added-file hunks when original is unreadable', async () => {
             const file = makeFile('modified');
             readOriginalStub.rejects(new Error('File not found'));
-            readFileStub.resolves('line 1');
+            readFileStub.resolves('line 1\nline 2');
 
             const hunks = await provider.computeHunks(file);
 
-            expect(hunks).to.be.empty;
+            expect(hunks).to.have.length(1);
+            expect(hunks[0].id).to.equal('hunk-1');
+            expect(hunks[0].type).to.equal('added');
+            expect(hunks[0].content).to.include('+ line 1');
+            expect(hunks[0].content).to.include('+ line 2');
+        });
+    });
+
+    describe('resolveStatus', () => {
+        it('should map letter A to added', () => {
+            const status = (provider as unknown as { resolveStatus: (letter?: string) => string }).resolveStatus('A');
+            expect(status).to.equal('added');
+        });
+
+        it('should map letter U to added', () => {
+            const status = (provider as unknown as { resolveStatus: (letter?: string) => string }).resolveStatus('U');
+            expect(status).to.equal('added');
+        });
+
+        it('should map letter D to deleted', () => {
+            const status = (provider as unknown as { resolveStatus: (letter?: string) => string }).resolveStatus('D');
+            expect(status).to.equal('deleted');
+        });
+
+        it('should map letter R to renamed', () => {
+            const status = (provider as unknown as { resolveStatus: (letter?: string) => string }).resolveStatus('R');
+            expect(status).to.equal('renamed');
+        });
+
+        it('should map letter M to modified', () => {
+            const status = (provider as unknown as { resolveStatus: (letter?: string) => string }).resolveStatus('M');
+            expect(status).to.equal('modified');
+        });
+
+        it('should map undefined to modified', () => {
+            const status = (provider as unknown as { resolveStatus: (letter?: string) => string }).resolveStatus(undefined);
+            expect(status).to.equal('modified');
         });
     });
 });
