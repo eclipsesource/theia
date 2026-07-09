@@ -28,8 +28,6 @@ export interface AiConfigurationCategoryNode extends SelectableTreeNode, Composi
     readonly type: 'category';
     readonly categoryId: string;
     readonly iconClass: string;
-    /** Number of collection children; `undefined` for single-page categories. */
-    readonly count?: number;
     readonly contributed: boolean;
     children: AiConfigurationItemNode[];
     expanded?: boolean;
@@ -73,7 +71,7 @@ export interface AiConfigurationTreeBuildOptions {
 /**
  * Builds the (invisible) root of the AI Configuration category tree from the
  * ordered list of categories. Extracted as a pure function so the tree shape
- * (counts, children, separator, expansion) can be tested without a DOM.
+ * (children, separator, expansion) can be tested without a DOM.
  */
 export namespace AiConfigurationTree {
 
@@ -120,7 +118,6 @@ export namespace AiConfigurationTree {
             name: category.label,
             iconClass: category.iconClass,
             contributed: !!category.contributed,
-            count: collection ? items.length : undefined,
             parent: undefined,
             children: [],
             selected: false

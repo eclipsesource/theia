@@ -218,16 +218,6 @@
   color: var(--theia-icon-foreground);
 }
 
-.ai-configuration-tree-badge {
-  min-width: 16px;
-  padding: 0 calc(var(--theia-ui-padding) / 2);
-  border-radius: 8px;
-  font-size: var(--theia-ui-font-size0);
-  text-align: center;
-  background-color: var(--theia-badge-background);
-  color: var(--theia-badge-foreground);
-}
-
 .ai-configuration-tree-separator .theia-TreeNodeContent {
   color: var(--theia-descriptionForeground);
   font-size: var(--theia-ui-font-size0);

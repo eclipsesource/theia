@@ -251,13 +251,6 @@ export class AiConfigurationTreeWidget extends TreeWidget {
         return super.renderIcon(node, props);
     }
 
-    protected override renderTailDecorations(node: TreeNode, props: NodeProps): React.ReactNode {
-        if (AiConfigurationCategoryNode.is(node) && node.count !== undefined) {
-            return <span className='ai-configuration-tree-badge'>{node.count}</span>;
-        }
-        return super.renderTailDecorations(node, props);
-    }
-
     protected override createNodeClassNames(node: TreeNode, props: NodeProps): string[] {
         const classNames = super.createNodeClassNames(node, props);
         if (AiConfigurationSeparatorNode.is(node)) {

@@ -45,24 +45,22 @@ describe('AiConfigurationTree.buildRoot', () => {
         expect(root.children).to.have.length(0);
     });
 
-    it('creates a non-expandable node without a count for a single-page category', () => {
+    it('creates a non-expandable node for a single-page category', () => {
         const root = AiConfigurationTree.buildRoot([category('general', 'single-page')]);
         const node = root.children[0] as AiConfigurationCategoryNode;
         expect(AiConfigurationCategoryNode.is(node)).to.equal(true);
         expect(node.id).to.equal(AiConfigurationTree.categoryNodeId('general'));
-        expect(node.count).to.equal(undefined);
         expect(ExpandableTreeNode.is(node)).to.equal(false);
         expect(node.children).to.have.length(0);
     });
 
-    it('creates an expandable node with a count and item children for a non-empty collection', () => {
+    it('creates an expandable node with item children for a non-empty collection', () => {
         const items: AiConfigurationTreeItem[] = [
             { id: 'a', label: 'Agent A' },
             { id: 'b', label: 'Agent B' }
         ];
         const root = AiConfigurationTree.buildRoot([category('agents', 'collection', { items })]);
         const node = root.children[0] as AiConfigurationCategoryNode;
-        expect(node.count).to.equal(2);
         expect(ExpandableTreeNode.isExpanded(node)).to.equal(true);
         expect(node.children.map(c => c.id)).to.deep.equal([
             AiConfigurationTree.itemNodeId('agents', 'a'),
@@ -74,10 +72,9 @@ describe('AiConfigurationTree.buildRoot', () => {
         expect(first.parent).to.equal(node);
     });
 
-    it('marks an empty collection as non-expandable with a zero count', () => {
+    it('marks an empty collection as non-expandable', () => {
         const root = AiConfigurationTree.buildRoot([category('variables', 'collection', { items: [] })]);
         const node = root.children[0] as AiConfigurationCategoryNode;
-        expect(node.count).to.equal(0);
         expect(ExpandableTreeNode.is(node)).to.equal(false);
     });
 
