@@ -14,8 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ChatAgentLocation, ChatService } from '@theia/ai-chat';
-import { ChatCommands } from '@theia/ai-chat-ui/lib/browser/chat-view-commands';
+import { AI_CHAT_HOME, ChatCommands } from '@theia/ai-chat-ui/lib/browser/chat-view-commands';
 import { AIViewContribution, ENABLE_AI_CONTEXT_KEY } from '@theia/ai-core/lib/browser';
 import { Command, CommandRegistry, nls } from '@theia/core';
 import { codicon } from '@theia/core/lib/browser';
@@ -35,8 +34,8 @@ export const AI_SESSIONS_NEW_SESSION = Command.toLocalizedCommand({
 @injectable()
 export class AISessionsViewContribution extends AIViewContribution<AISessionsWidget> implements TabBarToolbarContribution {
 
-    @inject(ChatService)
-    protected readonly chatService: ChatService;
+    @inject(CommandRegistry)
+    protected readonly commandRegistry: CommandRegistry;
 
     constructor() {
         super({
@@ -52,14 +51,7 @@ export class AISessionsViewContribution extends AIViewContribution<AISessionsWid
     override registerCommands(commands: CommandRegistry): void {
         super.registerCommands(commands);
         commands.registerCommand(AI_SESSIONS_NEW_SESSION, this.commandHandlerFactory({
-            execute: () => {
-                const activeSession = this.chatService.getActiveSession();
-                if (activeSession?.model.isEmpty()) {
-                    this.chatService.setActiveSession(activeSession.id, { focus: true });
-                } else {
-                    this.chatService.createSession(ChatAgentLocation.Panel, { focus: true });
-                }
-            }
+            execute: () => this.commandRegistry.executeCommand(AI_CHAT_HOME.id)
         }));
     }
 

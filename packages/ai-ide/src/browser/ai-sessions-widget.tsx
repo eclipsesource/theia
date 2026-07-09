@@ -14,12 +14,10 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ChatAgentService, ChatService, ChatSessionMetadata } from '@theia/ai-chat';
-import { formatTimeAgo } from '@theia/ai-chat-ui/lib/browser/chat-date-utils';
-import { ChatSessionItemAction, ChatSessionItemActionContribution } from './chat-session-item-action-contribution';
-import { ChatSessionItem } from './chat-session-item';
+import { ChatAgentService, ChatService } from '@theia/ai-chat';
+import { ChatSessionItemActionContribution } from './chat-session-item-action-contribution';
 import { ChatSessionListService } from './chat-session-list-service';
-import { SessionsList } from './chat-session-list-components';
+import { createSessionItemRenderer, SessionsList } from './chat-session-list-components';
 import { CommandRegistry, ContributionProvider, nls } from '@theia/core';
 import { codicon, HoverService, ReactWidget } from '@theia/core/lib/browser';
 import { MarkdownRenderer, MarkdownRendererFactory } from '@theia/core/lib/browser/markdown-rendering/markdown-renderer';
@@ -61,6 +59,22 @@ export class AISessionsWidget extends ReactWidget {
         return this._markdownRenderer;
     }
 
+    protected sessionItemRenderer: ReturnType<typeof createSessionItemRenderer> | undefined;
+    protected getSessionItemRenderer(): ReturnType<typeof createSessionItemRenderer> {
+        if (!this.sessionItemRenderer) {
+            this.sessionItemRenderer = createSessionItemRenderer({
+                chatService: this.chatService,
+                chatAgentService: this.chatAgentService,
+                hoverService: this.hoverService,
+                markdownRenderer: this.markdownRenderer,
+                commandRegistry: this.commandRegistry,
+                unreadState: this.sessionListService,
+                chatSessionItemActionContributions: this.chatSessionItemActionContributions
+            });
+        }
+        return this.sessionItemRenderer;
+    }
+
     @postConstruct()
     protected init(): void {
         this.id = AISessionsWidget.ID;
@@ -96,43 +110,10 @@ export class AISessionsWidget extends ReactWidget {
                 <SessionsList
                     sections={sections}
                     maxSessions={Number.MAX_SAFE_INTEGER}
-                    renderItem={this.renderSessionItem}
+                    renderItem={this.getSessionItemRenderer().renderSessionItem}
                     onBrowseAll={() => { }}
                 />
             </div>
         );
     }
-
-    protected renderSessionItem = (session: ChatSessionMetadata, isRestored: boolean): React.ReactNode => {
-        const actions = this.chatSessionItemActionContributions
-            .getContributions()
-            .flatMap(c => c.getActions(session))
-            .filter(action => this.commandRegistry.isEnabled(action.commandId, session))
-            .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
-        return (
-            <ChatSessionItem
-                key={session.sessionId}
-                session={session}
-                isRestored={isRestored}
-                chatService={this.chatService}
-                chatAgentService={this.chatAgentService}
-                hoverService={this.hoverService}
-                markdownRenderer={this.markdownRenderer}
-                unreadState={this.sessionListService}
-                onClick={() => this.handleSessionItemClick(session.sessionId)}
-                actions={actions}
-                onAction={this.handleSessionItemAction}
-                formatTimeAgo={date => formatTimeAgo(date)}
-            />
-        );
-    };
-
-    protected handleSessionItemAction = (action: ChatSessionItemAction, session: ChatSessionMetadata): void => {
-        this.commandRegistry.executeCommand(action.commandId, session);
-    };
-
-    protected handleSessionItemClick = async (sessionId: string): Promise<void> => {
-        await this.chatService.getOrRestoreSession(sessionId);
-        this.chatService.setActiveSession(sessionId, { focus: true });
-    };
 }

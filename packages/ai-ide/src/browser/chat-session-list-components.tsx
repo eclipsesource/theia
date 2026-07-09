@@ -14,10 +14,15 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ChatSessionMetadata } from '@theia/ai-chat';
-import { buttonKeyboardProps, isActivationKey } from '@theia/core/lib/browser';
+import { ChatAgentService, ChatService, ChatSessionMetadata } from '@theia/ai-chat';
+import { formatTimeAgo } from '@theia/ai-chat-ui/lib/browser/chat-date-utils';
+import { buttonKeyboardProps, HoverService, isActivationKey } from '@theia/core/lib/browser';
+import { MarkdownRenderer } from '@theia/core/lib/browser/markdown-rendering/markdown-renderer';
+import { CommandRegistry, ContributionProvider } from '@theia/core';
 import { nls } from '@theia/core/lib/common/nls';
 import * as React from '@theia/core/shared/react';
+import { ChatSessionItemAction, ChatSessionItemActionContribution } from './chat-session-item-action-contribution';
+import { ChatSessionItem, UnreadStateProvider } from './chat-session-item';
 
 /** When both Active and Restored sections are non-empty, keep at least this many Restored slots. */
 const RESTORED_MIN_RESERVATION = 5;
@@ -61,6 +66,50 @@ export interface SessionsListProps {
     maxSessions: number;
     renderItem: (session: ChatSessionMetadata, isRestored: boolean) => React.ReactNode;
     onBrowseAll: () => void;
+}
+
+export interface SessionItemHandlerDeps {
+    chatService: ChatService;
+    chatAgentService: ChatAgentService;
+    hoverService: HoverService;
+    markdownRenderer: MarkdownRenderer;
+    commandRegistry: CommandRegistry;
+    unreadState: UnreadStateProvider;
+    chatSessionItemActionContributions: ContributionProvider<ChatSessionItemActionContribution>;
+}
+
+export function createSessionItemRenderer(deps: SessionItemHandlerDeps): {
+    renderSessionItem: (session: ChatSessionMetadata, isRestored: boolean) => React.ReactNode;
+} {
+    const renderSessionItem = (session: ChatSessionMetadata, isRestored: boolean): React.ReactNode => {
+        const actions = deps.chatSessionItemActionContributions
+            .getContributions()
+            .flatMap(c => c.getActions(session))
+            .filter(action => deps.commandRegistry.isEnabled(action.commandId, session))
+            .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+        return (
+            <ChatSessionItem
+                key={session.sessionId}
+                session={session}
+                isRestored={isRestored}
+                chatService={deps.chatService}
+                chatAgentService={deps.chatAgentService}
+                hoverService={deps.hoverService}
+                markdownRenderer={deps.markdownRenderer}
+                unreadState={deps.unreadState}
+                onClick={async () => {
+                    await deps.chatService.getOrRestoreSession(session.sessionId);
+                    deps.chatService.setActiveSession(session.sessionId, { focus: true });
+                }}
+                actions={actions}
+                onAction={(action: ChatSessionItemAction, s: ChatSessionMetadata) => {
+                    deps.commandRegistry.executeCommand(action.commandId, s);
+                }}
+                formatTimeAgo={date => formatTimeAgo(date)}
+            />
+        );
+    };
+    return { renderSessionItem };
 }
 
 export function SessionsList({ sections, maxSessions, renderItem, onBrowseAll }: SessionsListProps): React.ReactElement {

@@ -15,16 +15,14 @@
 // *****************************************************************************
 
 import { ChatWelcomeMessageProvider } from '@theia/ai-chat-ui/lib/browser/chat-tree-view';
-import { formatTimeAgo } from '@theia/ai-chat-ui/lib/browser/chat-date-utils';
 import {
-    ChatAgentService, ChatService, ChatSessionMetadata
+    ChatAgentService, ChatService
 } from '@theia/ai-chat';
 import { BYPASS_MODEL_REQUIREMENT_PREF, WELCOME_SCREEN_SESSIONS_PREF } from '@theia/ai-chat/lib/common/ai-chat-preferences';
 import { AI_CHAT_SHOW_CHATS_COMMAND } from '@theia/ai-chat-ui/lib/browser/chat-view-commands';
-import { ChatSessionItemAction, ChatSessionItemActionContribution } from './chat-session-item-action-contribution';
-import { ChatSessionItem } from './chat-session-item';
+import { ChatSessionItemActionContribution } from './chat-session-item-action-contribution';
 import { ChatSessionListService } from './chat-session-list-service';
-import { SectionedSessions, SessionsList } from './chat-session-list-components';
+import { createSessionItemRenderer, SectionedSessions, SessionsList } from './chat-session-list-components';
 import { FrontendLanguageModelRegistry } from '@theia/ai-core/lib/common';
 import { CommandRegistry, ContributionProvider, Emitter, Event, PreferenceService } from '@theia/core';
 import { HoverService } from '@theia/core/lib/browser';
@@ -72,6 +70,22 @@ export class ChatSessionsWelcomeMessageProvider implements ChatWelcomeMessagePro
             this._markdownRenderer = this.markdownRendererFactory();
         }
         return this._markdownRenderer;
+    }
+
+    protected sessionItemRenderer: ReturnType<typeof createSessionItemRenderer> | undefined;
+    protected getSessionItemRenderer(): ReturnType<typeof createSessionItemRenderer> {
+        if (!this.sessionItemRenderer) {
+            this.sessionItemRenderer = createSessionItemRenderer({
+                chatService: this.chatService,
+                chatAgentService: this.chatAgentService,
+                hoverService: this.hoverService,
+                markdownRenderer: this.markdownRenderer,
+                commandRegistry: this.commandRegistry,
+                unreadState: this.sessionListService,
+                chatSessionItemActionContributions: this.chatSessionItemActionContributions
+            });
+        }
+        return this.sessionItemRenderer;
     }
 
     protected readonly onStateChangedEmitter = new Emitter<void>();
@@ -127,46 +141,13 @@ export class ChatSessionsWelcomeMessageProvider implements ChatWelcomeMessagePro
                     <SessionsList
                         sections={sections}
                         maxSessions={maxSessions}
-                        renderItem={this.renderSessionItem}
+                        renderItem={this.getSessionItemRenderer().renderSessionItem}
                         onBrowseAll={this.handleBrowseAllChats}
                     />
                 </div>
             </div>
         );
     }
-
-    protected renderSessionItem = (session: ChatSessionMetadata, isRestored: boolean): React.ReactNode => {
-        const actions = this.chatSessionItemActionContributions
-            .getContributions()
-            .flatMap(c => c.getActions(session))
-            .filter(action => this.commandRegistry.isEnabled(action.commandId, session))
-            .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
-        return (
-            <ChatSessionItem
-                key={session.sessionId}
-                session={session}
-                isRestored={isRestored}
-                chatService={this.chatService}
-                chatAgentService={this.chatAgentService}
-                hoverService={this.hoverService}
-                markdownRenderer={this.markdownRenderer}
-                unreadState={this.sessionListService}
-                onClick={() => this.handleSessionItemClick(session.sessionId)}
-                actions={actions}
-                onAction={this.handleSessionItemAction}
-                formatTimeAgo={date => formatTimeAgo(date)}
-            />
-        );
-    };
-
-    protected handleSessionItemAction = (action: ChatSessionItemAction, session: ChatSessionMetadata): void => {
-        this.commandRegistry.executeCommand(action.commandId, session);
-    };
-
-    protected handleSessionItemClick = async (sessionId: string): Promise<void> => {
-        await this.chatService.getOrRestoreSession(sessionId);
-        this.chatService.setActiveSession(sessionId, { focus: true });
-    };
 
     protected handleBrowseAllChats = (): void => {
         this.commandRegistry.executeCommand(AI_CHAT_SHOW_CHATS_COMMAND.id);

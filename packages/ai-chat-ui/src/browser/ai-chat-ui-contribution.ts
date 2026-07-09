@@ -26,6 +26,7 @@ import { ContextKey, ContextKeyService } from '@theia/core/lib/browser/context-k
 import {
     AI_CHAT_HOME,
     AI_CHAT_SHOW_CHATS_COMMAND,
+    AI_FIRST_PERSPECTIVE_ID,
     ChatCommands
 } from './chat-view-commands';
 import { ChatAgent, ChatAgentLocation, ChatService, ChatSessionMetadata, isActiveSessionChangedEvent } from '@theia/ai-chat';
@@ -404,7 +405,7 @@ export class AIChatContribution extends AbstractViewContribution<ChatViewWidget>
             isVisible: widget => this.activationService.isActive
                 && this.withWidget(widget)
                 && !this.activeSessionEmpty
-                && this.perspectiveService.getActivePerspectiveId() !== 'ai-first',
+                && this.perspectiveService.getActivePerspectiveId() !== AI_FIRST_PERSPECTIVE_ID,
             when: ENABLE_AI_CONTEXT_KEY
         });
         registry.registerItem({
