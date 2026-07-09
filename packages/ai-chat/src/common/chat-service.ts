@@ -360,6 +360,7 @@ export class ChatServiceImpl implements ChatService {
                     namingService.generateChatSessionName(session, otherSessionNames).then(name => {
                         if (name && session.title === requestText) {
                             session.title = name;
+                            this.onSessionEventEmitter.fire({ type: 'renamed', sessionId: session.id });
                             // Trigger persistence when title changes
                             this.saveSession(session.id);
                         }
