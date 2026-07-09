@@ -14,14 +14,17 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
+import { TaskContextStorageService } from '@theia/ai-chat/lib/browser/task-context-service';
 import { Emitter, ILogger, nls } from '@theia/core';
+import { generateUuid } from '@theia/core/lib/common/uuid';
 import URI from '@theia/core/lib/common/uri';
-import { codicon, open, OpenerService, ReactWidget } from '@theia/core/lib/browser';
+import { codicon, open, OpenerService, QuickInputService, ReactWidget } from '@theia/core/lib/browser';
 import { DiffUris } from '@theia/core/lib/browser/diff-uris';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import * as React from '@theia/core/shared/react';
-import { ReviewArea, ReviewAreaDisposition, ReviewChangeSet, ReviewFileChange, ReviewResult } from './review-model';
+import { ReviewArea, ReviewAreaDisposition, ReviewChangeSet, ReviewFileChange, ReviewIntent, ReviewResult } from './review-model';
 import { ReviewChangeSetService } from './review-changeset-service';
+import { ReviewIntentService } from './review-intent-service';
 import { ReviewStorageService } from './review-storage-service';
 import { ReviewSummaryService } from './review-summary-agent';
 import { ReviewDiffDecorator } from './review-diff-decorator';
@@ -47,12 +50,22 @@ export class AIReviewWidget extends ReactWidget {
     @inject(OpenerService)
     protected readonly openerService: OpenerService;
 
+    @inject(QuickInputService)
+    protected readonly quickInputService: QuickInputService;
+
+    @inject(ReviewIntentService)
+    protected readonly intentService: ReviewIntentService;
+
+    @inject(TaskContextStorageService)
+    protected readonly taskContextStorageService: TaskContextStorageService;
+
     @inject(ILogger)
     protected readonly logger: ILogger;
 
     protected changeSets: ReviewChangeSet[] = [];
     protected loading = false;
     protected expandedSets = new Set<string>();
+    protected manualNoteInputs = new Map<string, string>();
 
     protected readonly onDidSelectAreaEmitter = new Emitter<{ reviewId: string; areaId: string }>();
     readonly onDidSelectArea = this.onDidSelectAreaEmitter.event;
@@ -69,6 +82,7 @@ export class AIReviewWidget extends ReactWidget {
         this.toDispose.pushAll([
             this.changeSetService.onDidChange(() => this.refreshChangeSets()),
             this.storageService.onDidChange(() => this.update()),
+            this.intentService.onDidChange(() => this.update()),
             this.onDidSelectAreaEmitter,
         ]);
 
@@ -77,6 +91,9 @@ export class AIReviewWidget extends ReactWidget {
 
     async refreshChangeSets(): Promise<void> {
         this.changeSets = await this.changeSetService.getChangeSets();
+        if (this.changeSets.length > 0 && !this.intentService.activeChangeSetId) {
+            this.intentService.activeChangeSetId = this.changeSets[0].id;
+        }
         this.update();
     }
 
@@ -138,6 +155,7 @@ export class AIReviewWidget extends ReactWidget {
                 </div>
                 {isExpanded && (
                     <div className='ai-review-changeset-body'>
+                        {this.renderIntents(cs)}
                         {review && this.renderReviewResult(review)}
                         {this.renderFileList(cs)}
                     </div>
@@ -246,6 +264,137 @@ export class AIReviewWidget extends ReactWidget {
         this.update();
     }
 
+    protected renderIntents(cs: ReviewChangeSet): React.ReactNode {
+        const intents = this.intentService.getIntents(cs.id);
+        return (
+            <div className='ai-review-intents'>
+                <div className='ai-review-intents-header'>
+                    <span>{nls.localize('theia/ai-ide/intent', 'Intent')}</span>
+                    <button
+                        className='theia-button ai-review-button'
+                        onClick={() => this.addTaskContextIntent(cs)}
+                    >
+                        {nls.localize('theia/ai-ide/addFromTaskContext', 'Add from task context...')}
+                    </button>
+                </div>
+                {intents.map(intent => (
+                    <div key={intent.id} className='ai-review-intent-chip'>
+                        <span className={this.intentIcon(intent.source)} />
+                        <span className='ai-review-intent-chip-label'>{intent.label}</span>
+                        <button
+                            className='ai-review-intent-chip-remove'
+                            onClick={() => this.removeIntent(cs.id, intent.id)}
+                        >
+                            ×
+                        </button>
+                    </div>
+                ))}
+                <div className='ai-review-intent-manual'>
+                    <textarea
+                        className='theia-input ai-review-intent-textarea'
+                        placeholder={nls.localize('theia/ai-ide/addNote', 'Add a note...')}
+                        value={this.manualNoteInputs.get(cs.id) ?? ''}
+                        rows={1}
+                        onChange={e => this.onManualNoteChange(cs.id, e.target.value)}
+                        onFocus={e => e.currentTarget.classList.add('expanded')}
+                        onBlur={e => {
+                            if (!(this.manualNoteInputs.get(cs.id) ?? '').trim()) {
+                                e.currentTarget.classList.remove('expanded');
+                            }
+                        }}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                                if (e.ctrlKey || e.metaKey) {
+                                    const textarea = e.currentTarget;
+                                    const { selectionStart, selectionEnd } = textarea;
+                                    const value = textarea.value;
+                                    const newValue = value.substring(0, selectionStart) + '\n' + value.substring(selectionEnd);
+                                    this.onManualNoteChange(cs.id, newValue);
+                                    requestAnimationFrame(() => {
+                                        textarea.selectionStart = textarea.selectionEnd = selectionStart + 1;
+                                    });
+                                } else {
+                                    e.preventDefault();
+                                    this.addManualIntent(cs);
+                                }
+                            }
+                        }}
+                    />
+                    <button
+                        className='theia-button ai-review-button'
+                        onClick={() => this.addManualIntent(cs)}
+                    >
+                        {nls.localizeByDefault('Add')}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    protected intentIcon(source: ReviewIntent['source']): string {
+        switch (source) {
+            case 'task-context': return codicon('book');
+            case 'chat-session': return codicon('comment-discussion');
+            case 'manual': return codicon('note');
+        }
+    }
+
+    protected async addTaskContextIntent(cs: ReviewChangeSet): Promise<void> {
+        const taskContexts = this.taskContextStorageService.getAll();
+        if (taskContexts.length === 0) {
+            return;
+        }
+        const items = taskContexts.map(tc => ({
+            label: tc.label,
+            detail: tc.id,
+            value: tc,
+        }));
+        const quickPick = this.quickInputService.createQuickPick();
+        quickPick.items = items;
+        quickPick.placeholder = nls.localize('theia/ai-ide/selectTaskContext', 'Select a task context...');
+        quickPick.onDidAccept(async () => {
+            const selected = quickPick.selectedItems[0];
+            if (selected) {
+                const tc = (selected as typeof items[0]).value;
+                const full = await this.taskContextStorageService.get(tc.id);
+                const content = full?.summary ?? '';
+                this.intentService.addIntent(cs.id, {
+                    id: generateUuid(),
+                    source: 'task-context',
+                    label: tc.label,
+                    content,
+                });
+            }
+            quickPick.dispose();
+        });
+        quickPick.onDidHide(() => quickPick.dispose());
+        quickPick.show();
+    }
+
+    protected onManualNoteChange(changeSetId: string, value: string): void {
+        this.manualNoteInputs.set(changeSetId, value);
+        this.update();
+    }
+
+    protected addManualIntent(cs: ReviewChangeSet): void {
+        const text = (this.manualNoteInputs.get(cs.id) ?? '').trim();
+        if (!text) {
+            return;
+        }
+        this.intentService.addIntent(cs.id, {
+            id: generateUuid(),
+            source: 'manual',
+            label: text.length > 40 ? text.substring(0, 40) + '...' : text,
+            content: text,
+        });
+        this.manualNoteInputs.delete(cs.id);
+        this.update();
+    }
+
+    protected removeIntent(changeSetId: string, intentId: string): void {
+        this.intentService.removeIntent(changeSetId, intentId);
+    }
+
     protected async triggerReview(cs: ReviewChangeSet): Promise<void> {
         this.loading = true;
         this.update();
@@ -256,7 +405,8 @@ export class AIReviewWidget extends ReactWidget {
                 await this.storageService.delete(existing.id);
             }
 
-            const result = await this.summaryService.reviewChangeSet(cs);
+            const intents = this.intentService.getIntents(cs.id);
+            const result = await this.summaryService.reviewChangeSet(cs, intents.length > 0 ? intents : undefined);
             await this.storageService.store(result);
             this.expandedSets.add(cs.id);
         } catch (error) {

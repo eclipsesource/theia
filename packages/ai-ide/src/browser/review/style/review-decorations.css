@@ -297,3 +297,76 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* Intent Section */
+.ai-review-intents {
+    margin-bottom: var(--theia-ui-padding);
+    padding: var(--theia-ui-padding);
+    background-color: var(--theia-editorWidget-background);
+    border-radius: 3px;
+}
+
+.ai-review-intents-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--theia-ui-padding);
+    font-weight: 500;
+}
+
+.ai-review-intent-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--theia-ui-padding) / 2);
+    padding: 2px 8px;
+    margin: 0 calc(var(--theia-ui-padding) / 2) calc(var(--theia-ui-padding) / 2) 0;
+    background-color: var(--theia-button-secondaryBackground);
+    color: var(--theia-button-secondaryForeground);
+    border-radius: 12px;
+    font-size: var(--theia-ui-font-size0);
+}
+
+.ai-review-intent-chip-label {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ai-review-intent-chip-remove {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: var(--theia-ui-font-size1);
+    line-height: 1;
+    opacity: 0.7;
+}
+
+.ai-review-intent-chip-remove:hover {
+    opacity: 1;
+}
+
+.ai-review-intent-manual {
+    display: flex;
+    gap: calc(var(--theia-ui-padding) / 2);
+    margin-top: calc(var(--theia-ui-padding) / 2);
+    align-items: flex-start;
+}
+
+.ai-review-intent-textarea {
+    flex: 1;
+    font-size: var(--theia-ui-font-size0);
+    font-family: inherit;
+    resize: vertical;
+    min-height: calc(var(--theia-content-line-height) + 4px);
+    max-height: 150px;
+    transition: min-height 0.15s ease;
+    field-sizing: content;
+}
+
+.ai-review-intent-textarea.expanded,
+.ai-review-intent-textarea:focus {
+    min-height: calc(4 * var(--theia-content-line-height) + 4px);
+}

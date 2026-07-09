@@ -74,5 +74,11 @@ Guidelines:
 - Include accurate file paths matching the paths shown in the diff
 - The summary should capture the overall purpose of all changes together
 - For new files with a single hunk covering the whole file, reference that hunk without sub-ranges
-- Output only valid JSON, no markdown fences or extra text`
+- Output only valid JSON, no markdown fences or extra text
+
+When developer intent is provided:
+- Evaluate whether each area of changes aligns with the stated intent
+- Flag changes that seem unrelated to the intent (possible scope creep or unintended side effects)
+- Note when intent goals are partially or fully addressed by the changes
+- Use the intent to provide more specific, goal-oriented descriptions in area comments`
 };

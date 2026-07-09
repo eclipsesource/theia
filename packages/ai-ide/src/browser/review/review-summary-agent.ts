@@ -19,7 +19,7 @@ import { generateUuid } from '@theia/core/lib/common/uuid';
 import { ILogger } from '@theia/core';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { Range } from '@theia/core/shared/vscode-languageserver-protocol';
-import { DiffHunk, HunkRef, ReviewArea, ReviewAreaFile, ReviewChangeSet, ReviewResult } from './review-model';
+import { DiffHunk, HunkRef, ReviewArea, ReviewAreaFile, ReviewChangeSet, ReviewIntent, ReviewResult } from './review-model';
 import { REVIEW_SUMMARY_PROMPT_ID, reviewSummaryPromptTemplate } from './review-summary-prompt-template';
 
 @injectable()
@@ -34,7 +34,7 @@ export class ReviewSummaryService {
     @inject(ILogger)
     protected readonly logger: ILogger;
 
-    async reviewChangeSet(cs: ReviewChangeSet): Promise<ReviewResult> {
+    async reviewChangeSet(cs: ReviewChangeSet, intents?: ReviewIntent[]): Promise<ReviewResult> {
         const diffs = this.collectDiffs(cs);
         const model = await this.languageModelRegistry.selectLanguageModel({ agent: 'review-summary', purpose: 'chat', identifier: 'default/code' });
         if (!model) {
@@ -46,7 +46,7 @@ export class ReviewSummaryService {
             template: reviewSummaryPromptTemplate.template,
         });
 
-        const { systemMessage, userMessage } = this.buildPrompt(cs, diffs);
+        const { systemMessage, userMessage } = this.buildPrompt(cs, diffs, intents);
         const sessionId = generateUuid();
         const requestId = generateUuid();
         const request: UserRequest = {
@@ -90,15 +90,35 @@ export class ReviewSummaryService {
         return parts.join('\n');
     }
 
-    protected buildPrompt(cs: ReviewChangeSet, diffs: string): { systemMessage: string; userMessage: string } {
+    protected buildPrompt(cs: ReviewChangeSet, diffs: string, intents?: ReviewIntent[]): { systemMessage: string; userMessage: string } {
         const systemMessage = reviewSummaryPromptTemplate.template;
 
-        const userMessage = `Analyze the following change set and produce a structured review.
+        let intentSection = '';
+        if (intents && intents.length > 0) {
+            const intentParts = intents.map(intent => {
+                const sourceLabel = intent.source === 'task-context' ? 'Task Context'
+                    : intent.source === 'chat-session' ? 'Chat Session'
+                        : 'Note';
+                return `## ${sourceLabel}: ${intent.label}\n\n${intent.content}`;
+            });
+            intentSection = `# Developer Intent
 
-Change set: "${cs.label}" (source: ${cs.source})
-Files changed: ${cs.files.length}
+    The developer provided the following context explaining what these changes are intended to achieve.
+    Use this to understand the purpose of the changes and to evaluate whether the implementation matches the intent.
 
-${diffs}`;
+    ${intentParts.join('\n\n')}
+
+    ---
+
+    `;
+        }
+
+        const userMessage = `${intentSection}Analyze the following change set and produce a structured review.
+
+    Change set: "${cs.label}" (source: ${cs.source})
+    Files changed: ${cs.files.length}
+
+    ${diffs}`;
 
         return { systemMessage, userMessage };
     }

@@ -18,7 +18,7 @@ import { expect } from 'chai';
 import URI from '@theia/core/lib/common/uri';
 import { Range } from '@theia/core/shared/vscode-languageserver-protocol';
 import { ReviewSummaryService } from './review-summary-agent';
-import { DiffHunk, HunkRef, ReviewArea, ReviewAreaFile, ReviewChangeSet } from './review-model';
+import { DiffHunk, HunkRef, ReviewArea, ReviewAreaFile, ReviewChangeSet, ReviewIntent } from './review-model';
 
 describe('ReviewSummaryService — hunk resolution', () => {
     let service: ReviewSummaryService;
@@ -317,6 +317,104 @@ describe('ReviewSummaryService — hunk resolution', () => {
             service.resolveHunkRanges(areas, cs);
 
             expect(areas[0].files[0].comment).to.equal('Adds DI bindings for the review components');
+        });
+    });
+
+    describe('buildPrompt — intent injection', () => {
+        function callBuildPrompt(cs: ReviewChangeSet, diffs: string, intents?: ReviewIntent[]): { systemMessage: string; userMessage: string } {
+            return (service as unknown as { buildPrompt: (cs: ReviewChangeSet, diffs: string, intents?: ReviewIntent[]) => { systemMessage: string; userMessage: string } })
+                .buildPrompt(cs, diffs, intents);
+        }
+
+        const dummyCs = makeChangeSet([makeHunk('hunk-1', 10, 20)]);
+
+        it('should produce user message without intent section when intents is undefined', () => {
+            const { userMessage } = callBuildPrompt(dummyCs, 'diffs here');
+
+            expect(userMessage).to.include('Analyze the following change set');
+            expect(userMessage).to.not.include('Developer Intent');
+        });
+
+        it('should produce user message without intent section when intents is empty', () => {
+            const { userMessage } = callBuildPrompt(dummyCs, 'diffs here', []);
+
+            expect(userMessage).to.not.include('Developer Intent');
+        });
+
+        it('should inject a single task-context intent into the user message', () => {
+            const intents: ReviewIntent[] = [{
+                id: 'i-1',
+                source: 'task-context',
+                label: 'Add review framework',
+                content: 'Plan to add a review framework with DI bindings.',
+            }];
+
+            const { userMessage } = callBuildPrompt(dummyCs, 'diffs here', intents);
+
+            expect(userMessage).to.include('# Developer Intent');
+            expect(userMessage).to.include('## Task Context: Add review framework');
+            expect(userMessage).to.include('Plan to add a review framework with DI bindings.');
+            expect(userMessage).to.include('Analyze the following change set');
+        });
+
+        it('should inject a manual note intent', () => {
+            const intents: ReviewIntent[] = [{
+                id: 'i-1',
+                source: 'manual',
+                label: 'Check DI bindings',
+                content: 'Focus on the DI binding correctness',
+            }];
+
+            const { userMessage } = callBuildPrompt(dummyCs, 'diffs here', intents);
+
+            expect(userMessage).to.include('## Note: Check DI bindings');
+            expect(userMessage).to.include('Focus on the DI binding correctness');
+        });
+
+        it('should inject a chat-session intent', () => {
+            const intents: ReviewIntent[] = [{
+                id: 'i-1',
+                source: 'chat-session',
+                label: 'Architect Session',
+                content: 'Summary of the architect session',
+            }];
+
+            const { userMessage } = callBuildPrompt(dummyCs, 'diffs here', intents);
+
+            expect(userMessage).to.include('## Chat Session: Architect Session');
+        });
+
+        it('should inject multiple intents in order', () => {
+            const intents: ReviewIntent[] = [
+                { id: 'i-1', source: 'task-context', label: 'Plan A', content: 'First plan' },
+                { id: 'i-2', source: 'manual', label: 'Note', content: 'A note' },
+                { id: 'i-3', source: 'chat-session', label: 'Session', content: 'Session summary' },
+            ];
+
+            const { userMessage } = callBuildPrompt(dummyCs, 'diffs here', intents);
+
+            const planIdx = userMessage.indexOf('## Task Context: Plan A');
+            const noteIdx = userMessage.indexOf('## Note: Note');
+            const sessionIdx = userMessage.indexOf('## Chat Session: Session');
+            expect(planIdx).to.be.greaterThan(-1);
+            expect(noteIdx).to.be.greaterThan(planIdx);
+            expect(sessionIdx).to.be.greaterThan(noteIdx);
+        });
+
+        it('should place intent section before the analysis prompt', () => {
+            const intents: ReviewIntent[] = [{
+                id: 'i-1',
+                source: 'manual',
+                label: 'Test',
+                content: 'Test content',
+            }];
+
+            const { userMessage } = callBuildPrompt(dummyCs, 'diffs', intents);
+
+            const intentIdx = userMessage.indexOf('# Developer Intent');
+            const analyzeIdx = userMessage.indexOf('Analyze the following change set');
+            expect(intentIdx).to.be.greaterThan(-1);
+            expect(analyzeIdx).to.be.greaterThan(intentIdx);
         });
     });
 

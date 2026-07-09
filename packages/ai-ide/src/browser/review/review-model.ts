@@ -50,6 +50,13 @@ export interface ReviewFileChange {
 
 export type ReviewAreaDisposition = 'reviewed' | 'needs-work' | 'dismissed';
 
+export interface ReviewIntent {
+    id: string;
+    source: 'task-context' | 'chat-session' | 'manual';
+    label: string;
+    content: string;
+}
+
 export interface ReviewResult {
     id: string;
     changeSetId: string;
