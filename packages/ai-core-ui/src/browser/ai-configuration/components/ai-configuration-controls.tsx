@@ -242,9 +242,10 @@ export const AiPathInput: React.FC<{
 };
 
 /**
- * A button that hands editing off to the full Settings UI. Used for preferences whose value is a
+ * A button that hands editing off to the `settings.json` file. Used for preferences whose value is a
  * complex object (or array of objects) that cannot be edited meaningfully through an inline control;
- * clicking it opens the Settings view focused on the preference.
+ * clicking it opens `settings.json` focused on the preference, mirroring the Settings view's
+ * "Edit in settings.json" link.
  */
 export const AiEditInSettingsButton: React.FC<{
     label: string;

@@ -17,8 +17,8 @@
 import { CommandService, Event } from '@theia/core';
 import { PreferenceScope, PreferenceService } from '@theia/core/lib/common';
 import { PreferenceDataProperty, PreferenceSchemaService } from '@theia/core/lib/common/preferences/preference-schema';
-import { CommonCommands } from '@theia/core/lib/browser';
 import { MarkdownRenderer } from '@theia/core/lib/browser/markdown-rendering/markdown-renderer';
+import { PreferencesCommands } from '@theia/preferences/lib/browser/util/preference-types';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering/markdown-string';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import type { SelectOption } from '@theia/core/lib/browser/widgets/select-component';
@@ -112,11 +112,12 @@ export class AiSettingsRowService {
     }
 
     /**
-     * Opens the Settings UI focused on a preference. Used for `json` controls, i.e. complex
+     * Opens the underlying `settings.json` file focused on a preference, mirroring the
+     * Settings view's "Edit in settings.json" link. Used for `json` controls, i.e. complex
      * object/array values that cannot be edited meaningfully through an inline control.
      */
     editInSettings(preferenceId: string): void {
-        this.commandService.executeCommand(CommonCommands.OPEN_PREFERENCES.id, preferenceId);
+        this.commandService.executeCommand(PreferencesCommands.OPEN_PREFERENCES_JSON_TOOLBAR.id, preferenceId);
     }
 
     /** Renders a markdown description into a detached element for use in a React `ref`. */
@@ -174,7 +175,7 @@ export class AiSettingsRowService {
      * Infers a sensible {@link AiSettingsControl} for a preference from its schema `type`
      * (a `select` when it declares an `enum`). Complex values — an `object`, or an `array` of
      * objects — cannot be edited meaningfully inline, so they resolve to a `json` control that
-     * defers to the Settings UI. Falls back to a text input for unknown types.
+     * defers to the `settings.json` file. Falls back to a text input for unknown types.
      */
     controlFor(preferenceId: string): AiSettingsControl {
         const property = this.schemaService.getSchemaProperty(preferenceId);
@@ -198,7 +199,7 @@ export class AiSettingsRowService {
 
     /**
      * Whether an `array` preference holds primitive items (so it can be edited as a chip list) rather
-     * than complex objects/arrays (which must be edited in the Settings UI via a `json` control).
+     * than complex objects/arrays (which must be edited in the `settings.json` file via a `json` control).
      */
     protected isPrimitiveArray(property: PreferenceDataProperty): boolean {
         const items = property.items;

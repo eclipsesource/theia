@@ -17,8 +17,9 @@
 import { enableJSDOM } from '@theia/core/lib/browser/test/jsdom';
 let disableJSDOM = enableJSDOM();
 
-import { PreferenceInspection, PreferenceScope, PreferenceService } from '@theia/core/lib/common';
+import { CommandService, PreferenceInspection, PreferenceScope, PreferenceService } from '@theia/core/lib/common';
 import { PreferenceDataProperty, PreferenceSchemaService } from '@theia/core/lib/common/preferences/preference-schema';
+import { PreferencesCommands } from '@theia/preferences/lib/browser/util/preference-types';
 import { expect } from 'chai';
 import { AiSettingsRowService } from './ai-settings-row-service';
 
@@ -146,6 +147,23 @@ describe('AiSettingsRowService', () => {
             expect(createServiceWithSchema({ type: 'object' }).controlFor('pref').type).to.equal('json');
             expect(createServiceWithSchema({ type: 'array', items: { type: 'object' } }).controlFor('pref').type).to.equal('json');
             expect(createServiceWithSchema({ type: 'array', items: { properties: {} } }).controlFor('pref').type).to.equal('json');
+        });
+    });
+
+    describe('editInSettings', () => {
+        it('opens settings.json focused on the preference via the preferences JSON command', () => {
+            const executed: { command: string; args: unknown[] }[] = [];
+            const service = new AiSettingsRowService();
+            (service as unknown as { commandService: CommandService }).commandService = {
+                executeCommand: (command: string, ...args: unknown[]) => {
+                    executed.push({ command, args });
+                    return Promise.resolve(undefined);
+                }
+            } as CommandService;
+
+            service.editInSettings('my.pref');
+
+            expect(executed).to.deep.equal([{ command: PreferencesCommands.OPEN_PREFERENCES_JSON_TOOLBAR.id, args: ['my.pref'] }]);
         });
     });
 

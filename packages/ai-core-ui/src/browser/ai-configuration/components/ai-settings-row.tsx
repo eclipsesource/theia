@@ -146,7 +146,7 @@ const AiSettingsRowControl: React.FC<{
             />;
         case 'json':
             return <AiEditInSettingsButton
-                label={nls.localize('theia/ai/core/aiConfiguration/editInSettings', 'Edit in settings')}
+                label={nls.localizeByDefault('Edit in settings.json')}
                 ariaLabel={label}
                 onClick={onEditInSettings}
             />;
