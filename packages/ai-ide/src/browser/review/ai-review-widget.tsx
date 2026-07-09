@@ -249,6 +249,12 @@ export class AIReviewWidget extends ReactWidget {
         this.loading = true;
         this.update();
         try {
+            const existing = this.storageService.getByChangeSetId(cs.id);
+            if (existing) {
+                this.diffDecorator.clearDecorations();
+                await this.storageService.delete(existing.id);
+            }
+
             const result = await this.summaryService.reviewChangeSet(cs);
             await this.storageService.store(result);
             this.expandedSets.add(cs.id);

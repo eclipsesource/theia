@@ -187,6 +187,8 @@ export class ReviewStorageService {
     }
 
     async store(review: ReviewResult): Promise<void> {
+        await this.deleteByChangeSetId(review.changeSetId);
+
         this.reviews.set(review.id, review);
         const storageUri = this.getStorageLocation();
         if (storageUri) {
@@ -196,6 +198,18 @@ export class ReviewStorageService {
             await this.fileService.writeFile(fileUri, BinaryBuffer.fromString(content));
         }
         this.onDidChangeEmitter.fire();
+    }
+
+    async deleteByChangeSetId(changeSetId: string): Promise<void> {
+        const toDelete: string[] = [];
+        for (const [id, review] of this.reviews) {
+            if (review.changeSetId === changeSetId) {
+                toDelete.push(id);
+            }
+        }
+        for (const id of toDelete) {
+            await this.delete(id);
+        }
     }
 
     get(id: string): ReviewResult | undefined {
