@@ -197,6 +197,23 @@ describe('Review Model Types', () => {
         expect(ref.endLine).to.equal(392);
     });
 
+    it('should create a HunkRef with an inline comment', () => {
+        const ref: HunkRef = { hunkId: 'hunk-1', comment: 'Imports for the review module' };
+        expect(ref.hunkId).to.equal('hunk-1');
+        expect(ref.comment).to.equal('Imports for the review module');
+    });
+
+    it('should create a sub-range HunkRef with a comment', () => {
+        const ref: HunkRef = { hunkId: 'hunk-2', startLine: 385, endLine: 392, comment: 'Binds the review widget factory' };
+        expect(ref.comment).to.equal('Binds the review widget factory');
+        expect(ref.startLine).to.equal(385);
+    });
+
+    it('should allow HunkRef comment to be undefined', () => {
+        const ref: HunkRef = { hunkId: 'hunk-1' };
+        expect(ref.comment).to.be.undefined;
+    });
+
     it('should create a ReviewAreaFile with hunkRefs and ranges', () => {
         const areaFile: ReviewAreaFile = {
             path: 'src/module.ts',
@@ -213,5 +230,42 @@ describe('Review Model Types', () => {
         expect(areaFile.ranges).to.have.length(2);
         expect(areaFile.hunkRefs[0].hunkId).to.equal('hunk-1');
         expect(areaFile.hunkRefs[1].startLine).to.equal(50);
+    });
+
+    it('should create a ReviewAreaFile with a file-level comment', () => {
+        const areaFile: ReviewAreaFile = {
+            path: 'src/frontend-module.ts',
+            hunkRefs: [{ hunkId: 'hunk-1' }],
+            ranges: [Range.create(10, 0, 20, 0)],
+            comment: 'Adds DI bindings for the review framework components',
+        };
+        expect(areaFile.comment).to.equal('Adds DI bindings for the review framework components');
+    });
+
+    it('should allow ReviewAreaFile comment to be undefined', () => {
+        const areaFile: ReviewAreaFile = {
+            path: 'src/module.ts',
+            hunkRefs: [],
+            ranges: [],
+        };
+        expect(areaFile.comment).to.be.undefined;
+    });
+
+    it('should create a ReviewAreaFile with hunk-level and file-level comments', () => {
+        const areaFile: ReviewAreaFile = {
+            path: 'src/module.ts',
+            hunkRefs: [
+                { hunkId: 'hunk-1', comment: 'Import statements' },
+                { hunkId: 'hunk-2', startLine: 50, endLine: 55, comment: 'Binds the service' },
+            ],
+            ranges: [
+                Range.create(10, 0, 20, 0),
+                Range.create(50, 0, 55, 0),
+            ],
+            comment: 'Adds DI bindings for the module',
+        };
+        expect(areaFile.comment).to.equal('Adds DI bindings for the module');
+        expect(areaFile.hunkRefs[0].comment).to.equal('Import statements');
+        expect(areaFile.hunkRefs[1].comment).to.equal('Binds the service');
     });
 });

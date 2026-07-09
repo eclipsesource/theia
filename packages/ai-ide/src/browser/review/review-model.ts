@@ -83,6 +83,8 @@ export interface HunkRef {
      * When provided, clamped to the hunk's modifiedRange bounds during resolution.
      */
     endLine?: number;
+    /** Inline comment for this specific hunk/sub-range in the context of its area */
+    comment?: string;
 }
 
 export interface ReviewAreaFile {
@@ -91,4 +93,6 @@ export interface ReviewAreaFile {
     hunkRefs: HunkRef[];
     /** Resolved ranges — populated by resolving hunkRefs against the change set's hunks */
     ranges: Range[];
+    /** File-level comment: what this area's changes do in this specific file */
+    comment?: string;
 }

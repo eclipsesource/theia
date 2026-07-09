@@ -131,8 +131,10 @@ ${diffs}`;
                         hunkId: ref.hunkId,
                         startLine: ref.startLine,
                         endLine: ref.endLine,
+                        comment: ref.comment,
                     })),
                     ranges: [],
+                    comment: f.comment,
                 }));
                 return {
                     id: a.id ?? `area-${i + 1}`,
@@ -227,11 +229,13 @@ interface RawHunkRef {
     hunkId: string;
     startLine?: number;
     endLine?: number;
+    comment?: string;
 }
 
 interface RawAreaFile {
     path?: string;
     hunkRefs?: RawHunkRef[];
+    comment?: string;
 }
 
 interface RawArea {

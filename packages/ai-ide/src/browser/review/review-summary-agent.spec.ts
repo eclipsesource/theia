@@ -293,5 +293,88 @@ describe('ReviewSummaryService — hunk resolution', () => {
             expect(areas[0].files[0].ranges).to.have.length(1);
             expect(areas[0].files[0].ranges[0]).to.deep.equal(Range.create(5, 0, 15, 0));
         });
+
+        it('should preserve hunkRef comments during resolution', () => {
+            const cs = makeChangeSet([makeHunk('hunk-1', 10, 20)]);
+            const areas: ReviewArea[] = [
+                makeArea([makeAreaFile('src/module.ts', [
+                    { hunkId: 'hunk-1', comment: 'Import statements for the module' },
+                ])]),
+            ];
+
+            service.resolveHunkRanges(areas, cs);
+
+            expect(areas[0].files[0].ranges).to.have.length(1);
+            expect(areas[0].files[0].hunkRefs[0].comment).to.equal('Import statements for the module');
+        });
+
+        it('should preserve file-level comments during resolution', () => {
+            const cs = makeChangeSet([makeHunk('hunk-1', 10, 20)]);
+            const areaFile = makeAreaFile('src/module.ts', [{ hunkId: 'hunk-1' }]);
+            areaFile.comment = 'Adds DI bindings for the review components';
+            const areas: ReviewArea[] = [makeArea([areaFile])];
+
+            service.resolveHunkRanges(areas, cs);
+
+            expect(areas[0].files[0].comment).to.equal('Adds DI bindings for the review components');
+        });
+    });
+
+    describe('parseResponse — comment extraction', () => {
+        it('should parse file-level and hunk-level comments from AI response', () => {
+            const cs = makeChangeSet([
+                makeHunk('hunk-1', 10, 20),
+                makeHunk('hunk-2', 50, 60),
+            ]);
+            const responseJson = JSON.stringify({
+                summary: 'Test summary',
+                areas: [{
+                    id: 'area-1',
+                    label: 'Test Area',
+                    description: 'Area-level description',
+                    files: [{
+                        path: 'src/module.ts',
+                        comment: 'File-level comment about DI bindings',
+                        hunkRefs: [
+                            { hunkId: 'hunk-1', comment: 'Import statements' },
+                            { hunkId: 'hunk-2', startLine: 50, endLine: 60, comment: 'Service bindings' },
+                        ],
+                    }],
+                }],
+            });
+
+            const result = (service as unknown as { parseResponse: (cs: ReviewChangeSet, text: string) => import('./review-model').ReviewResult })
+                .parseResponse(cs, responseJson);
+
+            expect(result.areas).to.have.length(1);
+            const areaFile = result.areas[0].files[0];
+            expect(areaFile.comment).to.equal('File-level comment about DI bindings');
+            expect(areaFile.hunkRefs[0].comment).to.equal('Import statements');
+            expect(areaFile.hunkRefs[1].comment).to.equal('Service bindings');
+        });
+
+        it('should handle missing comments gracefully', () => {
+            const cs = makeChangeSet([makeHunk('hunk-1', 10, 20)]);
+            const responseJson = JSON.stringify({
+                summary: 'Test summary',
+                areas: [{
+                    id: 'area-1',
+                    label: 'Test Area',
+                    description: 'Area-level description',
+                    files: [{
+                        path: 'src/module.ts',
+                        hunkRefs: [{ hunkId: 'hunk-1' }],
+                    }],
+                }],
+            });
+
+            const result = (service as unknown as { parseResponse: (cs: ReviewChangeSet, text: string) => import('./review-model').ReviewResult })
+                .parseResponse(cs, responseJson);
+
+            expect(result.areas).to.have.length(1);
+            const areaFile = result.areas[0].files[0];
+            expect(areaFile.comment).to.be.undefined;
+            expect(areaFile.hunkRefs[0].comment).to.be.undefined;
+        });
     });
 });

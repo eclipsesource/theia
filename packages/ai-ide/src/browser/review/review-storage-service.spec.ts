@@ -37,6 +37,16 @@ class TestableReviewStorageService extends ReviewStorageService {
     get reviewMap(): Map<string, ReviewResult> {
         return this['reviews'];
     }
+
+    /** Expose serializeReview for testing. */
+    testSerialize(review: ReviewResult): string {
+        return this['serializeReview'](review);
+    }
+
+    /** Expose parseReview for testing. */
+    testParse(content: string): ReviewResult | undefined {
+        return this['parseReview'](content);
+    }
 }
 
 function createReview(id: string, changeSetId: string): ReviewResult {
@@ -162,6 +172,72 @@ describe('ReviewStorageService', () => {
             const found = service.getByChangeSetId('cs-1');
             expect(found).to.deep.equal(fresh);
             expect(found!.id).to.equal('review-cs1-new');
+        });
+    });
+
+    describe('serialization round-trip for comments', () => {
+
+        it('should preserve file-level and hunk-level comments through serialize/parse', () => {
+            const review: ReviewResult = {
+                id: 'review-comments-1',
+                changeSetId: 'cs-1',
+                timestamp: '2026-01-01T00:00:00Z',
+                summary: 'Summary with comments',
+                areas: [{
+                    id: 'area-1',
+                    label: 'DI Bindings',
+                    description: 'Area-level description for sidebar',
+                    files: [{
+                        path: 'src/frontend-module.ts',
+                        hunkRefs: [
+                            { hunkId: 'hunk-1', comment: 'Import statements for review module' },
+                            { hunkId: 'hunk-2', startLine: 385, endLine: 392, comment: 'Binds the review widget factory' },
+                        ],
+                        ranges: [
+                            { start: { line: 10, character: 0 }, end: { line: 20, character: 0 } },
+                            { start: { line: 385, character: 0 }, end: { line: 392, character: 0 } },
+                        ],
+                        comment: 'Adds DI bindings for the review framework components',
+                    }],
+                }],
+            };
+
+            const serialized = service.testSerialize(review);
+            const parsed = service.testParse(serialized);
+
+            expect(parsed).to.not.be.undefined;
+            expect(parsed!.areas).to.have.length(1);
+            const areaFile = parsed!.areas[0].files[0];
+            expect(areaFile.comment).to.equal('Adds DI bindings for the review framework components');
+            expect(areaFile.hunkRefs[0].comment).to.equal('Import statements for review module');
+            expect(areaFile.hunkRefs[1].comment).to.equal('Binds the review widget factory');
+        });
+
+        it('should handle reviews without comments through serialize/parse', () => {
+            const review: ReviewResult = {
+                id: 'review-no-comments',
+                changeSetId: 'cs-2',
+                timestamp: '2026-01-01T00:00:00Z',
+                summary: 'Summary without comments',
+                areas: [{
+                    id: 'area-1',
+                    label: 'Area',
+                    description: 'Description',
+                    files: [{
+                        path: 'src/module.ts',
+                        hunkRefs: [{ hunkId: 'hunk-1' }],
+                        ranges: [{ start: { line: 5, character: 0 }, end: { line: 10, character: 0 } }],
+                    }],
+                }],
+            };
+
+            const serialized = service.testSerialize(review);
+            const parsed = service.testParse(serialized);
+
+            expect(parsed).to.not.be.undefined;
+            const areaFile = parsed!.areas[0].files[0];
+            expect(areaFile.comment).to.be.undefined;
+            expect(areaFile.hunkRefs[0].comment).to.be.undefined;
         });
     });
 });

@@ -145,8 +145,11 @@ export class ReviewDiffDecorator {
             const colorClass = AREA_COLORS[areaIndex % AREA_COLORS.length];
             const matchingFiles = area.files.filter(f => filePath.endsWith(f.path));
             for (const areaFile of matchingFiles) {
-                for (const range of areaFile.ranges) {
-                    decorations.push(this.createAreaDecoration(area, colorClass, range));
+                for (let rangeIndex = 0; rangeIndex < areaFile.ranges.length; rangeIndex++) {
+                    const range = areaFile.ranges[rangeIndex];
+                    const hunkRef = areaFile.hunkRefs[rangeIndex];
+                    const comment = hunkRef?.comment ?? areaFile.comment ?? area.description;
+                    decorations.push(this.createAreaDecoration(area, colorClass, range, comment));
                 }
             }
         });
@@ -193,14 +196,15 @@ export class ReviewDiffDecorator {
     protected createAreaDecoration(
         area: ReviewArea,
         colorClass: string,
-        range: import('@theia/core/shared/vscode-languageserver-protocol').Range
+        range: import('@theia/core/shared/vscode-languageserver-protocol').Range,
+        comment: string
     ): EditorDecoration {
         const options: EditorDecorationOptions = {
             blockClassName: `ai-review-block ${colorClass}`,
             blockPadding: [2, 4, 2, 4],
             glyphMarginClassName: `ai-review-glyph ${colorClass}`,
-            glyphMarginHoverMessage: `**${area.label}**\n\n${area.description}`,
-            hoverMessage: area.description,
+            glyphMarginHoverMessage: `**${area.label}**\n\n${comment}`,
+            hoverMessage: comment,
             isWholeLine: true,
             stickiness: TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
         };

@@ -32,13 +32,14 @@ Your output must be a valid JSON object with this structure:
     {
       "id": "area-1",
       "label": "A short, descriptive name for this logical group of changes",
-      "description": "An explanation of what this group of changes does and why it matters.",
+      "description": "A high-level explanation of what this group of changes does and why it matters. Shown in the review sidebar.",
       "files": [
         {
           "path": "relative/path/to/file.ts",
+          "comment": "What this area's changes do in this specific file. Shown as hover text in the editor.",
           "hunkRefs": [
-            {"hunkId": "hunk-1"},
-            {"hunkId": "hunk-2", "startLine": 385, "endLine": 392}
+            {"hunkId": "hunk-1", "comment": "Optional: what this specific hunk does"},
+            {"hunkId": "hunk-2", "startLine": 385, "endLine": 392, "comment": "Optional: what this sub-range does"}
           ]
         }
       ]
@@ -58,9 +59,17 @@ How to reference hunks:
 reference all of its hunks (e.g., {"hunkId": "hunk-1"} for a new file with one hunk). Do NOT leave \
 hunkRefs as an empty array
 
+Comment hierarchy (from most to least specific):
+- hunkRefs[].comment: Most granular — explains what a specific hunk or sub-range does (optional)
+- files[].comment: File-level — explains what this area's changes do in this file (always provide this)
+- description: Area-level — high-level summary shown in the review sidebar
+
 Guidelines:
 - Group related changes into logical "areas" (e.g., "New authentication middleware", "Database schema migration")
 - Each area should represent a coherent unit of work
+- The area "description" is a high-level summary of the area's overall intent, shown in the sidebar
+- Always provide a "comment" for each file entry — it explains what this area's changes do in that specific file
+- Optionally provide a "comment" on individual hunkRefs for finer granularity
 - Provide meaningful descriptions that help a reviewer understand the intent
 - Include accurate file paths matching the paths shown in the diff
 - The summary should capture the overall purpose of all changes together
