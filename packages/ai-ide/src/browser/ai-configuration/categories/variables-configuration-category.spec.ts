@@ -123,20 +123,6 @@ describe('VariablesConfigurationCategory', () => {
         });
     });
 
-    describe('group count formatting', () => {
-        it('shows the total with a noun when not filtering', () => {
-            expect(VariablesConfigurationCategory.formatGroupCount(4, 4, false)).to.equal('4 variables');
-        });
-
-        it('uses the singular noun for a single variable', () => {
-            expect(VariablesConfigurationCategory.formatGroupCount(1, 1, false)).to.equal('1 variable');
-        });
-
-        it('shows matching of total when filtering', () => {
-            expect(VariablesConfigurationCategory.formatGroupCount(3, 31, true)).to.equal('3 of 31 variables');
-        });
-    });
-
     describe('description normalization', () => {
         it('collapses runs of whitespace and trims', () => {
             expect(VariablesConfigurationCategory.normalizeDescription('  The absolute path of the      currently opened file. '))

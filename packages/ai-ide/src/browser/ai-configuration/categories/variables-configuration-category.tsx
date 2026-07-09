@@ -221,16 +221,6 @@ export class VariablesConfigurationCategory extends SinglePageCategoryRenderer i
         } satisfies AiConfigurationSearchItem));
     }
 
-    /** Localized `N variables` / `matching of total` count shown next to a group header. */
-    static formatGroupCount(matching: number, total: number, filtering: boolean): string {
-        if (filtering) {
-            return nls.localize('theia/ai/ide/variableConfiguration/groupCountFiltered', '{0} of {1} variables', matching, total);
-        }
-        return total === 1
-            ? nls.localize('theia/ai/ide/variableConfiguration/groupCountSingular', '1 variable')
-            : nls.localize('theia/ai/ide/variableConfiguration/groupCountPlural', '{0} variables', total);
-    }
-
     /**
      * Trims and collapses internal whitespace in a description. Descriptions are contributed by
      * third-party extensions, so they may contain runs of whitespace from indented template literals.
@@ -316,7 +306,6 @@ const VariableListView: React.FC<VariableListViewProps> = ({ groups, matches, on
                     key={group.id}
                     title={group.title}
                     description={group.description}
-                    count={VariablesConfigurationCategory.formatGroupCount(matching.length, group.rows.length, filtering)}
                     rows={matching}
                     expanded={expanded}
                     onToggle={toggle}
@@ -330,7 +319,6 @@ const VariableListView: React.FC<VariableListViewProps> = ({ groups, matches, on
 interface VariableGroupProps {
     readonly title: string;
     readonly description: string;
-    readonly count: string;
     readonly rows: VariableRowModel[];
     readonly expanded: ReadonlySet<string>;
     readonly onToggle: (id: string) => void;
@@ -338,8 +326,8 @@ interface VariableGroupProps {
     readonly onCopyReference: (variable: AIVariable) => void;
 }
 
-const VariableGroup: React.FC<VariableGroupProps> = ({ title, description, count, rows, expanded, onToggle, onOpenAgent, onCopyReference }) =>
-    <AiConfigurationSection title={title} subtitle={count} className='ai-variable-group'>
+const VariableGroup: React.FC<VariableGroupProps> = ({ title, description, rows, expanded, onToggle, onOpenAgent, onCopyReference }) =>
+    <AiConfigurationSection title={title} className='ai-variable-group'>
         <div className='ai-variable-group-description'>{description}</div>
         {rows.map(row => <VariableRow
             key={row.variable.id}
