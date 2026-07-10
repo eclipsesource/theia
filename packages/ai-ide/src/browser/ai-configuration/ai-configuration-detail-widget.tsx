@@ -20,6 +20,7 @@ import { inject, injectable, postConstruct } from '@theia/core/shared/inversify'
 import { codicon, Message, ReactWidget } from '@theia/core/lib/browser';
 import { AiConfigurationCategoryRegistry } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category-registry';
 import { AiConfigurationSelectionModel } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-selection-model';
+import { AiConfigurationScopeService } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-scope-service';
 import {
     AiConfigurationCategory, AiConfigurationRenderContext, AiConfigurationScope, AiConfigurationSelection
 } from '@theia/ai-core-ui/lib/browser/ai-configuration/ai-configuration-category';
@@ -35,8 +36,9 @@ export class AiConfigurationDetailWidget extends ReactWidget {
     @inject(AiConfigurationSelectionModel)
     protected readonly selectionModel: AiConfigurationSelectionModel;
 
-    /** Render-only in this iteration; per-scope read/write is wired later (T3). */
-    protected scope: AiConfigurationScope = 'user';
+    @inject(AiConfigurationScopeService)
+    protected readonly scopeService: AiConfigurationScopeService;
+
     /** Per-view filter text; slot only in this iteration (T5). */
     protected filter = '';
 
@@ -54,6 +56,8 @@ export class AiConfigurationDetailWidget extends ReactWidget {
         this.scrollOptions = undefined;
         this.toDispose.push(this.selectionModel.onDidChangeSelection(() => this.onSelectionChanged()));
         this.toDispose.push(this.registry.onDidChange(() => this.update()));
+        // Re-render on scope change so every page reads/writes the newly selected scope.
+        this.toDispose.push(this.scopeService.onDidChangeScope(() => this.update()));
         this.update();
     }
 
@@ -65,7 +69,8 @@ export class AiConfigurationDetailWidget extends ReactWidget {
 
     protected createRenderContext(): AiConfigurationRenderContext {
         return {
-            scope: this.scope,
+            scope: this.scopeService.getScope(),
+            resourceUri: this.scopeService.getResourceUri(),
             filter: this.filter,
             navigate: selection => this.selectionModel.select(selection),
             update: () => this.update()
@@ -81,7 +86,7 @@ export class AiConfigurationDetailWidget extends ReactWidget {
         const ctx = this.createRenderContext();
         return <div className='ai-configuration-detail-container'>
             {this.renderBreadcrumb(category, selection)}
-            {this.scope !== 'user' && this.renderScopeBanner()}
+            {ctx.scope !== 'user' && this.renderScopeBanner(ctx.scope)}
             <div className='ai-configuration-detail-body'>
                 {this.renderBody(category, selection, ctx)}
             </div>
@@ -102,10 +107,15 @@ export class AiConfigurationDetailWidget extends ReactWidget {
         </div>;
     }
 
-    protected renderScopeBanner(): React.ReactNode {
+    protected renderScopeBanner(scope: AiConfigurationScope): React.ReactNode {
+        const scopeLabels: Record<AiConfigurationScope, string> = {
+            user: nls.localizeByDefault('User'),
+            workspace: nls.localizeByDefault('Workspace'),
+            folder: nls.localizeByDefault('Folder')
+        };
         return <div className='ai-configuration-detail-scope-banner'>
             <span className={codicon('info')}></span>
-            <span>{nls.localize('theia/ai/core/aiConfiguration/scopeBanner', 'Editing the {0} scope.', this.scope)}</span>
+            <span>{nls.localize('theia/ai/core/aiConfiguration/scopeBanner', 'Editing the {0} scope.', scopeLabels[scope])}</span>
         </div>;
     }
 

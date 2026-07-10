@@ -34,6 +34,7 @@ import {
 import { LanguageModelAlias } from '@theia/ai-core/lib/common/language-model-alias';
 import { isChatAgent } from '@theia/ai-chat/lib/common';
 import { nls } from '@theia/core';
+import { PreferenceScope } from '@theia/core/lib/common/preferences';
 import { CommonCommands } from '@theia/core/lib/browser';
 import { CommandService } from '@theia/core/lib/common/command';
 import * as React from '@theia/core/shared/react';
@@ -77,6 +78,10 @@ export interface AgentDetailViewProps {
     readonly languageModelAliases: LanguageModelAlias[];
     /** Bumped by the owning category on every upstream change, to re-run the async detail load. */
     readonly revision: number;
+    /** The active settings scope: per-agent settings are read from and written to it. */
+    readonly scope: PreferenceScope;
+    /** Folder uri for `Folder` scope. */
+    readonly resourceUri?: string;
 }
 
 /**
@@ -85,19 +90,19 @@ export interface AgentDetailViewProps {
  * notification settings. Owns its async state (parsed prompt parts + agent
  * settings), reloading whenever {@link AgentDetailViewProps.revision} changes.
  */
-export const AgentDetailView: React.FC<AgentDetailViewProps> = ({ agent, services, languageModels, languageModelAliases, revision }) => {
+export const AgentDetailView: React.FC<AgentDetailViewProps> = ({ agent, services, languageModels, languageModelAliases, revision, scope, resourceUri }) => {
     const { agentService, aiSettingsService, variableService, promptService, languageModelRegistry, commandService } = services;
     const [state, setState] = React.useState<AgentDetailState | undefined>(undefined);
 
     React.useEffect(() => {
         let disposed = false;
-        loadAgentDetail(agent, services).then(loaded => {
+        loadAgentDetail(agent, services, scope, resourceUri).then(loaded => {
             if (!disposed) {
                 setState(loaded);
             }
         });
         return () => { disposed = true; };
-    }, [agent, revision, aiSettingsService, promptService, variableService]);
+    }, [agent, revision, aiSettingsService, promptService, variableService, scope, resourceUri]);
 
     const enabled = agentService.isEnabled(agent.id);
 
@@ -113,12 +118,12 @@ export const AgentDetailView: React.FC<AgentDetailViewProps> = ({ agent, service
         if (!enabled || !state) {
             return;
         }
-        aiSettingsService.updateAgentSettings(agent.id, { showInChat: !state.showInChat });
-    }, [agent, aiSettingsService, enabled, state]);
+        aiSettingsService.updateAgentSettings(agent.id, { showInChat: !state.showInChat }, scope, resourceUri);
+    }, [agent, aiSettingsService, enabled, state, scope, resourceUri]);
 
     const handleNotificationTypeChange = React.useCallback(async (agentId: string, notificationType: NotificationType | undefined): Promise<void> => {
-        await aiSettingsService.updateAgentSettings(agentId, { completionNotification: notificationType });
-    }, [aiSettingsService]);
+        await aiSettingsService.updateAgentSettings(agentId, { completionNotification: notificationType }, scope, resourceUri);
+    }, [aiSettingsService, scope, resourceUri]);
 
     const openNotificationSettings = React.useCallback((): void => {
         commandService.executeCommand(CommonCommands.OPEN_PREFERENCES.id, PREFERENCE_NAME_DEFAULT_NOTIFICATION_TYPE);
@@ -182,6 +187,8 @@ export const AgentDetailView: React.FC<AgentDetailViewProps> = ({ agent, service
                 aiSettingsService={aiSettingsService}
                 languageModelRegistry={languageModelRegistry}
                 languageModelAliases={languageModelAliases}
+                scope={scope}
+                resourceUri={resourceUri}
             />
         </div>
 
@@ -219,6 +226,8 @@ export const AgentDetailView: React.FC<AgentDetailViewProps> = ({ agent, service
                 agentId={agent.id}
                 savedOverrides={state.capabilityOverrides}
                 aiSettingsService={aiSettingsService}
+                scope={scope}
+                resourceUri={resourceUri}
             />
         </>}
 
@@ -230,6 +239,8 @@ export const AgentDetailView: React.FC<AgentDetailViewProps> = ({ agent, service
                 agentId={agent.id}
                 savedSelections={state.genericCapabilitySelections}
                 aiSettingsService={aiSettingsService}
+                scope={scope}
+                resourceUri={resourceUri}
             />
         </>}
 
@@ -247,9 +258,9 @@ export const AgentDetailView: React.FC<AgentDetailViewProps> = ({ agent, service
     </div>;
 };
 
-async function loadAgentDetail(agent: Agent, services: AgentDetailServices): Promise<AgentDetailState> {
-    const parsed = await parsePromptFragments(agent, services);
-    const agentSettings = await services.aiSettingsService.getAgentSettings(agent.id);
+async function loadAgentDetail(agent: Agent, services: AgentDetailServices, scope: PreferenceScope, resourceUri?: string): Promise<AgentDetailState> {
+    const parsed = await parsePromptFragments(agent, services, scope, resourceUri);
+    const agentSettings = await services.aiSettingsService.getAgentSettings(agent.id, scope, resourceUri);
     return {
         parsed,
         showInChat: agentSettings?.showInChat ?? true,
@@ -259,10 +270,10 @@ async function loadAgentDetail(agent: Agent, services: AgentDetailServices): Pro
     };
 }
 
-async function parsePromptFragments(agent: Agent, services: AgentDetailServices): Promise<ParsedPrompt> {
+async function parsePromptFragments(agent: Agent, services: AgentDetailServices, scope: PreferenceScope, resourceUri?: string): Promise<ParsedPrompt> {
     const { aiSettingsService, promptService, variableService } = services;
     const result: ParsedPrompt = { functions: [], globalVariables: [], agentSpecificVariables: [], capabilities: [] };
-    const agentSettings = await aiSettingsService.getAgentSettings(agent.id);
+    const agentSettings = await aiSettingsService.getAgentSettings(agent.id, scope, resourceUri);
     const selectedVariants = agentSettings?.selectedVariants ?? {};
 
     for (const mainTemplate of agent.prompts) {
@@ -383,8 +394,10 @@ interface AgentCapabilitiesSettingsProps {
     agentId: string;
     savedOverrides: Record<string, boolean> | undefined;
     aiSettingsService: AISettingsService;
+    scope: PreferenceScope;
+    resourceUri?: string;
 }
-const AgentCapabilitiesSettings = ({ capabilities, agentId, savedOverrides, aiSettingsService }: AgentCapabilitiesSettingsProps) => {
+const AgentCapabilitiesSettings = ({ capabilities, agentId, savedOverrides, aiSettingsService, scope, resourceUri }: AgentCapabilitiesSettingsProps) => {
     const [loading, setLoading] = React.useState(false);
 
     const handleToggle = async (fragmentId: string, currentValue: boolean): Promise<void> => {
@@ -404,7 +417,7 @@ const AgentCapabilitiesSettings = ({ capabilities, agentId, savedOverrides, aiSe
             } else {
                 newOverrides[fragmentId] = newValue;
             }
-            await aiSettingsService.updateAgentSettings(agentId, { capabilityOverrides: newOverrides });
+            await aiSettingsService.updateAgentSettings(agentId, { capabilityOverrides: newOverrides }, scope, resourceUri);
         } finally {
             setLoading(false);
         }
@@ -416,7 +429,7 @@ const AgentCapabilitiesSettings = ({ capabilities, agentId, savedOverrides, aiSe
         }
         setLoading(true);
         try {
-            await aiSettingsService.updateAgentSettings(agentId, { capabilityOverrides: undefined });
+            await aiSettingsService.updateAgentSettings(agentId, { capabilityOverrides: undefined }, scope, resourceUri);
         } finally {
             setLoading(false);
         }
@@ -526,8 +539,10 @@ interface AgentGenericCapabilitiesSettingsProps {
     agentId: string;
     savedSelections: GenericCapabilitySelections | undefined;
     aiSettingsService: AISettingsService;
+    scope: PreferenceScope;
+    resourceUri?: string;
 }
-const AgentGenericCapabilitiesSettings = ({ agentId, savedSelections, aiSettingsService }: AgentGenericCapabilitiesSettingsProps) => {
+const AgentGenericCapabilitiesSettings = ({ agentId, savedSelections, aiSettingsService, scope, resourceUri }: AgentGenericCapabilitiesSettingsProps) => {
     const [loading, setLoading] = React.useState(false);
 
     const handleReset = async (capabilityType: keyof GenericCapabilitySelections): Promise<void> => {
@@ -537,7 +552,7 @@ const AgentGenericCapabilitiesSettings = ({ agentId, savedSelections, aiSettings
         setLoading(true);
         try {
             const newSelections: GenericCapabilitySelections = { ...savedSelections, [capabilityType]: undefined };
-            await aiSettingsService.updateAgentSettings(agentId, { genericCapabilitySelections: newSelections });
+            await aiSettingsService.updateAgentSettings(agentId, { genericCapabilitySelections: newSelections }, scope, resourceUri);
         } finally {
             setLoading(false);
         }

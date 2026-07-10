@@ -59,77 +59,77 @@ describe('ShellCommandPermissionService', () => {
     describe('addAllowlistPatterns validation', () => {
         describe('valid patterns', () => {
             it('accepts exact match pattern', () => {
-                service.addAllowlistPatterns('git log');
+                service.addAllowlistPatterns(['git log']);
                 expect(storedPatterns).to.deep.equal(['git log']);
             });
 
             it('accepts trailing wildcard with space', () => {
-                service.addAllowlistPatterns('git log *');
+                service.addAllowlistPatterns(['git log *']);
                 expect(storedPatterns).to.deep.equal(['git log *']);
             });
 
             it('accepts leading wildcard', () => {
-                service.addAllowlistPatterns('* --version');
+                service.addAllowlistPatterns(['* --version']);
                 expect(storedPatterns).to.deep.equal(['* --version']);
             });
 
             it('accepts middle wildcard', () => {
-                service.addAllowlistPatterns('git * main');
+                service.addAllowlistPatterns(['git * main']);
                 expect(storedPatterns).to.deep.equal(['git * main']);
             });
 
             it('accepts multiple wildcards with spaces', () => {
-                service.addAllowlistPatterns('* * *');
+                service.addAllowlistPatterns(['* * *']);
                 expect(storedPatterns).to.deep.equal(['* * *']);
             });
 
             it('trims pattern before adding', () => {
-                service.addAllowlistPatterns('  git log  ');
+                service.addAllowlistPatterns(['  git log  ']);
                 expect(storedPatterns).to.deep.equal(['git log']);
             });
 
             it('does not add duplicate pattern', () => {
                 storedPatterns = ['git log'];
-                service.addAllowlistPatterns('git log');
+                service.addAllowlistPatterns(['git log']);
                 expect(aiConfigurationServiceMock.update.called).to.be.false;
             });
         });
 
         describe('invalid patterns', () => {
             it('rejects empty pattern', () => {
-                expect(() => service.addAllowlistPatterns('')).to.throw('Pattern cannot be empty or whitespace-only');
+                expect(() => service.addAllowlistPatterns([''])).to.throw('Pattern cannot be empty or whitespace-only');
             });
 
             it('rejects whitespace-only pattern', () => {
-                expect(() => service.addAllowlistPatterns('   ')).to.throw('Pattern cannot be empty or whitespace-only');
+                expect(() => service.addAllowlistPatterns(['   '])).to.throw('Pattern cannot be empty or whitespace-only');
             });
 
             it('rejects * alone', () => {
-                expect(() => service.addAllowlistPatterns('*')).to.throw(/too permissive/);
+                expect(() => service.addAllowlistPatterns(['*'])).to.throw(/too permissive/);
             });
 
             it('rejects wildcard without preceding space: git*', () => {
-                expect(() => service.addAllowlistPatterns('git*')).to.throw(/must be preceded by a space/);
+                expect(() => service.addAllowlistPatterns(['git*'])).to.throw(/must be preceded by a space/);
             });
 
             it('rejects wildcard without preceding space: git log*', () => {
-                expect(() => service.addAllowlistPatterns('git log*')).to.throw(/must be preceded by a space/);
+                expect(() => service.addAllowlistPatterns(['git log*'])).to.throw(/must be preceded by a space/);
             });
 
             it('rejects wildcard in middle without space: git*log', () => {
-                expect(() => service.addAllowlistPatterns('git*log')).to.throw(/must be preceded by a space/);
+                expect(() => service.addAllowlistPatterns(['git*log'])).to.throw(/must be preceded by a space/);
             });
 
             it('rejects wildcard after non-space: cmd* *', () => {
-                expect(() => service.addAllowlistPatterns('cmd* *')).to.throw(/must be preceded by a space/);
+                expect(() => service.addAllowlistPatterns(['cmd* *'])).to.throw(/must be preceded by a space/);
             });
 
             it('rejects double wildcard **', () => {
-                expect(() => service.addAllowlistPatterns('git log **')).to.throw(/must be preceded by a space/);
+                expect(() => service.addAllowlistPatterns(['git log **'])).to.throw(/must be preceded by a space/);
             });
 
             it('rejects triple wildcard ***', () => {
-                expect(() => service.addAllowlistPatterns('git ***')).to.throw(/must be preceded by a space/);
+                expect(() => service.addAllowlistPatterns(['git ***'])).to.throw(/must be preceded by a space/);
             });
         });
     });
@@ -410,35 +410,35 @@ describe('ShellCommandPermissionService', () => {
 
     describe('addAllowlistPatterns (multiple)', () => {
         it('adds multiple patterns in a single update', () => {
-            service.addAllowlistPatterns('find *', 'head *');
+            service.addAllowlistPatterns(['find *', 'head *']);
             expect(storedPatterns).to.deep.equal(['find *', 'head *']);
             expect(aiConfigurationServiceMock.update.calledOnce).to.be.true;
         });
 
         it('skips patterns already in the allowlist', () => {
             storedPatterns = ['git *'];
-            service.addAllowlistPatterns('git *', 'npm *');
+            service.addAllowlistPatterns(['git *', 'npm *']);
             expect(storedPatterns).to.deep.equal(['git *', 'npm *']);
         });
 
         it('does not call updateValue when all patterns already exist', () => {
             storedPatterns = ['find *', 'head *'];
-            service.addAllowlistPatterns('find *', 'head *');
+            service.addAllowlistPatterns(['find *', 'head *']);
             expect(aiConfigurationServiceMock.update.called).to.be.false;
         });
 
         it('validates all patterns before adding', () => {
-            expect(() => service.addAllowlistPatterns('git *', '*')).to.throw(/too permissive/);
+            expect(() => service.addAllowlistPatterns(['git *', '*'])).to.throw(/too permissive/);
             expect(storedPatterns).to.deep.equal([]);
         });
 
         it('throws on empty pattern in batch', () => {
-            expect(() => service.addAllowlistPatterns('git *', '')).to.throw(/empty/);
+            expect(() => service.addAllowlistPatterns(['git *', ''])).to.throw(/empty/);
             expect(storedPatterns).to.deep.equal([]);
         });
 
         it('handles no arguments without calling updateValue', () => {
-            service.addAllowlistPatterns();
+            service.addAllowlistPatterns([]);
             expect(aiConfigurationServiceMock.update.called).to.be.false;
         });
     });
@@ -507,54 +507,54 @@ describe('ShellCommandPermissionService', () => {
 
         describe('addDenylistPatterns', () => {
             it('adds valid pattern', () => {
-                service.addDenylistPatterns('git push *');
+                service.addDenylistPatterns(['git push *']);
                 expect(storedDenylistPatterns).to.deep.equal(['git push *']);
             });
 
             it('rejects empty pattern', () => {
-                expect(() => service.addDenylistPatterns('')).to.throw('Pattern cannot be empty or whitespace-only');
+                expect(() => service.addDenylistPatterns([''])).to.throw('Pattern cannot be empty or whitespace-only');
             });
 
             it('rejects * alone', () => {
-                expect(() => service.addDenylistPatterns('*')).to.throw(/too permissive/);
+                expect(() => service.addDenylistPatterns(['*'])).to.throw(/too permissive/);
             });
 
             it('rejects invalid wildcard position (git push*)', () => {
-                expect(() => service.addDenylistPatterns('git push*')).to.throw(/must be preceded by a space/);
+                expect(() => service.addDenylistPatterns(['git push*'])).to.throw(/must be preceded by a space/);
             });
         });
 
         describe('addDenylistPatterns (multiple)', () => {
             it('adds multiple patterns in a single update', () => {
-                service.addDenylistPatterns('git push *', 'rm -rf /');
+                service.addDenylistPatterns(['git push *', 'rm -rf /']);
                 expect(storedDenylistPatterns).to.deep.equal(['git push *', 'rm -rf /']);
                 expect(aiConfigurationServiceMock.update.calledOnce).to.be.true;
             });
 
             it('skips patterns already in the denylist', () => {
                 storedDenylistPatterns = ['git push *'];
-                service.addDenylistPatterns('git push *', 'rm -rf /');
+                service.addDenylistPatterns(['git push *', 'rm -rf /']);
                 expect(storedDenylistPatterns).to.deep.equal(['git push *', 'rm -rf /']);
             });
 
             it('does not call updateValue when all patterns already exist', () => {
                 storedDenylistPatterns = ['git push *', 'rm -rf /'];
-                service.addDenylistPatterns('git push *', 'rm -rf /');
+                service.addDenylistPatterns(['git push *', 'rm -rf /']);
                 expect(aiConfigurationServiceMock.update.called).to.be.false;
             });
 
             it('validates all patterns before adding', () => {
-                expect(() => service.addDenylistPatterns('git push *', '*')).to.throw(/too permissive/);
+                expect(() => service.addDenylistPatterns(['git push *', '*'])).to.throw(/too permissive/);
                 expect(storedDenylistPatterns).to.deep.equal([]);
             });
 
             it('throws on empty pattern in batch', () => {
-                expect(() => service.addDenylistPatterns('git push *', '')).to.throw(/empty/);
+                expect(() => service.addDenylistPatterns(['git push *', ''])).to.throw(/empty/);
                 expect(storedDenylistPatterns).to.deep.equal([]);
             });
 
             it('handles no arguments without calling updateValue', () => {
-                service.addDenylistPatterns();
+                service.addDenylistPatterns([]);
                 expect(aiConfigurationServiceMock.update.called).to.be.false;
             });
         });

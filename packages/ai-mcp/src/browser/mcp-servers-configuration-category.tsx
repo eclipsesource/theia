@@ -15,8 +15,8 @@
 // *****************************************************************************
 
 import { PROMPT_VARIABLE } from '@theia/ai-core/lib/browser/prompt-variable-contribution';
-import { Emitter, Event, MessageService, nls, PreferenceScope } from '@theia/core';
-import { AiConfigurationService } from '@theia/ai-core/lib/common/ai-configuration-service';
+import { Emitter, Event, MessageService, nls } from '@theia/core';
+import { AiConfigurationInspection, AiConfigurationService } from '@theia/ai-core/lib/common/ai-configuration-service';
 import { codicon, ConfirmDialog } from '@theia/core/lib/browser';
 import { HoverService } from '@theia/core/lib/browser/hover-service';
 import { DisposableCollection } from '@theia/core/lib/common';
@@ -27,6 +27,8 @@ import {
     AiConfigurationCategoryId,
     AiConfigurationCategoryOrder,
     AiConfigurationItemStatus,
+    AiConfigurationRenderContext,
+    AiConfigurationScope,
     AiConfigurationSearchItem,
     AiConfigurationSearchProvider,
     AiConfigurationTreeItem
@@ -165,11 +167,11 @@ export class McpServersConfigurationCategory extends CollectionCategoryRenderer 
         </div>;
     }
 
-    protected override getAddAction(): AiConfigurationAddDescriptor {
+    protected override getAddAction(ctx: AiConfigurationRenderContext): AiConfigurationAddDescriptor {
         return {
             label: nls.localizeByDefault('Add MCP Server'),
             iconClass: codicon('add'),
-            run: () => { this.serverEditor.openAddServer(); }
+            run: () => { this.serverEditor.openAddServer(AiConfigurationScope.toPreferenceScope(ctx.scope), ctx.resourceUri); }
         };
     }
 
@@ -182,13 +184,13 @@ export class McpServersConfigurationCategory extends CollectionCategoryRenderer 
         return undefined;
     }
 
-    protected renderItemSections(item: AiConfigurationTreeItem): React.ReactNode {
+    protected renderItemSections(item: AiConfigurationTreeItem, ctx: AiConfigurationRenderContext): React.ReactNode {
         const server = this.servers.find(candidate => candidate.name === item.id);
         if (!server) {
             return undefined;
         }
         return <div className='mcp-server-card'>
-            {this.renderServerHeader(server)}
+            {this.renderServerHeader(server, ctx)}
             <div className='mcp-server-content'>
                 {this.renderCommandSection(server)}
                 {this.renderArgumentsSection(server)}
@@ -241,7 +243,7 @@ export class McpServersConfigurationCategory extends CollectionCategoryRenderer 
         </div>;
     }
 
-    protected renderServerHeader(server: MCPServerDescription): React.ReactNode {
+    protected renderServerHeader(server: MCPServerDescription, ctx: AiConfigurationRenderContext): React.ReactNode {
         const isStoppable = server.status === MCPServerStatus.Running
             || server.status === MCPServerStatus.Connected
             || server.status === MCPServerStatus.AuthenticationRequired;
@@ -276,12 +278,13 @@ export class McpServersConfigurationCategory extends CollectionCategoryRenderer 
                 />}
                 <button
                     className={`mcp-action-button ${codicon('edit')}`}
-                    onClick={() => this.serverEditor.openEditServer(server, this.servers.map(candidate => candidate.name))}
+                    onClick={() => this.serverEditor.openEditServer(
+                        server, this.servers.map(candidate => candidate.name), AiConfigurationScope.toPreferenceScope(ctx.scope), ctx.resourceUri)}
                     title={nls.localize('theia/ai/mcpConfiguration/editServer', 'Edit Server')}
                 />
                 <button
                     className={`mcp-action-button mcp-delete-button ${codicon('trash')}`}
-                    onClick={() => this.handleDeleteServer(server.name)}
+                    onClick={() => this.handleDeleteServer(server.name, ctx)}
                     title={nls.localize('theia/ai/mcpConfiguration/deleteServer', 'Delete Server')}
                 />
             </div>
@@ -544,7 +547,7 @@ export class McpServersConfigurationCategory extends CollectionCategoryRenderer 
         }
     }
 
-    protected async handleDeleteServer(serverName: string): Promise<void> {
+    protected async handleDeleteServer(serverName: string, ctx: AiConfigurationRenderContext): Promise<void> {
         const dialog = new ConfirmDialog({
             title: nls.localize('theia/ai/mcpConfiguration/deleteServerDialogTitle', 'Delete MCP Server'),
             msg: nls.localize('theia/ai/mcpConfiguration/deleteServerDialogMsg', 'Are you sure you want to delete the server "{0}"?', serverName),
@@ -552,11 +555,14 @@ export class McpServersConfigurationCategory extends CollectionCategoryRenderer 
             cancel: nls.localizeByDefault('Cancel')
         });
         if (await dialog.open()) {
+            const scope = AiConfigurationScope.toPreferenceScope(ctx.scope);
             try {
-                const currentServers = this.aiConfigurationService.get<Record<string, object>>(MCP_SERVERS_PREF, {}) ?? {};
+                // Base the write on the server map effective at the active scope so no other server is dropped.
+                const currentServers = AiConfigurationInspection.effectiveValueInScope(
+                    this.aiConfigurationService.inspect(MCP_SERVERS_PREF, ctx.resourceUri), scope) as Record<string, object> | undefined ?? {};
                 const newServers = { ...currentServers };
                 delete newServers[serverName];
-                await this.aiConfigurationService.set(MCP_SERVERS_PREF, newServers, PreferenceScope.User);
+                await this.aiConfigurationService.set(MCP_SERVERS_PREF, newServers, scope, ctx.resourceUri);
             } catch (error) {
                 this.messageService.error(nls.localize('theia/ai/mcpConfiguration/deleteServerError', 'Failed to delete MCP server: {0}', String(error)));
             }

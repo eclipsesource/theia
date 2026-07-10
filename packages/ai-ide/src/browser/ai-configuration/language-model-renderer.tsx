@@ -17,6 +17,7 @@ import * as React from '@theia/core/shared/react';
 import { Agent, AISettingsService, FrontendLanguageModelRegistry, LanguageModel, LanguageModelRequirement } from '@theia/ai-core/lib/common';
 import { LanguageModelAlias } from '@theia/ai-core/lib/common/language-model-alias';
 import { Mutable } from '@theia/core';
+import { PreferenceScope } from '@theia/core/lib/common/preferences';
 import { nls } from '@theia/core/lib/common/nls';
 
 export interface LanguageModelSettingsProps {
@@ -25,13 +26,17 @@ export interface LanguageModelSettingsProps {
     aiSettingsService: AISettingsService;
     languageModelRegistry: FrontendLanguageModelRegistry;
     languageModelAliases: LanguageModelAlias[];
+    /** The active settings scope: the agent's LLM requirements are read from and written to it. */
+    scope: PreferenceScope;
+    /** Folder uri for `Folder` scope. */
+    resourceUri?: string;
 }
 
 export const LanguageModelRenderer: React.FC<LanguageModelSettingsProps> = (
-    { agent, languageModels, aiSettingsService, languageModelRegistry, languageModelAliases: aliases }) => {
+    { agent, languageModels, aiSettingsService, languageModelRegistry, languageModelAliases: aliases, scope, resourceUri }) => {
 
     const findLanguageModelRequirement = async (purpose: string): Promise<LanguageModelRequirement | undefined> => {
-        const requirementSetting = await aiSettingsService.getAgentSettings(agent.id);
+        const requirementSetting = await aiSettingsService.getAgentSettings(agent.id, scope, resourceUri);
         return requirementSetting?.languageModelRequirements?.find(e => e.purpose === purpose);
     };
 
@@ -74,7 +79,7 @@ export const LanguageModelRenderer: React.FC<LanguageModelSettingsProps> = (
 
     const onSelectedModelChange = (purpose: string, event: React.ChangeEvent<HTMLSelectElement>): void => {
         const newLmRequirementMap = { ...lmRequirementMap, [purpose]: { purpose, identifier: event.target.value } };
-        aiSettingsService.updateAgentSettings(agent.id, { languageModelRequirements: Object.values(newLmRequirementMap) });
+        aiSettingsService.updateAgentSettings(agent.id, { languageModelRequirements: Object.values(newLmRequirementMap) }, scope, resourceUri);
         setLmRequirementMap(newLmRequirementMap);
     };
 

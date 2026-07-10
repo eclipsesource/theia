@@ -15,6 +15,7 @@
 // *****************************************************************************
 
 import { Event } from '@theia/core';
+import { PreferenceScope } from '@theia/core/lib/common/preferences';
 
 /**
  * Represents an alias for a language model, allowing fallback and selection.
@@ -54,9 +55,11 @@ export interface LanguageModelAliasRegistry {
      */
     onDidChange: Event<void>;
     /**
-     * Add a new alias or update an existing one.
+     * Add a new alias or update an existing one, persisting the alias map to the given scope
+     * (defaults to {@link PreferenceScope.User} for backwards compatibility). For
+     * {@link PreferenceScope.Folder} a `resourceUri` is required.
      */
-    addAlias(alias: LanguageModelAlias): void;
+    addAlias(alias: LanguageModelAlias, scope?: PreferenceScope, resourceUri?: string): void;
     /**
      * Remove an alias by its id.
      */

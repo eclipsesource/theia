@@ -17,6 +17,7 @@
 import { nls } from '@theia/core';
 import { codicon } from '@theia/core/lib/browser';
 import * as React from '@theia/core/shared/react';
+import { AiConfigurationScope } from '../ai-configuration-category';
 import { AiMarkdownDescription } from './ai-markdown-description';
 
 export interface AiConfigurationSettingRowProps {
@@ -30,6 +31,13 @@ export interface AiConfigurationSettingRowProps {
     readonly renderMarkdown: (markdown: string) => HTMLElement;
     /** `true` when the value is overridden in the current scope; reveals the modified edge and reset. */
     readonly modified: boolean;
+    /**
+     * Scopes other than the current one that also set this value. Rendered as a
+     * "Modified in / Also modified in: <scope>" indicator, mirroring the Settings UI.
+     */
+    readonly modifiedScopes?: readonly AiConfigurationScope[];
+    /** Jumps to the given scope's tab when its name in the indicator is clicked. */
+    readonly onJumpToScope?: (scope: AiConfigurationScope) => void;
     /** Disables the reset affordance (e.g. while the page is gated off). */
     readonly disabled?: boolean;
     /** Clears the override in the current scope. */
@@ -40,6 +48,53 @@ export interface AiConfigurationSettingRowProps {
     readonly below?: React.ReactNode;
 }
 
+/** Localized display name for a scope, matching the Settings UI's scope tab labels. */
+function scopeLabel(scope: AiConfigurationScope): string {
+    switch (scope) {
+        case 'user':
+            return nls.localizeByDefault('User');
+        case 'workspace':
+            return nls.localizeByDefault('Workspace');
+        case 'folder':
+            return nls.localizeByDefault('Folder');
+    }
+}
+
+/**
+ * The "Modified in / Also modified in: <scope>" indicator. The scope names for the addressable
+ * User/Workspace scopes are clickable and jump to that scope's tab, like the Settings UI; the Folder
+ * name is shown as plain text.
+ */
+const ModifiedScopesIndicator: React.FC<{
+    modified: boolean;
+    modifiedScopes: readonly AiConfigurationScope[];
+    onJumpToScope?: (scope: AiConfigurationScope) => void;
+}> = ({ modified, modifiedScopes, onJumpToScope }) => {
+    const prefix = modified ? nls.localizeByDefault('Also modified in') : nls.localizeByDefault('Modified in');
+    return <span className='ai-settings-row-modified-scopes'>
+        {`${prefix}: `}
+        {modifiedScopes.map((scope, index) => {
+            const clickable = onJumpToScope && scope !== 'folder';
+            return <React.Fragment key={scope}>
+                {index > 0 && ', '}
+                {clickable
+                    ? <a
+                        className='ai-settings-row-scope-link'
+                        role='button'
+                        tabIndex={0}
+                        onClick={() => onJumpToScope!(scope)}
+                        onKeyDown={event => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                onJumpToScope!(scope);
+                            }
+                        }}
+                    >{scopeLabel(scope)}</a>
+                    : <span>{scopeLabel(scope)}</span>}
+            </React.Fragment>;
+        })}
+    </span>;
+};
+
 /**
  * Presentational per-setting row shared across every AI configuration page: title with the real
  * preference id, the schema description, a control (inline via {@link AiConfigurationSettingRowProps.control}
@@ -48,7 +103,7 @@ export interface AiConfigurationSettingRowProps {
  * values, a bound markdown renderer and the reset callback.
  */
 export const AiConfigurationSettingRow: React.FC<AiConfigurationSettingRowProps> = ({
-    preferenceId, title, description, renderMarkdown, modified, disabled, onReset, control, below
+    preferenceId, title, description, renderMarkdown, modified, modifiedScopes, onJumpToScope, disabled, onReset, control, below
 }) => (
     <div className={`ai-settings-row${modified ? ' modified' : ''}`} data-ai-config-row-id={preferenceId}>
         <div className='ai-settings-row-top'>
@@ -56,6 +111,8 @@ export const AiConfigurationSettingRow: React.FC<AiConfigurationSettingRowProps>
                 <div className='ai-settings-row-title'>
                     {title}
                     <span className='ai-settings-row-id'>{preferenceId}</span>
+                    {modifiedScopes && modifiedScopes.length > 0 &&
+                        <ModifiedScopesIndicator modified={modified} modifiedScopes={modifiedScopes} onJumpToScope={onJumpToScope} />}
                 </div>
                 {description && <AiMarkdownDescription renderMarkdown={renderMarkdown} markdown={description} />}
             </div>

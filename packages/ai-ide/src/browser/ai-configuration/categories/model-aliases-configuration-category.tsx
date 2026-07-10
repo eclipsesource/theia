@@ -29,6 +29,7 @@ import {
     AiConfigurationCategoryOrder,
     AiConfigurationItemStatus,
     AiConfigurationRenderContext,
+    AiConfigurationScope,
     AiConfigurationSearchItem,
     AiConfigurationSearchProvider,
     AiConfigurationTreeItem
@@ -184,13 +185,13 @@ export class ModelAliasesConfigurationCategory extends CollectionCategoryRendere
             return undefined;
         }
         return <>
-            {this.renderSelectedModel(alias)}
+            {this.renderSelectedModel(alias, ctx)}
             {alias.selectedModelId === undefined && this.renderPriorityList(alias)}
             {this.renderAgentsUsingAlias(alias, ctx)}
         </>;
     }
 
-    protected renderSelectedModel(alias: LanguageModelAlias): React.ReactNode {
+    protected renderSelectedModel(alias: LanguageModelAlias, ctx: AiConfigurationRenderContext): React.ReactNode {
         const options = this.getModelOptions();
         const selected = alias.selectedModelId ?? DEFAULT_LIST_VALUE;
         const isInvalid = !!alias.selectedModelId && !this.languageModels.some(model => model.id === alias.selectedModelId);
@@ -203,7 +204,7 @@ export class ModelAliasesConfigurationCategory extends CollectionCategoryRendere
                 value={isInvalid ? undefined : selected}
                 invalid={isInvalid}
                 options={options.map(option => ({ value: String(option.value ?? ''), label: option.label ?? String(option.value ?? ''), title: option.description }))}
-                onCommit={value => this.setSelectedModel(alias, value)}
+                onCommit={value => this.setSelectedModel(alias, value, ctx)}
             />
         </AiConfigurationSection>;
     }
@@ -224,9 +225,10 @@ export class ModelAliasesConfigurationCategory extends CollectionCategoryRendere
         return options;
     }
 
-    protected setSelectedModel(alias: LanguageModelAlias, value: string | undefined): void {
+    protected setSelectedModel(alias: LanguageModelAlias, value: string | undefined, ctx: AiConfigurationRenderContext): void {
         const selectedModelId = value ? value : undefined;
-        this.languageModelAliasRegistry.ready.then(() => this.languageModelAliasRegistry.addAlias({ ...alias, selectedModelId }));
+        const scope = AiConfigurationScope.toPreferenceScope(ctx.scope);
+        this.languageModelAliasRegistry.ready.then(() => this.languageModelAliasRegistry.addAlias({ ...alias, selectedModelId }, scope, ctx.resourceUri));
     }
 
     protected renderPriorityList(alias: LanguageModelAlias): React.ReactNode {

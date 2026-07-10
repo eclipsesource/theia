@@ -28,6 +28,7 @@ try {
 import { expect } from 'chai';
 import { Container } from '@theia/core/shared/inversify';
 import { MessageService, PreferenceService } from '@theia/core';
+import { AiConfigurationService } from '@theia/ai-core';
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
 import URI from '@theia/core/lib/common/uri';
 import { MCP_SERVERS_PREF } from '../common/mcp-preferences';
@@ -47,6 +48,25 @@ class FakePreferenceService {
     }
     async set(key: string, value: unknown): Promise<void> {
         this.store.set(key, value);
+    }
+}
+
+/** Minimal {@link AiConfigurationService} backed by a {@link FakePreferenceService} (User scope only). */
+class FakeAiConfigurationService {
+    constructor(private readonly prefs: FakePreferenceService) { }
+    readonly ready = Promise.resolve();
+    readonly onDidChange = () => ({ dispose: () => undefined });
+    get<T>(key: string, defaultValue?: T): T | undefined {
+        return this.prefs.get(key, defaultValue);
+    }
+    async set(key: string, value: unknown): Promise<void> {
+        await this.prefs.set(key, value);
+    }
+    async update(key: string, value: unknown): Promise<void> {
+        await this.prefs.set(key, value);
+    }
+    inspect(key: string): { globalValue: unknown } {
+        return { globalValue: this.prefs.get(key) };
     }
 }
 
@@ -112,6 +132,7 @@ function buildHandler(options: {
     const messages = options.messages ?? new FakeMessageService();
     const windowService = options.windowService ?? new FakeWindowService();
     container.bind(PreferenceService).toConstantValue(prefs as unknown as PreferenceService);
+    container.bind(AiConfigurationService).toConstantValue(new FakeAiConfigurationService(prefs) as unknown as AiConfigurationService);
     container.bind(MessageService).toConstantValue(messages as unknown as MessageService);
     container.bind(WindowService).toConstantValue(windowService as unknown as WindowService);
     container.bind(MCPFrontendService).toConstantValue({} as unknown as MCPFrontendService);

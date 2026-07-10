@@ -34,6 +34,57 @@ export interface AiConfigurationInspection<T extends JSONValue = JSONValue> exte
     sourceScope?: PreferenceScope;
 }
 
+export namespace AiConfigurationInspection {
+
+    /** The addressable settings scopes, in precedence order (narrowest last). */
+    const SCOPES: readonly PreferenceScope[] = [PreferenceScope.User, PreferenceScope.Workspace, PreferenceScope.Folder];
+
+    /**
+     * The value **explicitly set** in `scope` (no fall-through to broader scopes); `undefined` when
+     * the scope does not override the value. Use this to decide whether a scope is "modified" and as
+     * the source of truth for a reset.
+     */
+    export function valueInScope<T extends JSONValue>(inspection: AiConfigurationInspection<T> | undefined, scope: PreferenceScope): T | undefined {
+        switch (scope) {
+            case PreferenceScope.Folder:
+                return inspection?.workspaceFolderValue;
+            case PreferenceScope.Workspace:
+                return inspection?.workspaceValue;
+            case PreferenceScope.User:
+                return inspection?.globalValue;
+            default:
+                return undefined;
+        }
+    }
+
+    /**
+     * The **effective** value for `scope`: the value set there, else inherited from a broader scope,
+     * else the default. This is the base a scope-targeted write should build on (writing the whole
+     * effective value to the scope) so inherited entries are not silently dropped.
+     */
+    export function effectiveValueInScope<T extends JSONValue>(inspection: AiConfigurationInspection<T> | undefined, scope: PreferenceScope): T | undefined {
+        switch (scope) {
+            case PreferenceScope.Folder:
+                return inspection?.workspaceFolderValue ?? inspection?.workspaceValue ?? inspection?.globalValue ?? inspection?.defaultValue;
+            case PreferenceScope.Workspace:
+                return inspection?.workspaceValue ?? inspection?.globalValue ?? inspection?.defaultValue;
+            case PreferenceScope.User:
+                return inspection?.globalValue ?? inspection?.defaultValue;
+            default:
+                return inspection?.defaultValue;
+        }
+    }
+
+    /**
+     * Scopes other than `currentScope` that explicitly set a value, in precedence order. Drives the
+     * "Modified in / Also modified in" indicator. Because it reads the (already trust-suppressed)
+     * inspection, untrusted workspace/folder values are naturally excluded.
+     */
+    export function otherModifiedScopes<T extends JSONValue>(inspection: AiConfigurationInspection<T> | undefined, currentScope: PreferenceScope): PreferenceScope[] {
+        return SCOPES.filter(scope => scope !== currentScope && valueInScope(inspection, scope) !== undefined);
+    }
+}
+
 /**
  * Payload of {@link AiConfigurationService.onDidChange}.
  */

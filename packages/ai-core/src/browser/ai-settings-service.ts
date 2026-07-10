@@ -14,8 +14,9 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { DisposableCollection, Emitter, Event, ILogger, RecursiveReadonly } from '@theia/core';
+import { PreferenceScope } from '@theia/core/lib/common/preferences';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
-import { AiConfigurationService, AISettings, AISettingsService, AgentSettings } from '../common';
+import { AiConfigurationInspection, AiConfigurationService, AISettings, AISettingsService, AgentSettings } from '../common';
 
 @injectable()
 export class AISettingsServiceImpl implements AISettingsService {
@@ -44,24 +45,35 @@ export class AISettingsServiceImpl implements AISettingsService {
         );
     }
 
-    async updateAgentSettings(agent: string, agentSettings: Partial<AgentSettings>): Promise<void> {
-        const settings = await this.getSettings();
+    async updateAgentSettings(agent: string, agentSettings: Partial<AgentSettings>, scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        // Base the write on the settings effective at the target scope so no other agent's entry is
+        // dropped, then merge in the change. Writing the whole map to the scope keeps the effective
+        // value correct without depending on cross-scope object merging.
+        const settings = await this.getSettings(scope, resourceUri);
         const toSet = { ...settings, [agent]: { ...settings[agent], ...agentSettings } };
         try {
-            await this.aiConfigurationService.update(AISettingsServiceImpl.PREFERENCE_NAME, toSet);
+            if (scope === undefined) {
+                await this.aiConfigurationService.update(AISettingsServiceImpl.PREFERENCE_NAME, toSet, resourceUri);
+            } else {
+                await this.aiConfigurationService.set(AISettingsServiceImpl.PREFERENCE_NAME, toSet, scope, resourceUri);
+            }
         } catch (e) {
             this.onDidChangeEmitter.fire();
             this.logger.warn('Updating the preferences was unsuccessful: ' + e);
         }
     }
 
-    async getAgentSettings(agent: string): Promise<RecursiveReadonly<AgentSettings> | undefined> {
-        const settings = await this.getSettings();
+    async getAgentSettings(agent: string, scope?: PreferenceScope, resourceUri?: string): Promise<RecursiveReadonly<AgentSettings> | undefined> {
+        const settings = await this.getSettings(scope, resourceUri);
         return settings[agent];
     }
 
-    async getSettings(): Promise<RecursiveReadonly<AISettings>> {
+    async getSettings(scope?: PreferenceScope, resourceUri?: string): Promise<RecursiveReadonly<AISettings>> {
         await this.aiConfigurationService.ready;
-        return this.aiConfigurationService.get<AISettings>(AISettingsServiceImpl.PREFERENCE_NAME, {}) ?? {};
+        if (scope === undefined) {
+            return this.aiConfigurationService.get<AISettings>(AISettingsServiceImpl.PREFERENCE_NAME, {}, resourceUri) ?? {};
+        }
+        const value = AiConfigurationInspection.effectiveValueInScope(this.aiConfigurationService.inspect(AISettingsServiceImpl.PREFERENCE_NAME, resourceUri), scope);
+        return (value as AISettings) ?? {};
     }
 }

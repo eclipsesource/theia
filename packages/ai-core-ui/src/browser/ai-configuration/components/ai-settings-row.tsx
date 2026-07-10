@@ -88,6 +88,8 @@ export const AiSettingsRow: React.FC<AiSettingsRowProps> = ({
         description={effectiveDescription}
         renderMarkdown={renderMarkdown}
         modified={inspection.modified}
+        modifiedScopes={inspection.otherModifiedScopes}
+        onJumpToScope={targetScope => service.jumpToScope(targetScope)}
         onReset={reset}
         control={below ? undefined : controlNode}
         below={below ? controlNode : undefined}

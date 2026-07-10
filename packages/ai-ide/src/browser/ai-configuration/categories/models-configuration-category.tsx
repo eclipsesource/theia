@@ -156,6 +156,7 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
             service={this.settingsRowService}
             preferenceId={preferenceId}
             scope={ctx.scope}
+            resourceUri={ctx.resourceUri}
             control={this.settingsRowService.controlFor(preferenceId)}
             onDidChange={() => ctx.update()}
         />;

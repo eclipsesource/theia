@@ -17,6 +17,7 @@
 import { expect } from 'chai';
 import { Container } from '@theia/core/shared/inversify';
 import { MessageService, PreferenceService } from '@theia/core';
+import { AiConfigurationService } from '@theia/ai-core';
 import { MCP_SERVERS_PREF } from '../common/mcp-preferences';
 import { MCPFrontendService, MCPServerDescription, RemoteMCPServerDescription } from '../common/mcp-server-manager';
 import { MCPInstallEntry, MCPServerEditDialogFactory, MCPServerEditorImpl } from './mcp-server-editor';
@@ -35,6 +36,25 @@ class FakePreferenceService {
     }
 }
 
+/** Minimal {@link AiConfigurationService} backed by a {@link FakePreferenceService} (User scope only). */
+class FakeAiConfigurationService {
+    constructor(private readonly prefs: FakePreferenceService) { }
+    readonly ready = Promise.resolve();
+    readonly onDidChange = () => ({ dispose: () => undefined });
+    get<T>(key: string, defaultValue?: T): T | undefined {
+        return this.prefs.get(key, defaultValue);
+    }
+    async set(key: string, value: unknown): Promise<void> {
+        await this.prefs.set(key, value);
+    }
+    async update(key: string, value: unknown): Promise<void> {
+        await this.prefs.set(key, value);
+    }
+    inspect(key: string): { globalValue: unknown } {
+        return { globalValue: this.prefs.get(key) };
+    }
+}
+
 describe('MCPServerEditor.installFromEntry', () => {
 
     let prefs: FakePreferenceService;
@@ -44,6 +64,7 @@ describe('MCPServerEditor.installFromEntry', () => {
         const container = new Container();
         prefs = new FakePreferenceService();
         container.bind(PreferenceService).toConstantValue(prefs as unknown as PreferenceService);
+        container.bind(AiConfigurationService).toConstantValue(new FakeAiConfigurationService(prefs) as unknown as AiConfigurationService);
         container.bind(MessageService).toConstantValue({ error: () => undefined } as unknown as MessageService);
         container.bind(MCPFrontendService).toConstantValue({} as unknown as MCPFrontendService);
         // installFromEntry never opens a dialog; bind a factory that fails loudly if it is used.
@@ -192,6 +213,7 @@ describe('MCPServerEditor OAuth form handling', () => {
         const container = new Container();
         prefs = new FakePreferenceService();
         container.bind(PreferenceService).toConstantValue(prefs as unknown as PreferenceService);
+        container.bind(AiConfigurationService).toConstantValue(new FakeAiConfigurationService(prefs) as unknown as AiConfigurationService);
         container.bind(MessageService).toConstantValue({ error: () => undefined } as unknown as MessageService);
         container.bind(MCPFrontendService).toConstantValue({} as unknown as MCPFrontendService);
         container.bind(MCPServerEditDialogFactory).toConstantValue(() => {

@@ -15,12 +15,13 @@
 // *****************************************************************************
 
 import { injectable, inject } from '@theia/core/shared/inversify';
+import { PreferenceScope } from '@theia/core/lib/common/preferences';
 import {
     ToolConfirmationMode,
     TOOL_CONFIRMATION_PREFERENCE,
     DEFAULT_TOOL_CONFIRMATION_PREFERENCE
 } from '../common/chat-tool-preferences';
-import { AiConfigurationService, ToolRequest } from '@theia/ai-core';
+import { AiConfigurationInspection, AiConfigurationService, ToolRequest } from '@theia/ai-core';
 
 /**
  * The loop-invariant inputs to {@link ToolConfirmationManager.computeEffectiveDefaultForTool}:
@@ -49,9 +50,36 @@ export class ToolConfirmationManager {
      * Read through the trust-aware reader so that an untrusted workspace cannot override
      * the default to a more permissive value.
      */
-    getDefaultConfirmationMode(): ToolConfirmationMode {
-        const value = this.aiConfigurationService.get<ToolConfirmationMode>(DEFAULT_TOOL_CONFIRMATION_PREFERENCE);
+    getDefaultConfirmationMode(scope?: PreferenceScope, resourceUri?: string): ToolConfirmationMode {
+        const value = scope === undefined
+            ? this.aiConfigurationService.get<ToolConfirmationMode>(DEFAULT_TOOL_CONFIRMATION_PREFERENCE)
+            : AiConfigurationInspection.effectiveValueInScope(
+                this.aiConfigurationService.inspect(DEFAULT_TOOL_CONFIRMATION_PREFERENCE, resourceUri), scope
+            ) as ToolConfirmationMode | undefined;
         return value ?? this.getDefaultPreferenceSchemaDefault();
+    }
+
+    /**
+     * Reads the per-tool confirmation map. With a `scope`, returns the value effective at that scope
+     * (the value set there, else inherited from a broader scope, else the default); otherwise the
+     * effective, trust-aware value.
+     */
+    protected readToolConfirmationMap(scope?: PreferenceScope, resourceUri?: string): Record<string, ToolConfirmationMode> {
+        if (scope === undefined) {
+            return this.aiConfigurationService.get<Record<string, ToolConfirmationMode>>(TOOL_CONFIRMATION_PREFERENCE, {}) ?? {};
+        }
+        const value = AiConfigurationInspection.effectiveValueInScope(this.aiConfigurationService.inspect(TOOL_CONFIRMATION_PREFERENCE, resourceUri), scope);
+        return (value as Record<string, ToolConfirmationMode>) ?? {};
+    }
+
+    /**
+     * Writes a tool-confirmation preference. With a `scope`, writes explicitly to that scope; otherwise
+     * uses the "smart write" that targets whichever scope makes the value effective.
+     */
+    protected writeToolConfirmationPreference(key: string, value: unknown, scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        return scope === undefined
+            ? this.aiConfigurationService.update(key, value, resourceUri)
+            : this.aiConfigurationService.set(key, value, scope, resourceUri);
     }
 
     /**
@@ -60,8 +88,8 @@ export class ToolConfirmationManager {
      * Returns the promise produced by the underlying preference update so callers can
      * `await` completion and react to errors (e.g. show a notification on failure).
      */
-    setDefaultConfirmationMode(mode: ToolConfirmationMode): Promise<void> {
-        return this.aiConfigurationService.update(DEFAULT_TOOL_CONFIRMATION_PREFERENCE, mode);
+    setDefaultConfirmationMode(mode: ToolConfirmationMode, scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        return this.writeToolConfirmationPreference(DEFAULT_TOOL_CONFIRMATION_PREFERENCE, mode, scope, resourceUri);
     }
 
     /**
@@ -101,20 +129,18 @@ export class ToolConfirmationManager {
      * @param mode - The confirmation mode to set
      * @param toolRequest - Optional ToolRequest to check for confirmAlwaysAllow flag
      */
-    setConfirmationMode(toolId: string, mode: ToolConfirmationMode, toolRequest?: ToolRequest): Promise<void> {
-        const current = this.aiConfigurationService.get<Record<string, ToolConfirmationMode>>(
-            TOOL_CONFIRMATION_PREFERENCE, {}
-        ) ?? {};
-        const effectiveDefault = this.computeEffectiveDefaultForTool(toolId, toolRequest);
+    setConfirmationMode(toolId: string, mode: ToolConfirmationMode, toolRequest?: ToolRequest, scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        const current = this.readToolConfirmationMap(scope, resourceUri);
+        const effectiveDefault = this.computeEffectiveDefaultForTool(toolId, toolRequest, this.readConfirmationDefaults(scope, resourceUri));
         if (mode === effectiveDefault) {
             if (toolId in current) {
                 const { [toolId]: _, ...rest } = current;
-                return this.aiConfigurationService.update(TOOL_CONFIRMATION_PREFERENCE, rest);
+                return this.writeToolConfirmationPreference(TOOL_CONFIRMATION_PREFERENCE, rest, scope, resourceUri);
             }
             return Promise.resolve();
         }
         const updated = { ...current, [toolId]: mode };
-        return this.aiConfigurationService.update(TOOL_CONFIRMATION_PREFERENCE, updated);
+        return this.writeToolConfirmationPreference(TOOL_CONFIRMATION_PREFERENCE, updated, scope, resourceUri);
     }
 
     /**
@@ -124,13 +150,15 @@ export class ToolConfirmationManager {
      * {@link setConfirmationMode}. Use this for bulk operations to avoid one preference
      * round-trip per tool.
      */
-    setConfirmationModes(updates: Iterable<{ toolId: string; mode: ToolConfirmationMode; toolRequest?: ToolRequest }>): Promise<void> {
-        const current = this.aiConfigurationService.get<Record<string, ToolConfirmationMode>>(
-            TOOL_CONFIRMATION_PREFERENCE, {}
-        ) ?? {};
+    setConfirmationModes(
+        updates: Iterable<{ toolId: string; mode: ToolConfirmationMode; toolRequest?: ToolRequest }>,
+        scope?: PreferenceScope,
+        resourceUri?: string
+    ): Promise<void> {
+        const current = this.readToolConfirmationMap(scope, resourceUri);
         const next: Record<string, ToolConfirmationMode> = { ...current };
         // Read the loop-invariant schema/global defaults once, not once per tool.
-        const defaults = this.readConfirmationDefaults();
+        const defaults = this.readConfirmationDefaults(scope, resourceUri);
         let changed = false;
         for (const { toolId, mode, toolRequest } of updates) {
             const effectiveDefault = this.computeEffectiveDefaultForTool(toolId, toolRequest, defaults);
@@ -148,7 +176,7 @@ export class ToolConfirmationManager {
         if (!changed) {
             return Promise.resolve();
         }
-        return this.aiConfigurationService.update(TOOL_CONFIRMATION_PREFERENCE, next);
+        return this.writeToolConfirmationPreference(TOOL_CONFIRMATION_PREFERENCE, next, scope, resourceUri);
     }
 
     /**
@@ -177,25 +205,23 @@ export class ToolConfirmationManager {
     /**
      * Get all tool confirmation settings
      */
-    getAllConfirmationSettings(): { [toolId: string]: ToolConfirmationMode } {
-        return this.aiConfigurationService.get<Record<string, ToolConfirmationMode>>(
-            TOOL_CONFIRMATION_PREFERENCE, {}
-        ) ?? {};
+    getAllConfirmationSettings(scope?: PreferenceScope, resourceUri?: string): { [toolId: string]: ToolConfirmationMode } {
+        return this.readToolConfirmationMap(scope, resourceUri);
     }
 
-    resetAllConfirmationModeSettings(): Promise<void> {
-        return this.aiConfigurationService.update(TOOL_CONFIRMATION_PREFERENCE, {});
+    resetAllConfirmationModeSettings(scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        return this.writeToolConfirmationPreference(TOOL_CONFIRMATION_PREFERENCE, {}, scope, resourceUri);
     }
 
     /**
      * Read the loop-invariant inputs for {@link computeEffectiveDefaultForTool}: the product-shipped
      * per-tool schema defaults and the effective global default.
      */
-    protected readConfirmationDefaults(): ToolConfirmationDefaults {
+    protected readConfirmationDefaults(scope?: PreferenceScope, resourceUri?: string): ToolConfirmationDefaults {
         const perToolDefaults = this.aiConfigurationService.inspect(TOOL_CONFIRMATION_PREFERENCE)?.defaultValue as
             | { [toolId: string]: ToolConfirmationMode }
             | undefined;
-        return { perToolDefaults, globalDefault: this.getDefaultConfirmationMode() };
+        return { perToolDefaults, globalDefault: this.getDefaultConfirmationMode(scope, resourceUri) };
     }
 
     protected computeEffectiveDefaultForTool(

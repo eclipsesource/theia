@@ -78,7 +78,7 @@ export class ShellExecutionToolRenderer implements ChatResponsePartRenderer<Tool
         const handleAllow = (patterns?: string[]) => {
             if (patterns && patterns.length > 0) {
                 try {
-                    this.shellCommandPermissionService.addAllowlistPatterns(...patterns)
+                    this.shellCommandPermissionService.addAllowlistPatterns(patterns)
                         .catch(err => console.warn('Failed to add allowlist patterns:', err));
                 } catch (err) {
                     console.warn('Failed to add allowlist patterns:', err);
@@ -89,7 +89,7 @@ export class ShellExecutionToolRenderer implements ChatResponsePartRenderer<Tool
         const handleDeny = (options?: { patterns?: string[]; reason?: string }) => {
             if (options?.patterns && options.patterns.length > 0) {
                 try {
-                    this.shellCommandPermissionService.addDenylistPatterns(...options.patterns)
+                    this.shellCommandPermissionService.addDenylistPatterns(options.patterns)
                         .catch(err => console.warn('Failed to add denylist patterns:', err));
                 } catch (err) {
                     console.warn('Failed to add denylist patterns:', err);
@@ -213,7 +213,7 @@ const ShellExecutionToolComponent: React.FC<ShellExecutionToolComponentProps> = 
     const handleAllow = React.useCallback((patterns?: string[]) => {
         if (patterns && patterns.length > 0) {
             try {
-                shellCommandPermissionService.addAllowlistPatterns(...patterns)
+                shellCommandPermissionService.addAllowlistPatterns(patterns)
                     .catch(err => console.warn('Failed to add allowlist patterns:', err));
             } catch (err) {
                 console.warn('Failed to add allowlist patterns:', err);
@@ -225,7 +225,7 @@ const ShellExecutionToolComponent: React.FC<ShellExecutionToolComponentProps> = 
     const handleDeny = React.useCallback((options?: { patterns?: string[]; reason?: string }) => {
         if (options?.patterns && options.patterns.length > 0) {
             try {
-                shellCommandPermissionService.addDenylistPatterns(...options.patterns)
+                shellCommandPermissionService.addDenylistPatterns(options.patterns)
                     .catch(err => console.warn('Failed to add denylist patterns:', err));
             } catch (err) {
                 console.warn('Failed to add denylist patterns:', err);

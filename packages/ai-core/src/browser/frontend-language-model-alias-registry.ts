@@ -102,14 +102,14 @@ export class DefaultLanguageModelAliasRegistry implements LanguageModelAliasRegi
         });
     }
 
-    addAlias(alias: LanguageModelAlias): void {
+    addAlias(alias: LanguageModelAlias, scope: PreferenceScope = PreferenceScope.User, resourceUri?: string): void {
         const idx = this.aliases.findIndex(a => a.id === alias.id);
         if (idx !== -1) {
             this.aliases[idx] = alias;
         } else {
             this.aliases.push(alias);
         }
-        this.saveToPreference();
+        this.saveToPreference(scope, resourceUri);
         this.onDidChangeEmitter.fire();
     }
 
@@ -167,13 +167,13 @@ export class DefaultLanguageModelAliasRegistry implements LanguageModelAliasRegi
     /**
      * Persist the current aliases and their selected models to the setting
      */
-    protected saveToPreference(): void {
+    protected saveToPreference(scope: PreferenceScope = PreferenceScope.User, resourceUri?: string): void {
         const map: { [name: string]: { selectedModel: string } } = {};
         for (const alias of this.aliases) {
             if (alias.selectedModelId) {
                 map[alias.id] = { selectedModel: alias.selectedModelId };
             }
         }
-        this.aiConfigurationService.set(LANGUAGE_MODEL_ALIASES_PREFERENCE, map, PreferenceScope.User);
+        this.aiConfigurationService.set(LANGUAGE_MODEL_ALIASES_PREFERENCE, map, scope, resourceUri);
     }
 }

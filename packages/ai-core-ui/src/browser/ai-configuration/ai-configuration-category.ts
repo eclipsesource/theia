@@ -15,6 +15,7 @@
 // *****************************************************************************
 
 import { Event } from '@theia/core';
+import { PreferenceScope } from '@theia/core/lib/common/preferences';
 
 /**
  * Contribution point for a category shown in the AI Configuration view.
@@ -68,11 +69,38 @@ export namespace AiConfigurationCategoryId {
 }
 
 /**
- * The scope a category's settings are read from and written to.
- *
- * Render-only in this iteration; per-scope read/write behaviour is wired later.
+ * The scope a category's settings are read from and written to, selected via the scope tabs in
+ * the view's title bar and carried on the {@link AiConfigurationRenderContext}.
  */
 export type AiConfigurationScope = 'user' | 'workspace' | 'folder';
+
+export namespace AiConfigurationScope {
+    /** Maps an {@link AiConfigurationScope} to the core {@link PreferenceScope} used by preference reads/writes. */
+    export function toPreferenceScope(scope: AiConfigurationScope): PreferenceScope {
+        switch (scope) {
+            case 'user':
+                return PreferenceScope.User;
+            case 'workspace':
+                return PreferenceScope.Workspace;
+            case 'folder':
+                return PreferenceScope.Folder;
+        }
+    }
+
+    /** Maps a core {@link PreferenceScope} to an {@link AiConfigurationScope}, or `undefined` for the non-addressable `Default` scope. */
+    export function fromPreferenceScope(scope: PreferenceScope): AiConfigurationScope | undefined {
+        switch (scope) {
+            case PreferenceScope.User:
+                return 'user';
+            case PreferenceScope.Workspace:
+                return 'workspace';
+            case PreferenceScope.Folder:
+                return 'folder';
+            default:
+                return undefined;
+        }
+    }
+}
 
 export interface AiConfigurationCategory {
     /** Stable id; used as the tree-node id and in navigation targets. */
@@ -173,8 +201,10 @@ export interface AiConfigurationSelection {
 }
 
 export interface AiConfigurationRenderContext {
-    /** Render-only in this iteration; per-scope read/write is wired later. */
+    /** Scope the page reads from and writes to, selected via the title-bar scope tabs. */
     readonly scope: AiConfigurationScope;
+    /** Resource uri of the active folder, when {@link scope} is `folder`; `undefined` otherwise. */
+    readonly resourceUri?: string;
     /** Per-view filter text; slot only in this iteration. */
     readonly filter: string;
     /** Select another node (used by cards, links, "used by" chips). */

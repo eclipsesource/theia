@@ -15,7 +15,8 @@
 // *****************************************************************************
 
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { AiConfigurationService } from '@theia/ai-core';
+import { PreferenceScope } from '@theia/core/lib/common/preferences';
+import { AiConfigurationInspection, AiConfigurationService } from '@theia/ai-core';
 import { SHELL_COMMAND_ALLOWLIST_PREFERENCE, SHELL_COMMAND_DENYLIST_PREFERENCE } from '../common/shell-command-preferences';
 import { ShellCommandAnalyzer } from '../common/shell-command-analyzer';
 
@@ -146,8 +147,8 @@ export class ShellCommandPermissionService {
         return new RegExp(`^${regexStr}$`).test(subCommand);
     }
 
-    getAllowlistPatterns(): string[] {
-        return this.aiConfigurationService.get<string[]>(SHELL_COMMAND_ALLOWLIST_PREFERENCE, []) ?? [];
+    getAllowlistPatterns(scope?: PreferenceScope, resourceUri?: string): string[] {
+        return this.readPatterns(SHELL_COMMAND_ALLOWLIST_PREFERENCE, scope, resourceUri);
     }
 
     /**
@@ -158,16 +159,16 @@ export class ShellCommandPermissionService {
      * Throws synchronously if any pattern is invalid. The returned promise resolves once the
      * preference write completes and rejects if the write fails.
      */
-    addAllowlistPatterns(...patterns: string[]): Promise<void> {
-        return this.addPatternsToList(patterns, SHELL_COMMAND_ALLOWLIST_PREFERENCE, () => this.getAllowlistPatterns());
+    addAllowlistPatterns(patterns: string[], scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        return this.addPatternsToList(patterns, SHELL_COMMAND_ALLOWLIST_PREFERENCE, () => this.getAllowlistPatterns(scope, resourceUri), scope, resourceUri);
     }
 
-    removeAllowlistPattern(pattern: string): Promise<void> {
-        return this.removePatternFromList(pattern, SHELL_COMMAND_ALLOWLIST_PREFERENCE, () => this.getAllowlistPatterns());
+    removeAllowlistPattern(pattern: string, scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        return this.removePatternFromList(pattern, SHELL_COMMAND_ALLOWLIST_PREFERENCE, () => this.getAllowlistPatterns(scope, resourceUri), scope, resourceUri);
     }
 
-    getDenylistPatterns(): string[] {
-        return this.aiConfigurationService.get<string[]>(SHELL_COMMAND_DENYLIST_PREFERENCE, []) ?? [];
+    getDenylistPatterns(scope?: PreferenceScope, resourceUri?: string): string[] {
+        return this.readPatterns(SHELL_COMMAND_DENYLIST_PREFERENCE, scope, resourceUri);
     }
 
     /**
@@ -177,12 +178,12 @@ export class ShellCommandPermissionService {
      * Throws synchronously if any pattern is invalid. The returned promise resolves once the
      * preference write completes and rejects if the write fails.
      */
-    addDenylistPatterns(...patterns: string[]): Promise<void> {
-        return this.addPatternsToList(patterns, SHELL_COMMAND_DENYLIST_PREFERENCE, () => this.getDenylistPatterns());
+    addDenylistPatterns(patterns: string[], scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        return this.addPatternsToList(patterns, SHELL_COMMAND_DENYLIST_PREFERENCE, () => this.getDenylistPatterns(scope, resourceUri), scope, resourceUri);
     }
 
-    removeDenylistPattern(pattern: string): Promise<void> {
-        return this.removePatternFromList(pattern, SHELL_COMMAND_DENYLIST_PREFERENCE, () => this.getDenylistPatterns());
+    removeDenylistPattern(pattern: string, scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        return this.removePatternFromList(pattern, SHELL_COMMAND_DENYLIST_PREFERENCE, () => this.getDenylistPatterns(scope, resourceUri), scope, resourceUri);
     }
 
     /**
@@ -205,27 +206,40 @@ export class ShellCommandPermissionService {
         return trimmed;
     }
 
-    protected addPatternsToList(patterns: string[], preferenceKey: string, getCurrentPatterns: () => string[]): Promise<void> {
+    /**
+     * Reads a pattern list. With a `scope`, returns the list effective at that scope (the list set
+     * there, else inherited from a broader scope, else empty); otherwise the effective value. Array
+     * preferences do not merge across scopes, so a scoped write persists the whole effective list.
+     */
+    protected readPatterns(preferenceKey: string, scope?: PreferenceScope, resourceUri?: string): string[] {
+        if (scope === undefined) {
+            return this.aiConfigurationService.get<string[]>(preferenceKey, [], resourceUri) ?? [];
+        }
+        const value = AiConfigurationInspection.effectiveValueInScope(this.aiConfigurationService.inspect(preferenceKey, resourceUri), scope);
+        return (value as string[] | undefined) ?? [];
+    }
+
+    protected writePatterns(preferenceKey: string, patterns: string[], scope?: PreferenceScope, resourceUri?: string): Promise<void> {
+        return scope === undefined
+            ? this.aiConfigurationService.update(preferenceKey, patterns, resourceUri)
+            : this.aiConfigurationService.set(preferenceKey, patterns, scope, resourceUri);
+    }
+
+    protected addPatternsToList(patterns: string[], preferenceKey: string, getCurrentPatterns: () => string[], scope?: PreferenceScope, resourceUri?: string): Promise<void> {
         const validated = patterns.map(p => this.validatePattern(p));
         const currentPatterns = getCurrentPatterns();
         const newPatterns = validated.filter(p => !currentPatterns.includes(p));
         if (newPatterns.length > 0) {
-            return this.aiConfigurationService.update(
-                preferenceKey,
-                [...currentPatterns, ...newPatterns]
-            );
+            return this.writePatterns(preferenceKey, [...currentPatterns, ...newPatterns], scope, resourceUri);
         }
         return Promise.resolve();
     }
 
-    protected removePatternFromList(pattern: string, preferenceKey: string, getCurrentPatterns: () => string[]): Promise<void> {
+    protected removePatternFromList(pattern: string, preferenceKey: string, getCurrentPatterns: () => string[], scope?: PreferenceScope, resourceUri?: string): Promise<void> {
         const currentPatterns = getCurrentPatterns();
         const filtered = currentPatterns.filter(p => p !== pattern);
         if (filtered.length !== currentPatterns.length) {
-            return this.aiConfigurationService.update(
-                preferenceKey,
-                filtered
-            );
+            return this.writePatterns(preferenceKey, filtered, scope, resourceUri);
         }
         return Promise.resolve();
     }

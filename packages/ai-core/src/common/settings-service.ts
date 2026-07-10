@@ -14,6 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 import { Event } from '@theia/core';
+import { PreferenceScope } from '@theia/core/lib/common/preferences';
 import { LanguageModelRequirement, ReasoningSettings } from './language-model';
 import { NotificationType } from './notification-types';
 import { GenericCapabilitySelections } from './capability-utils';
@@ -21,11 +22,15 @@ import { GenericCapabilitySelections } from './capability-utils';
 export const AISettingsService = Symbol('AISettingsService');
 /**
  * Service to store and retrieve settings on a per-agent basis.
+ *
+ * The optional `scope`/`resourceUri` parameters select the settings scope for reads and writes. When
+ * omitted, reads return the effective (trust-aware) value and writes use a "smart write" that targets
+ * whichever scope makes the value effective — the historical behaviour, preserved for existing callers.
  */
 export interface AISettingsService {
-    updateAgentSettings(agent: string, agentSettings: Partial<AgentSettings>): Promise<void>;
-    getAgentSettings(agent: string): Promise<AgentSettings | undefined>;
-    getSettings(): Promise<AISettings>;
+    updateAgentSettings(agent: string, agentSettings: Partial<AgentSettings>, scope?: PreferenceScope, resourceUri?: string): Promise<void>;
+    getAgentSettings(agent: string, scope?: PreferenceScope, resourceUri?: string): Promise<AgentSettings | undefined>;
+    getSettings(scope?: PreferenceScope, resourceUri?: string): Promise<AISettings>;
     onDidChange: Event<void>;
 }
 export type AISettings = Record<string, AgentSettings>;

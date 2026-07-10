@@ -15,7 +15,8 @@
 // *****************************************************************************
 
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { MessageService, nls, PreferenceScope, PreferenceService } from '@theia/core';
+import { MessageService, nls, PreferenceScope } from '@theia/core';
+import { AiConfigurationInspection, AiConfigurationService } from '@theia/ai-core';
 import {
     isLocalMCPServerDescription,
     isRemoteMCPServerDescription,
@@ -87,10 +88,10 @@ export interface MCPInstallOverrides {
  */
 export const MCPServerEditor = Symbol('MCPServerEditor');
 export interface MCPServerEditor {
-    /** Opens the "Add MCP Server" dialog and persists the result. */
-    openAddServer(): Promise<void>;
-    /** Opens the "Edit MCP Server" dialog pre-filled from `server` and persists the result. */
-    openEditServer(server: MCPServerDescription, existingNames: string[]): Promise<void>;
+    /** Opens the "Add MCP Server" dialog and persists the result to `scope` (defaults to {@link PreferenceScope.User}). */
+    openAddServer(scope?: PreferenceScope, resourceUri?: string): Promise<void>;
+    /** Opens the "Edit MCP Server" dialog pre-filled from `server` and persists the result to `scope` (defaults to {@link PreferenceScope.User}). */
+    openEditServer(server: MCPServerDescription, existingNames: string[], scope?: PreferenceScope, resourceUri?: string): Promise<void>;
     /** Installs a self-contained entry, applying any user-supplied overrides. */
     installFromEntry(entry: MCPInstallEntry, overrides?: MCPInstallOverrides): Promise<void>;
 }
@@ -103,8 +104,8 @@ export interface MCPServerEditor {
 @injectable()
 export class MCPServerEditorImpl implements MCPServerEditor {
 
-    @inject(PreferenceService)
-    protected readonly preferenceService: PreferenceService;
+    @inject(AiConfigurationService)
+    protected readonly aiConfigurationService: AiConfigurationService;
 
     @inject(MessageService)
     protected readonly messageService: MessageService;
@@ -115,7 +116,7 @@ export class MCPServerEditorImpl implements MCPServerEditor {
     @inject(MCPServerEditDialogFactory)
     protected readonly editDialogFactory: MCPServerEditDialogFactory;
 
-    async openAddServer(): Promise<void> {
+    async openAddServer(scope: PreferenceScope = PreferenceScope.User, resourceUri?: string): Promise<void> {
         const existing = (await this.mcpFrontendService.getServerNames()) ?? [];
         const dialog = this.editDialogFactory({
             props: { title: nls.localizeByDefault('Add MCP Server'), maxWidth: 500 },
@@ -124,11 +125,11 @@ export class MCPServerEditorImpl implements MCPServerEditor {
         });
         const result = await dialog.open();
         if (result) {
-            await this.save(result);
+            await this.save(result, scope, resourceUri);
         }
     }
 
-    async openEditServer(server: MCPServerDescription, existingNames: string[]): Promise<void> {
+    async openEditServer(server: MCPServerDescription, existingNames: string[], scope: PreferenceScope = PreferenceScope.User, resourceUri?: string): Promise<void> {
         const formData = this.toFormData(server);
         if (!formData) {
             return;
@@ -141,7 +142,7 @@ export class MCPServerEditorImpl implements MCPServerEditor {
         });
         const result = await dialog.open();
         if (result) {
-            await this.save(result);
+            await this.save(result, scope, resourceUri);
         }
     }
 
@@ -151,8 +152,8 @@ export class MCPServerEditorImpl implements MCPServerEditor {
      * along with registry-provenance metadata, applying any user-supplied overrides
      * collected by the install dialog.
      */
-    async installFromEntry(entry: MCPInstallEntry, overrides?: MCPInstallOverrides): Promise<void> {
-        const current = this.readServers();
+    async installFromEntry(entry: MCPInstallEntry, overrides?: MCPInstallOverrides, scope: PreferenceScope = PreferenceScope.User, resourceUri?: string): Promise<void> {
+        const current = this.readServers(scope, resourceUri);
         const stored: Record<string, unknown> = {
             ...entry.config,
             ...this.applyOverrides(entry.config, overrides)
@@ -162,18 +163,25 @@ export class MCPServerEditorImpl implements MCPServerEditor {
             stored.registryMetadata = metadata;
         }
         try {
-            await this.preferenceService.set(
+            await this.aiConfigurationService.set(
                 MCP_SERVERS_PREF,
                 { ...current, [entry.localName]: stored },
-                PreferenceScope.User
+                scope,
+                resourceUri
             );
         } catch (error) {
             this.messageService.error(nls.localize('theia/ai/mcpConfiguration/saveServerError', 'Failed to save MCP server configuration: {0}', String(error)));
         }
     }
 
-    protected readServers(): Record<string, unknown> {
-        return this.preferenceService.get<Record<string, unknown>>(MCP_SERVERS_PREF, {}) ?? {};
+    /**
+     * Reads the server map effective at the given scope (the value set there, else inherited from a
+     * broader scope, else the default). Used as the base for a scoped write so no other server entry
+     * is dropped.
+     */
+    protected readServers(scope: PreferenceScope = PreferenceScope.User, resourceUri?: string): Record<string, unknown> {
+        const value = AiConfigurationInspection.effectiveValueInScope(this.aiConfigurationService.inspect(MCP_SERVERS_PREF, resourceUri), scope);
+        return (value as Record<string, unknown> | undefined) ?? {};
     }
 
     /**
@@ -224,8 +232,8 @@ export class MCPServerEditorImpl implements MCPServerEditor {
      * Persist the form to the user preference. Preserves any extra fields on an existing entry
      * (e.g. `registryMetadata`) since the dialog only edits user-facing fields.
      */
-    async save(formData: MCPServerFormData): Promise<void> {
-        const currentServers = this.preferenceService.get<Record<string, object>>(MCP_SERVERS_PREF, {}) ?? {};
+    async save(formData: MCPServerFormData, scope: PreferenceScope = PreferenceScope.User, resourceUri?: string): Promise<void> {
+        const currentServers = this.readServers(scope, resourceUri) as Record<string, object>;
         const serverName = formData.name.trim();
         const existing = (currentServers[serverName] ?? {}) as Record<string, unknown>;
         const serverConfig = formData.serverType === 'local'
@@ -238,10 +246,11 @@ export class MCPServerEditorImpl implements MCPServerEditor {
             delete merged[staleKey];
         }
         try {
-            await this.preferenceService.set(
+            await this.aiConfigurationService.set(
                 MCP_SERVERS_PREF,
                 { ...currentServers, [serverName]: merged },
-                PreferenceScope.User
+                scope,
+                resourceUri
             );
         } catch (error) {
             this.messageService.error(nls.localize('theia/ai/mcpConfiguration/saveServerError', 'Failed to save MCP server configuration: {0}', String(error)));

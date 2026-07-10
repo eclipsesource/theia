@@ -108,6 +108,23 @@
   font-weight: normal;
 }
 
+.ai-settings-row-modified-scopes {
+  font-size: var(--theia-ui-font-size0);
+  color: var(--theia-descriptionForeground);
+  font-weight: normal;
+  font-style: italic;
+}
+
+.ai-settings-row-scope-link {
+  color: var(--theia-textLink-foreground);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ai-settings-row-scope-link:hover {
+  color: var(--theia-textLink-activeForeground);
+}
+
 .ai-settings-row-description {
   color: var(--theia-descriptionForeground);
   font-size: var(--theia-ui-font-size1);

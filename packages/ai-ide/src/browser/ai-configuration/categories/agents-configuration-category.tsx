@@ -42,6 +42,7 @@ import {
     AiConfigurationCategoryId,
     AiConfigurationCategoryOrder,
     AiConfigurationRenderContext,
+    AiConfigurationScope,
     AiConfigurationSearchItem,
     AiConfigurationSearchProvider,
     AiConfigurationTreeItem
@@ -188,6 +189,7 @@ export class AgentsConfigurationCategory extends CollectionCategoryRenderer impl
                     preferenceId={PREFERENCE_NAME_AGENT_MODE_ENABLED}
                     label={nls.localize('theia/ai/ide/agentConfiguration/agentMode', 'Agent mode for Coder')}
                     scope={ctx.scope}
+                    resourceUri={ctx.resourceUri}
                     control={{ type: 'boolean' }}
                     onDidChange={ctx.update}
                 />
@@ -196,6 +198,7 @@ export class AgentsConfigurationCategory extends CollectionCategoryRenderer impl
                     preferenceId={PREFERENCE_NAME_ORCHESTRATOR_EXCLUSION_LIST}
                     label={nls.localize('theia/ai/ide/agentConfiguration/orchestratorExclude', 'Agents hidden from the orchestrator')}
                     scope={ctx.scope}
+                    resourceUri={ctx.resourceUri}
                     control={{ type: 'array', placeholder: nls.localize('theia/ai/ide/agentConfiguration/orchestratorExcludePlaceholder', 'Comma-separated agent IDs') }}
                     onDidChange={ctx.update}
                 />
@@ -208,6 +211,7 @@ export class AgentsConfigurationCategory extends CollectionCategoryRenderer impl
                     description={nls.localize('theia/ai/chat/defaultAgent/description',
                         'Optional: the Chat Agent invoked when no agent is explicitly mentioned with @<agent-name>. If unset, the built-in defaults apply.')}
                     scope={ctx.scope}
+                    resourceUri={ctx.resourceUri}
                     control={{ type: 'select', options: this.getChatAgentOptions() }}
                     onDidChange={ctx.update}
                 />
@@ -218,6 +222,7 @@ export class AgentsConfigurationCategory extends CollectionCategoryRenderer impl
                     description={nls.localize('theia/ai/core/defaultNotification/mdDescription',
                         'The default notification method used when an AI agent needs your attention. Individual agents can override this setting.')}
                     scope={ctx.scope}
+                    resourceUri={ctx.resourceUri}
                     control={{ type: 'select', options: this.getNotificationTypeOptions() }}
                     onDidChange={ctx.update}
                 />
@@ -252,7 +257,7 @@ export class AgentsConfigurationCategory extends CollectionCategoryRenderer impl
         return undefined;
     }
 
-    protected renderItemSections(item: AiConfigurationTreeItem): React.ReactNode {
+    protected renderItemSections(item: AiConfigurationTreeItem, ctx: AiConfigurationRenderContext): React.ReactNode {
         const agent = this.agentService.getAllAgents().find(candidate => candidate.id === item.id);
         if (!agent) {
             return undefined;
@@ -263,6 +268,8 @@ export class AgentsConfigurationCategory extends CollectionCategoryRenderer impl
             languageModels={this.languageModels}
             languageModelAliases={this.languageModelAliases}
             revision={this.revision}
+            scope={AiConfigurationScope.toPreferenceScope(ctx.scope)}
+            resourceUri={ctx.resourceUri}
         />;
     }
 

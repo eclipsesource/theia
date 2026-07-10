@@ -15,7 +15,6 @@
 // *****************************************************************************
 
 import { CommandService, Event } from '@theia/core';
-import { PreferenceScope } from '@theia/core/lib/common';
 import { PreferenceDataProperty, PreferenceSchemaService } from '@theia/core/lib/common/preferences/preference-schema';
 import { MarkdownRenderer } from '@theia/core/lib/browser/markdown-rendering/markdown-renderer';
 import { PreferencesCommands } from '@theia/preferences/lib/browser/util/preference-types';
@@ -23,8 +22,9 @@ import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering/ma
 import { inject, injectable } from '@theia/core/shared/inversify';
 import type { SelectOption } from '@theia/core/lib/browser/widgets/select-component';
 import { MODEL_PROVIDER_TYPE_DETAIL, ModelProviderTypeDetail } from '@theia/ai-core/lib/common/ai-core-preferences';
-import { AiConfigurationService } from '@theia/ai-core/lib/common/ai-configuration-service';
+import { AiConfigurationInspection, AiConfigurationService } from '@theia/ai-core/lib/common/ai-configuration-service';
 import { AiConfigurationScope } from '../ai-configuration-category';
+import { AiConfigurationScopeService } from '../ai-configuration-scope-service';
 
 /** Describes which control an `AiSettingsRow` renders for a preference value. */
 export type AiSettingsControl =
@@ -49,6 +49,10 @@ export interface AiSettingsInspection {
     readonly defaultValue: unknown;
     /** `true` when the requested scope explicitly overrides the value, i.e. a reset is meaningful. */
     readonly modified: boolean;
+    /** The scope the effective {@link value} comes from, or `undefined` when only the default applies. */
+    readonly sourceScope?: AiConfigurationScope;
+    /** Scopes other than the requested one that explicitly set a value, in precedence order (drives the "Modified in" indicator). */
+    readonly otherModifiedScopes: readonly AiConfigurationScope[];
 }
 
 /**
@@ -76,6 +80,9 @@ export class AiSettingsRowService {
     @inject(CommandService)
     protected readonly commandService: CommandService;
 
+    @inject(AiConfigurationScopeService)
+    protected readonly scopeService: AiConfigurationScopeService;
+
     protected changed: Event<void> | undefined;
 
     /** Fires whenever an AI preference changes, so owning widgets can re-render their rows. */
@@ -84,37 +91,33 @@ export class AiSettingsRowService {
     }
 
     inspect(preferenceId: string, scope: AiConfigurationScope, resourceUri?: string): AiSettingsInspection {
+        const preferenceScope = AiConfigurationScope.toPreferenceScope(scope);
         const inspection = this.aiConfigurationService.inspect(preferenceId, resourceUri);
-        const defaultValue = inspection?.defaultValue;
-        const globalValue = inspection?.globalValue;
-        const workspaceValue = inspection?.workspaceValue;
-        const folderValue = inspection?.workspaceFolderValue;
-
-        let scopeValue: unknown;
-        let value: unknown;
-        switch (scope) {
-            case 'user':
-                scopeValue = globalValue;
-                value = globalValue ?? defaultValue;
-                break;
-            case 'workspace':
-                scopeValue = workspaceValue;
-                value = workspaceValue ?? globalValue ?? defaultValue;
-                break;
-            case 'folder':
-                scopeValue = folderValue;
-                value = folderValue ?? workspaceValue ?? globalValue ?? defaultValue;
-                break;
-        }
-        return { value, scopeValue, defaultValue, modified: scopeValue !== undefined };
+        const scopeValue = AiConfigurationInspection.valueInScope(inspection, preferenceScope);
+        const value = AiConfigurationInspection.effectiveValueInScope(inspection, preferenceScope);
+        const otherModifiedScopes = AiConfigurationInspection.otherModifiedScopes(inspection, preferenceScope)
+            .map(AiConfigurationScope.fromPreferenceScope)
+            .filter((s): s is AiConfigurationScope => s !== undefined);
+        const sourceScope = inspection?.sourceScope !== undefined
+            ? AiConfigurationScope.fromPreferenceScope(inspection.sourceScope)
+            : undefined;
+        return { value, scopeValue, defaultValue: inspection?.defaultValue, modified: scopeValue !== undefined, sourceScope, otherModifiedScopes };
     }
 
     set(preferenceId: string, value: unknown, scope: AiConfigurationScope, resourceUri?: string): Promise<void> {
-        return this.aiConfigurationService.set(preferenceId, value, this.toPreferenceScope(scope), resourceUri);
+        return this.aiConfigurationService.set(preferenceId, value, AiConfigurationScope.toPreferenceScope(scope), resourceUri);
     }
 
     reset(preferenceId: string, scope: AiConfigurationScope, resourceUri?: string): Promise<void> {
-        return this.aiConfigurationService.set(preferenceId, undefined, this.toPreferenceScope(scope), resourceUri);
+        return this.aiConfigurationService.set(preferenceId, undefined, AiConfigurationScope.toPreferenceScope(scope), resourceUri);
+    }
+
+    /**
+     * Switches the view's active scope, e.g. when the user clicks a scope name in a row's
+     * "Modified in" indicator to jump to the scope that owns the value.
+     */
+    jumpToScope(scope: AiConfigurationScope): void {
+        this.scopeService.setScope(scope);
     }
 
     /**
@@ -258,16 +261,5 @@ export class AiSettingsRowService {
         const items = property.items;
         const itemSchema = Array.isArray(items) ? items[0] : items;
         return itemSchema?.type !== 'object' && itemSchema?.type !== 'array' && !itemSchema?.properties;
-    }
-
-    protected toPreferenceScope(scope: AiConfigurationScope): PreferenceScope {
-        switch (scope) {
-            case 'user':
-                return PreferenceScope.User;
-            case 'workspace':
-                return PreferenceScope.Workspace;
-            case 'folder':
-                return PreferenceScope.Folder;
-        }
     }
 }

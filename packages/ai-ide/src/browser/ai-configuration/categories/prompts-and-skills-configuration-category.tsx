@@ -310,6 +310,7 @@ export class PromptsAndSkillsConfigurationCategory extends SinglePageCategoryRen
                     preferenceId={PREFERENCE_NAME_PROMPT_TEMPLATES}
                     label={nls.localize('theia/ai/ide/promptsAndSkillsConfiguration/templatesFolder', 'Prompt templates folder')}
                     scope={ctx.scope}
+                    resourceUri={ctx.resourceUri}
                     control={{ type: 'string', placeholder: nls.localize('theia/ai/ide/promptsAndSkillsConfiguration/templatesPlaceholder', 'Default: user config directory') }}
                     onDidChange={ctx.update}
                 />

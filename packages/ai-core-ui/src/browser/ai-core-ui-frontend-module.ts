@@ -23,6 +23,7 @@ import { aiCorePreferenceSchema } from '@theia/ai-core/lib/common/ai-core-prefer
 import { AiConfigurationCategory } from './ai-configuration/ai-configuration-category';
 import { AiConfigurationCategoryRegistry } from './ai-configuration/ai-configuration-category-registry';
 import { AiConfigurationSelectionModel } from './ai-configuration/ai-configuration-selection-model';
+import { AiConfigurationScopeService } from './ai-configuration/ai-configuration-scope-service';
 import { AiSettingsRowService } from './ai-configuration/components/ai-settings-row-service';
 
 export default new ContainerModule(bind => {
@@ -32,5 +33,6 @@ export default new ContainerModule(bind => {
     bindRootContributionProvider(bind, AiConfigurationCategory);
     bind(AiConfigurationCategoryRegistry).toSelf().inSingletonScope();
     bind(AiConfigurationSelectionModel).toSelf().inSingletonScope();
+    bind(AiConfigurationScopeService).toSelf().inSingletonScope();
     bind(AiSettingsRowService).toSelf().inSingletonScope();
 });

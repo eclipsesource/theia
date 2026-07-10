@@ -168,7 +168,7 @@ export class GeneralConfigurationCategory implements AiConfigurationCategory, Ai
     }
 
     protected isEnabled(ctx: AiConfigurationRenderContext): boolean {
-        return this.settingsRowService.inspect(PREFERENCE_NAME_ENABLE_AI, ctx.scope).value === true;
+        return this.settingsRowService.inspect(PREFERENCE_NAME_ENABLE_AI, ctx.scope, ctx.resourceUri).value === true;
     }
 
     protected renderHero(ctx: AiConfigurationRenderContext, enabled: boolean): React.ReactNode {
@@ -315,7 +315,7 @@ costs — monitor them closely. Requests may run continuously while agents are a
         disabled: boolean,
         options: { control?: React.ReactNode; below?: React.ReactNode }
     ): React.ReactNode {
-        const inspection = this.settingsRowService.inspect(preferenceId, ctx.scope);
+        const inspection = this.settingsRowService.inspect(preferenceId, ctx.scope, ctx.resourceUri);
         return <AiConfigurationSettingRow
             key={preferenceId}
             preferenceId={preferenceId}
@@ -323,6 +323,8 @@ costs — monitor them closely. Requests may run continuously while agents are a
             description={this.settingsRowService.describe(preferenceId).description}
             renderMarkdown={this.renderMarkdown}
             modified={inspection.modified}
+            modifiedScopes={inspection.otherModifiedScopes}
+            onJumpToScope={scope => this.settingsRowService.jumpToScope(scope)}
             disabled={disabled}
             onReset={() => this.resetPref(preferenceId, ctx)}
             control={options.control}
@@ -331,24 +333,24 @@ costs — monitor them closely. Requests may run continuously while agents are a
     }
 
     protected commit(preferenceId: string, value: unknown, ctx: AiConfigurationRenderContext): void {
-        this.settingsRowService.set(preferenceId, value, ctx.scope).then(() => ctx.update());
+        this.settingsRowService.set(preferenceId, value, ctx.scope, ctx.resourceUri).then(() => ctx.update());
     }
 
     protected resetPref(preferenceId: string, ctx: AiConfigurationRenderContext): void {
-        this.settingsRowService.reset(preferenceId, ctx.scope).then(() => ctx.update());
+        this.settingsRowService.reset(preferenceId, ctx.scope, ctx.resourceUri).then(() => ctx.update());
     }
 
     protected booleanValue(preferenceId: string, ctx: AiConfigurationRenderContext): boolean {
-        return this.settingsRowService.inspect(preferenceId, ctx.scope).value === true;
+        return this.settingsRowService.inspect(preferenceId, ctx.scope, ctx.resourceUri).value === true;
     }
 
     protected numberValue(preferenceId: string, ctx: AiConfigurationRenderContext, fallback: number): number {
-        const value = this.settingsRowService.inspect(preferenceId, ctx.scope).value;
+        const value = this.settingsRowService.inspect(preferenceId, ctx.scope, ctx.resourceUri).value;
         return typeof value === 'number' ? value : fallback;
     }
 
     protected selectValue(preferenceId: string, ctx: AiConfigurationRenderContext): string | undefined {
-        const value = this.settingsRowService.inspect(preferenceId, ctx.scope).value;
+        const value = this.settingsRowService.inspect(preferenceId, ctx.scope, ctx.resourceUri).value;
         return value === undefined ? undefined : String(value);
     }
 
