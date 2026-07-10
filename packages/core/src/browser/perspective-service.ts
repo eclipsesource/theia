@@ -361,4 +361,3 @@ export class PerspectiveServiceImpl implements FrontendApplicationContribution, 
         }
     }
 }
-

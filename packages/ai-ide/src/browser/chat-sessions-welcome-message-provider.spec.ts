@@ -23,7 +23,8 @@ import { Emitter } from '@theia/core';
 import { ChatAgentLocation, ChatService, ChatSession, ChatSessionMetadata } from '@theia/ai-chat';
 import { ChatViewWidget } from '@theia/ai-chat-ui/lib/browser/chat-view-widget';
 import { ApplicationShell, Widget } from '@theia/core/lib/browser';
-import { ChatSessionsWelcomeMessageProvider, SectionedSessions, computeVisibleSessionSlots } from './chat-sessions-welcome-message-provider';
+import { ChatSessionListService } from './chat-session-list-service';
+import { SectionedSessions, computeVisibleSessionSlots } from './chat-session-list-components';
 disableJSDOM();
 
 /**
@@ -32,7 +33,7 @@ disableJSDOM();
  * unread bookkeeping; spinning up the full container would pull in unrelated
  * services and obscure the assertion.
  */
-class TestableProvider extends ChatSessionsWelcomeMessageProvider {
+class TestableService extends ChatSessionListService {
     constructor(chatService: ChatService, shell: ApplicationShell) {
         super();
         (this as unknown as { chatService: ChatService }).chatService = chatService;
@@ -70,7 +71,7 @@ function createFakeSession(id: string): {
     };
 }
 
-describe('ChatSessionsWelcomeMessageProvider', () => {
+describe('ChatSessionListService', () => {
 
     describe('unread state', () => {
         let activeSessionId: string | undefined;
@@ -112,33 +113,33 @@ describe('ChatSessionsWelcomeMessageProvider', () => {
         });
 
         it('marks the session unread when a new request arrives and the chat view is not focused', () => {
-            const provider = new TestableProvider(chatService, shell);
+            const service = new TestableService(chatService, shell);
             const { session, fire, pushRequest } = createFakeSession('s1');
             activeSessionId = 's1';
             activeWidget = otherWidget;
 
-            provider.watch(session);
+            service.watch(session);
             pushRequest(true);
             fire();
 
-            expect(provider.isUnread('s1')).to.equal(true);
+            expect(service.isUnread('s1')).to.equal(true);
         });
 
         it('does not mark unread when the session is active AND the chat view is focused', () => {
-            const provider = new TestableProvider(chatService, shell);
+            const service = new TestableService(chatService, shell);
             const { session, fire, pushRequest } = createFakeSession('s1');
             activeSessionId = 's1';
             activeWidget = chatViewWidget;
 
-            provider.watch(session);
+            service.watch(session);
             pushRequest(true);
             fire();
 
-            expect(provider.isUnread('s1')).to.equal(false);
+            expect(service.isUnread('s1')).to.equal(false);
         });
 
         it('does not mark unread when focus is inside a child widget of the chat view', () => {
-            const provider = new TestableProvider(chatService, shell);
+            const service = new TestableService(chatService, shell);
             const { session, fire, pushRequest } = createFakeSession('s1');
             activeSessionId = 's1';
             // Simulate focus inside a descendant (e.g. AIChatInputWidget): the shell's
@@ -147,42 +148,42 @@ describe('ChatSessionsWelcomeMessageProvider', () => {
             activeWidget = childWidget;
             widgetForActiveElement = childWidget;
 
-            provider.watch(session);
+            service.watch(session);
             pushRequest(true);
             fire();
 
-            expect(provider.isUnread('s1')).to.equal(false);
+            expect(service.isUnread('s1')).to.equal(false);
         });
 
         it('marks unread when the session is not the active one, even if the chat view is focused', () => {
-            const provider = new TestableProvider(chatService, shell);
+            const service = new TestableService(chatService, shell);
             const { session, fire, pushRequest } = createFakeSession('s1');
             activeSessionId = 'other';
             activeWidget = chatViewWidget;
 
-            provider.watch(session);
+            service.watch(session);
             pushRequest(true);
             fire();
 
-            expect(provider.isUnread('s1')).to.equal(true);
+            expect(service.isUnread('s1')).to.equal(true);
         });
 
         it('fires onUnreadChanged once when a session transitions to unread', () => {
-            const provider = new TestableProvider(chatService, shell);
+            const service = new TestableService(chatService, shell);
             const { session, fire, pushRequest } = createFakeSession('s1');
             activeSessionId = undefined;
             activeWidget = otherWidget;
 
             let fired = 0;
-            provider.onUnreadChanged(() => { fired++; });
+            service.onUnreadChanged(() => { fired++; });
 
-            provider.watch(session);
+            service.watch(session);
             pushRequest(true);
             fire();
             pushRequest(true);
             fire();
 
-            expect(provider.isUnread('s1')).to.equal(true);
+            expect(service.isUnread('s1')).to.equal(true);
             expect(fired).to.equal(1);
         });
     });
@@ -239,11 +240,11 @@ describe('ChatSessionsWelcomeMessageProvider', () => {
 
     describe('getSections', () => {
 
-        class SectionsTestProvider extends ChatSessionsWelcomeMessageProvider {
+        class SectionsTestService extends ChatSessionListService {
             constructor(sessions: ChatSession[], persistedSessions: ChatSessionMetadata[]) {
                 super();
                 (this as unknown as { chatService: ChatService }).chatService = { getSessions: () => sessions } as unknown as ChatService;
-                this._persistedSessions = persistedSessions;
+                (this as unknown as { _persistedSessions: ChatSessionMetadata[] })._persistedSessions = persistedSessions;
             }
             sections(): SectionedSessions {
                 return this.getSections();
@@ -275,7 +276,7 @@ describe('ChatSessionsWelcomeMessageProvider', () => {
         }
 
         function getSections(sessions: ChatSession[], persistedSessions: ChatSessionMetadata[]): SectionedSessions {
-            return new SectionsTestProvider(sessions, persistedSessions).sections();
+            return new SectionsTestService(sessions, persistedSessions).sections();
         }
 
         it('excludes active sessions without a title', () => {
