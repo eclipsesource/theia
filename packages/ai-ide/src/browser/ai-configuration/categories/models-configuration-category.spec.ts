@@ -27,14 +27,15 @@ import { ModelsConfigurationCategory } from './models-configuration-category';
 
 disableJSDOM();
 
-function createCategory(preferenceIds: string[], nonDisplayable: string[] = []): ModelsConfigurationCategory {
+function createCategory(preferenceIds: string[], nonDisplayable: string[] = [], providerLabels: Record<string, string> = {}): ModelsConfigurationCategory {
     const category = new ModelsConfigurationCategory();
     const hidden = new Set(nonDisplayable);
     const service: Partial<AiSettingsRowService> = {
         preferenceIds: () => preferenceIds,
         isDisplayable: (id: string) => !hidden.has(id),
         describe: (id: string) => ({ label: `label:${id}` }),
-        controlFor: (): AiSettingsControl => ({ type: 'string' })
+        controlFor: (): AiSettingsControl => ({ type: 'string' }),
+        modelProviderLabel: (id: string) => providerLabels[id]
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (category as any).settingsRowService = service;
@@ -88,12 +89,34 @@ describe('ModelsConfigurationCategory', () => {
     it('exposes one tree child per provider, excluding the cross-provider model settings', () => {
         const category = createCategory([
             'ai-features.modelSettings.requestSettings',
-            'ai-features.anthropic.AnthropicApiKey',
+            'ai-features.huggingFace.apiKey',
             'ai-features.google.apiKey'
-        ]);
+        ], [], { 'ai-features.huggingFace.apiKey': 'Hugging Face', 'ai-features.google.apiKey': 'Google' });
         const children = category.getTreeChildren();
-        expect(children.map(c => c.id)).to.deep.equal(['anthropic', 'google']);
-        expect(children.map(c => c.label)).to.deep.equal(['anthropic', 'google']);
+        expect(children.map(c => c.id)).to.deep.equal(['google', 'huggingFace']);
+        // Nodes carry the human-readable provider names the schema declares, not the raw segments,
+        // and are ordered by that visible label ("Google" before "Hugging Face").
+        expect(children.map(c => c.label)).to.deep.equal(['Google', 'Hugging Face']);
+    });
+
+    it('labels a provider with the name declared in its preference schema', () => {
+        const category = createCategory(
+            ['ai-features.huggingFace.apiKey', 'ai-features.huggingFace.models'],
+            [],
+            { 'ai-features.huggingFace.models': 'Hugging Face' }
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const label = (category as any).getProviderLabel('huggingFace', ['ai-features.huggingFace.apiKey', 'ai-features.huggingFace.models']);
+        // Any preference in the block may carry the declared label.
+        expect(label).to.equal('Hugging Face');
+    });
+
+    it('prettifies the provider segment when the schema declares no name', () => {
+        const category = createCategory([]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const label = (id: string): string => (category as any).getProviderLabel(id, [`ai-features.${id}.key`]);
+        expect(label('myCustomProvider')).to.equal('My Custom Provider');
+        expect(label('some-vendor')).to.equal('Some vendor');
     });
 
     it('indexes each setting for deep search, navigating provider settings to the provider node', () => {

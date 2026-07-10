@@ -14,7 +14,9 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { AI_CORE_PREFERENCES_TITLE, PREFERENCE_NAME_SERVER_SIDE_COMPACTION } from '@theia/ai-core/lib/common/ai-core-preferences';
+import {
+    AI_CORE_PREFERENCES_TITLE, MODEL_PROVIDER_TYPE_DETAIL, ModelProviderTypeDetail, PREFERENCE_NAME_SERVER_SIDE_COMPACTION
+} from '@theia/ai-core/lib/common/ai-core-preferences';
 import { LINUX_ENV_HINT, nls, PreferenceSchema } from '@theia/core';
 
 export const API_KEY_PREF = 'ai-features.anthropic.AnthropicApiKey';
@@ -26,6 +28,7 @@ export const AnthropicPreferencesSchema: PreferenceSchema = {
     properties: {
         [API_KEY_PREF]: {
             type: 'string',
+            typeDetails: { [MODEL_PROVIDER_TYPE_DETAIL]: { label: 'Anthropic' } satisfies ModelProviderTypeDetail },
             markdownDescription: nls.localize('theia/ai/anthropic/apiKey/description',
                 'Enter an API Key of your official Anthropic Account. **Please note:** By using this preference the Anthropic API key will be stored in clear text\
             on the machine running Theia. Use the environment variable `ANTHROPIC_API_KEY` to set the key securely.') + LINUX_ENV_HINT,
@@ -65,6 +68,9 @@ export const AnthropicPreferencesSchema: PreferenceSchema = {
         },
         [CUSTOM_ENDPOINTS_PREF]: {
             type: 'array',
+            typeDetails: {
+                [MODEL_PROVIDER_TYPE_DETAIL]: { label: nls.localize('theia/ai/anthropic/customProvider/label', '{0} (Custom)', 'Anthropic') } satisfies ModelProviderTypeDetail
+            },
             title: AI_CORE_PREFERENCES_TITLE,
             markdownDescription: nls.localize('theia/ai/anthropic/customEndpoints/mdDescription',
                 'Integrate custom models compatible with the Anthropic API. The required attributes are `model` and `url`.\

@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { AI_CORE_PREFERENCES_TITLE } from '@theia/ai-core/lib/common/ai-core-preferences';
+import { AI_CORE_PREFERENCES_TITLE, MODEL_PROVIDER_TYPE_DETAIL, ModelProviderTypeDetail } from '@theia/ai-core/lib/common/ai-core-preferences';
 import { LINUX_ENV_HINT, nls, PreferenceSchema } from '@theia/core';
 
 export const OPENAI_API_KEY_PREF = 'ai-features.vercelAi.openaiApiKey';
@@ -28,6 +28,7 @@ export const VercelAiPreferencesSchema: PreferenceSchema = {
     properties: {
         [OPENAI_API_KEY_PREF]: {
             type: 'string',
+            typeDetails: { [MODEL_PROVIDER_TYPE_DETAIL]: { label: 'Vercel AI Gateway' } satisfies ModelProviderTypeDetail },
             markdownDescription: nls.localize('theia/ai/vercelai/openaiApiKey/mdDescription',
                 'Enter an API Key for OpenAI models used by the Vercel AI SDK. \
                 **Please note:** By using this preference the API key will be stored in clear text \

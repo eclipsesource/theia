@@ -150,6 +150,22 @@ describe('AiSettingsRowService', () => {
         });
     });
 
+    describe('modelProviderLabel', () => {
+        it('returns the provider label declared under the aiModelProvider typeDetails', () => {
+            const service = createServiceWithSchema({ type: 'string', typeDetails: { aiModelProvider: { label: 'Anthropic' } } });
+            expect(service.modelProviderLabel('pref')).to.equal('Anthropic');
+        });
+
+        it('returns undefined when no provider label is declared', () => {
+            expect(createServiceWithSchema({ type: 'string' }).modelProviderLabel('pref')).to.equal(undefined);
+            expect(createServiceWithSchema({ type: 'string', typeDetails: { other: 'x' } }).modelProviderLabel('pref')).to.equal(undefined);
+            // The metadata must be an object carrying a string `label`.
+            expect(createServiceWithSchema({ type: 'string', typeDetails: { aiModelProvider: 'Anthropic' } }).modelProviderLabel('pref')).to.equal(undefined);
+            expect(createServiceWithSchema({ type: 'string', typeDetails: { aiModelProvider: { label: 42 } } }).modelProviderLabel('pref')).to.equal(undefined);
+            expect(createServiceWithSchema(undefined).modelProviderLabel('pref')).to.equal(undefined);
+        });
+    });
+
     describe('editInSettings', () => {
         it('opens settings.json focused on the preference via the preferences JSON command', () => {
             const executed: { command: string; args: unknown[] }[] = [];

@@ -22,6 +22,7 @@ import { PreferencesCommands } from '@theia/preferences/lib/browser/util/prefere
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering/markdown-string';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import type { SelectOption } from '@theia/core/lib/browser/widgets/select-component';
+import { MODEL_PROVIDER_TYPE_DETAIL, ModelProviderTypeDetail } from '@theia/ai-core/lib/common/ai-core-preferences';
 import { AiConfigurationScope } from '../ai-configuration-category';
 
 /** Describes which control an `AiSettingsRow` renders for a preference value. */
@@ -163,6 +164,26 @@ export class AiSettingsRowService {
             label: property?.title,
             description: property?.markdownDescription ?? property?.description
         };
+    }
+
+    /**
+     * The human-readable language-model provider name a preference declares in its schema
+     * `typeDetails` (as `{ [MODEL_PROVIDER_TYPE_DETAIL]: { label } }`, see {@link ModelProviderTypeDetail}),
+     * or `undefined` when none is declared. The Models page uses this to label a provider block without
+     * hard-coding provider names.
+     */
+    modelProviderLabel(preferenceId: string): string | undefined {
+        const typeDetails = this.schemaService.getSchemaProperty(preferenceId)?.typeDetails;
+        const detail = typeDetails && typeof typeDetails === 'object'
+            ? (typeDetails as Record<string, unknown>)[MODEL_PROVIDER_TYPE_DETAIL]
+            : undefined;
+        if (detail && typeof detail === 'object') {
+            const label = (detail as Partial<ModelProviderTypeDetail>).label;
+            if (typeof label === 'string') {
+                return label;
+            }
+        }
+        return undefined;
     }
 
     /**

@@ -187,10 +187,40 @@ export class ModelsConfigurationCategory implements AiConfigurationCategory, AiC
                 preferenceIds: modelSettings
             });
         }
-        for (const provider of Array.from(byProvider.keys()).sort()) {
-            sections.push({ id: provider, title: provider, preferenceIds: byProvider.get(provider)! });
-        }
+        const providerSections = Array.from(byProvider.entries()).map(([provider, preferenceIds]) => ({
+            id: provider,
+            title: this.getProviderLabel(provider, preferenceIds),
+            preferenceIds
+        } satisfies ModelsSection));
+        // Order provider nodes by the label the user actually sees, not by the raw preference segment.
+        providerSections.sort((left, right) => left.title.localeCompare(right.title));
+        sections.push(...providerSections);
         return sections;
+    }
+
+    /**
+     * The human-readable display name for a provider block. A provider declares it in its preference
+     * schema (via the `aiModelProvider` `typeDetails`, `MODEL_PROVIDER_TYPE_DETAIL`), so this
+     * package does not have to know provider names. Providers that declare no name (e.g. third-party
+     * packages) fall back to a prettified form of the `ai-features.<provider>.*` segment.
+     */
+    protected getProviderLabel(providerId: string, preferenceIds: string[]): string {
+        for (const preferenceId of preferenceIds) {
+            const declared = this.settingsRowService.modelProviderLabel(preferenceId);
+            if (declared) {
+                return declared;
+            }
+        }
+        return this.prettifyProviderId(providerId);
+    }
+
+    /** Turns an unknown provider segment such as `myProvider` or `my-provider` into `My Provider`. */
+    protected prettifyProviderId(providerId: string): string {
+        const spaced = providerId
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .replace(/[-_]+/g, ' ')
+            .trim();
+        return spaced.charAt(0).toUpperCase() + spaced.slice(1);
     }
 
     /** The cross-provider "Model Settings" section, if any settings are registered for it. */
