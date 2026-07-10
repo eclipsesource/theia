@@ -237,11 +237,13 @@
 
 /* Toggle switch */
 .ai-config-switch {
+  display: inline-block;
   position: relative;
   width: 36px;
   height: 20px;
   flex-shrink: 0;
   cursor: pointer;
+  vertical-align: middle;
 }
 
 .ai-config-switch input {
@@ -256,28 +258,31 @@
   position: absolute;
   inset: 0;
   background: var(--theia-button-secondaryBackground, var(--theia-widget-border));
+  border: 1px solid var(--theia-checkbox-border, var(--theia-widget-border));
   border-radius: 10px;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .ai-config-switch-thumb {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
-  background: var(--theia-button-foreground);
+  width: 14px;
+  height: 14px;
+  background: var(--theia-button-secondaryForeground, var(--theia-foreground));
   border-radius: 50%;
-  transition: left 0.15s;
+  transition: left 0.15s, background 0.15s;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .ai-config-switch input:checked + .ai-config-switch-track {
   background: var(--theia-button-background);
+  border-color: var(--theia-button-background);
 }
 
 .ai-config-switch input:checked + .ai-config-switch-track .ai-config-switch-thumb {
   left: 18px;
+  background: var(--theia-button-foreground);
 }
 
 .ai-config-switch input:focus-visible + .ai-config-switch-track {
