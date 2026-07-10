@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { CommandService, Event } from '@theia/core';
-import { PreferenceScope, PreferenceService } from '@theia/core/lib/common';
+import { PreferenceScope } from '@theia/core/lib/common';
 import { PreferenceDataProperty, PreferenceSchemaService } from '@theia/core/lib/common/preferences/preference-schema';
 import { MarkdownRenderer } from '@theia/core/lib/browser/markdown-rendering/markdown-renderer';
 import { PreferencesCommands } from '@theia/preferences/lib/browser/util/preference-types';
@@ -23,6 +23,7 @@ import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering/ma
 import { inject, injectable } from '@theia/core/shared/inversify';
 import type { SelectOption } from '@theia/core/lib/browser/widgets/select-component';
 import { MODEL_PROVIDER_TYPE_DETAIL, ModelProviderTypeDetail } from '@theia/ai-core/lib/common/ai-core-preferences';
+import { AiConfigurationService } from '@theia/ai-core/lib/common/ai-configuration-service';
 import { AiConfigurationScope } from '../ai-configuration-category';
 
 /** Describes which control an `AiSettingsRow` renders for a preference value. */
@@ -51,16 +52,20 @@ export interface AiSettingsInspection {
 }
 
 /**
- * Thin, injectable wrapper around {@link PreferenceService} and {@link MarkdownRenderer}
+ * Thin, injectable wrapper around {@link AiConfigurationService} and {@link MarkdownRenderer}
  * used by the presentational {@link AiSettingsRow} component, which must not itself
  * depend on the DI container. Owning renderers/widgets inject this service and pass
  * it down to the row.
+ *
+ * Reads and writes are routed through {@link AiConfigurationService} rather than the core
+ * `PreferenceService`, so the AI Configuration view stays behind the same trust-aware seam as
+ * the rest of the AI features and is insulated from how `ai-features.*` preferences are stored.
  */
 @injectable()
 export class AiSettingsRowService {
 
-    @inject(PreferenceService)
-    protected readonly preferenceService: PreferenceService;
+    @inject(AiConfigurationService)
+    protected readonly aiConfigurationService: AiConfigurationService;
 
     @inject(MarkdownRenderer)
     protected readonly markdownRenderer: MarkdownRenderer;
@@ -73,13 +78,13 @@ export class AiSettingsRowService {
 
     protected changed: Event<void> | undefined;
 
-    /** Fires whenever any preference changes, so owning widgets can re-render their rows. */
+    /** Fires whenever an AI preference changes, so owning widgets can re-render their rows. */
     get onPreferenceChanged(): Event<void> {
-        return this.changed ??= Event.map(this.preferenceService.onPreferenceChanged, () => undefined);
+        return this.changed ??= Event.map(this.aiConfigurationService.onDidChange, () => undefined);
     }
 
     inspect(preferenceId: string, scope: AiConfigurationScope, resourceUri?: string): AiSettingsInspection {
-        const inspection = this.preferenceService.inspect(preferenceId, resourceUri);
+        const inspection = this.aiConfigurationService.inspect(preferenceId, resourceUri);
         const defaultValue = inspection?.defaultValue;
         const globalValue = inspection?.globalValue;
         const workspaceValue = inspection?.workspaceValue;
@@ -105,11 +110,11 @@ export class AiSettingsRowService {
     }
 
     set(preferenceId: string, value: unknown, scope: AiConfigurationScope, resourceUri?: string): Promise<void> {
-        return this.preferenceService.set(preferenceId, value, this.toPreferenceScope(scope), resourceUri);
+        return this.aiConfigurationService.set(preferenceId, value, this.toPreferenceScope(scope), resourceUri);
     }
 
     reset(preferenceId: string, scope: AiConfigurationScope, resourceUri?: string): Promise<void> {
-        return this.preferenceService.set(preferenceId, undefined, this.toPreferenceScope(scope), resourceUri);
+        return this.aiConfigurationService.set(preferenceId, undefined, this.toPreferenceScope(scope), resourceUri);
     }
 
     /**

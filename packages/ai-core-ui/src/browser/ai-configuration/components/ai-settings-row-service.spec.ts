@@ -17,9 +17,10 @@
 import { enableJSDOM } from '@theia/core/lib/browser/test/jsdom';
 let disableJSDOM = enableJSDOM();
 
-import { CommandService, PreferenceInspection, PreferenceScope, PreferenceService } from '@theia/core/lib/common';
+import { CommandService, PreferenceScope } from '@theia/core/lib/common';
 import { PreferenceDataProperty, PreferenceSchemaService } from '@theia/core/lib/common/preferences/preference-schema';
 import { PreferencesCommands } from '@theia/preferences/lib/browser/util/preference-types';
+import { AiConfigurationInspection, AiConfigurationService } from '@theia/ai-core/lib/common/ai-configuration-service';
 import { expect } from 'chai';
 import { AiSettingsRowService } from './ai-settings-row-service';
 
@@ -32,11 +33,11 @@ interface RecordedSet {
     resourceUri: string | undefined;
 }
 
-class FakePreferenceService {
-    inspection: Partial<PreferenceInspection<unknown>> = {};
+class FakeAiConfigurationService {
+    inspection: Partial<AiConfigurationInspection> = {};
     readonly sets: RecordedSet[] = [];
 
-    inspect(): PreferenceInspection<unknown> | undefined {
+    inspect(): AiConfigurationInspection | undefined {
         return {
             preferenceName: 'test',
             defaultValue: undefined,
@@ -54,11 +55,11 @@ class FakePreferenceService {
     }
 }
 
-function createService(inspection: Partial<PreferenceInspection<unknown>>): { service: AiSettingsRowService; preferences: FakePreferenceService } {
-    const preferences = new FakePreferenceService();
+function createService(inspection: Partial<AiConfigurationInspection>): { service: AiSettingsRowService; preferences: FakeAiConfigurationService } {
+    const preferences = new FakeAiConfigurationService();
     preferences.inspection = inspection;
     const service = new AiSettingsRowService();
-    (service as unknown as { preferenceService: PreferenceService }).preferenceService = preferences as unknown as PreferenceService;
+    (service as unknown as { aiConfigurationService: AiConfigurationService }).aiConfigurationService = preferences as unknown as AiConfigurationService;
     return { service, preferences };
 }
 

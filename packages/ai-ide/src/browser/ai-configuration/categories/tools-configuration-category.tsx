@@ -23,7 +23,8 @@ import {
 } from '@theia/ai-chat/lib/common/chat-tool-preferences';
 import { ShellCommandPermissionService } from '@theia/ai-terminal/lib/browser/shell-command-permission-service';
 import { SHELL_COMMAND_ALLOWLIST_PREFERENCE, SHELL_COMMAND_DENYLIST_PREFERENCE } from '@theia/ai-terminal/lib/common/shell-command-preferences';
-import { Emitter, Event, nls, PreferenceService } from '@theia/core';
+import { Emitter, Event, nls } from '@theia/core';
+import { AiConfigurationService } from '@theia/ai-core/lib/common/ai-configuration-service';
 import { codicon, ConfirmDialog } from '@theia/core/lib/browser';
 import { DisposableCollection } from '@theia/core/lib/common';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
@@ -85,8 +86,8 @@ export class ToolsConfigurationCategory extends SinglePageCategoryRenderer imple
         return this;
     }
 
-    @inject(PreferenceService)
-    protected readonly preferenceService: PreferenceService;
+    @inject(AiConfigurationService)
+    protected readonly aiConfigurationService: AiConfigurationService;
 
     @postConstruct()
     protected init(): void {
@@ -96,12 +97,17 @@ export class ToolsConfigurationCategory extends SinglePageCategoryRenderer imple
                 this.loadTools();
                 this.onDidChangeEmitter.fire();
             }),
-            this.preferenceService.onPreferenceChanged(async event => {
-                if (event.preferenceName === TOOL_CONFIRMATION_PREFERENCE || event.preferenceName === DEFAULT_TOOL_CONFIRMATION_PREFERENCE) {
+            this.aiConfigurationService.onDidChange(async change => {
+                let changed = false;
+                if (change.affectsPreference(TOOL_CONFIRMATION_PREFERENCE) || change.affectsPreference(DEFAULT_TOOL_CONFIRMATION_PREFERENCE)) {
                     await this.loadConfirmation();
-                    this.onDidChangeEmitter.fire();
-                } else if (event.preferenceName === SHELL_COMMAND_ALLOWLIST_PREFERENCE || event.preferenceName === SHELL_COMMAND_DENYLIST_PREFERENCE) {
+                    changed = true;
+                }
+                if (change.affectsPreference(SHELL_COMMAND_ALLOWLIST_PREFERENCE) || change.affectsPreference(SHELL_COMMAND_DENYLIST_PREFERENCE)) {
                     this.loadShellPatterns();
+                    changed = true;
+                }
+                if (changed) {
                     this.onDidChangeEmitter.fire();
                 }
             })

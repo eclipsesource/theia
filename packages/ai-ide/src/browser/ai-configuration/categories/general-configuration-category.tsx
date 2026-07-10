@@ -62,7 +62,7 @@ interface GeneralSettingRef {
  * visually gated while the master toggle is off.
  *
  * All values are read and written through {@link AiSettingsRowService} (backed by the
- * {@link PreferenceService}), so the page stays live-synced with `settings.json` and the
+ * {@link AiConfigurationService}), so the page stays live-synced with `settings.json` and the
  * classic preferences editor. Gating is purely visual/interactive; preference values are
  * never rewritten when the master toggle changes.
  */

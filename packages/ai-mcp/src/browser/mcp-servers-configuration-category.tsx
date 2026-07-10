@@ -15,7 +15,8 @@
 // *****************************************************************************
 
 import { PROMPT_VARIABLE } from '@theia/ai-core/lib/browser/prompt-variable-contribution';
-import { Emitter, Event, MessageService, nls, PreferenceScope, PreferenceService } from '@theia/core';
+import { Emitter, Event, MessageService, nls, PreferenceScope } from '@theia/core';
+import { AiConfigurationService } from '@theia/ai-core/lib/common/ai-configuration-service';
 import { codicon, ConfirmDialog } from '@theia/core/lib/browser';
 import { HoverService } from '@theia/core/lib/browser/hover-service';
 import { DisposableCollection } from '@theia/core/lib/common';
@@ -69,8 +70,8 @@ export class McpServersConfigurationCategory extends CollectionCategoryRenderer 
     @inject(MessageService)
     protected readonly messageService: MessageService;
 
-    @inject(PreferenceService)
-    protected readonly preferenceService: PreferenceService;
+    @inject(AiConfigurationService)
+    protected readonly aiConfigurationService: AiConfigurationService;
 
     @inject(MCPServerEditor)
     protected readonly serverEditor: MCPServerEditor;
@@ -552,10 +553,10 @@ export class McpServersConfigurationCategory extends CollectionCategoryRenderer 
         });
         if (await dialog.open()) {
             try {
-                const currentServers = this.preferenceService.get<Record<string, object>>(MCP_SERVERS_PREF, {}) ?? {};
+                const currentServers = this.aiConfigurationService.get<Record<string, object>>(MCP_SERVERS_PREF, {}) ?? {};
                 const newServers = { ...currentServers };
                 delete newServers[serverName];
-                await this.preferenceService.set(MCP_SERVERS_PREF, newServers, PreferenceScope.User);
+                await this.aiConfigurationService.set(MCP_SERVERS_PREF, newServers, PreferenceScope.User);
             } catch (error) {
                 this.messageService.error(nls.localize('theia/ai/mcpConfiguration/deleteServerError', 'Failed to delete MCP server: {0}', String(error)));
             }
