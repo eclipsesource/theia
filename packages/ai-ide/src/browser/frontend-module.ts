@@ -80,6 +80,7 @@ import { ChatWelcomeMessageProvider } from '@theia/ai-chat-ui/lib/browser/chat-t
 import { IdeChatWelcomeMessageProvider } from './ide-chat-welcome-message-provider';
 import { ChatSessionsWelcomeMessageProvider } from './chat-sessions-welcome-message-provider';
 import { ChatSessionItemActionContribution, DefaultChatSessionItemActionContribution } from './chat-session-item-action-contribution';
+import { ReviewIntentSessionActionContribution } from './review-intent-session-action-contribution';
 import { DefaultChatAgentRecommendationService } from './default-chat-agent-recommendation-service';
 import { AITokenUsageConfigurationWidget } from './ai-configuration/token-usage-configuration-widget';
 import { AISkillsConfigurationWidget } from './ai-configuration/skills-configuration-widget';
@@ -130,6 +131,15 @@ import { AIFirstPerspectiveContribution } from './ai-first-perspective-contribut
 import { ChatSessionListService } from './chat-session-list-service';
 import { AISessionsWidget } from './ai-sessions-widget';
 import { AISessionsViewContribution } from './ai-sessions-view-contribution';
+import { ReviewChangeSetProvider } from './review/review-changeset-provider';
+import { ReviewChangeSetService } from './review/review-changeset-service';
+import { GitWorktreeChangeSetProvider } from './review/git-worktree-changeset-provider';
+import { ReviewStorageService } from './review/review-storage-service';
+import { ReviewIntentService } from './review/review-intent-service';
+import { ReviewSummaryService } from './review/review-summary-agent';
+import { ReviewDiffDecorator } from './review/review-diff-decorator';
+import { AIReviewWidget } from './review/ai-review-widget';
+import { AIReviewViewContribution } from './review/ai-review-view-contribution';
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(PreferenceContribution).toConstantValue({ schema: aiIdePreferenceSchema });
@@ -370,4 +380,27 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
         .inSingletonScope();
     bindViewContribution(bind, AISessionsViewContribution);
     bind(TabBarToolbarContribution).toService(AISessionsViewContribution);
+
+    bind(ReviewChangeSetService).toSelf().inSingletonScope();
+    bindRootContributionProvider(bind, ReviewChangeSetProvider);
+    bind(GitWorktreeChangeSetProvider).toSelf().inSingletonScope();
+    bind(ReviewChangeSetProvider).toService(GitWorktreeChangeSetProvider);
+    bind(ReviewStorageService).toSelf().inSingletonScope();
+    bind(ReviewIntentService).toSelf().inSingletonScope();
+    bind(ReviewSummaryService).toSelf().inSingletonScope();
+
+    bind(ReviewIntentSessionActionContribution).toSelf().inSingletonScope();
+    bind(ChatSessionItemActionContribution).toService(ReviewIntentSessionActionContribution);
+    bind(CommandContribution).toService(ReviewIntentSessionActionContribution);
+    bind(ReviewDiffDecorator).toSelf().inSingletonScope();
+
+    bind(AIReviewWidget).toSelf();
+    bind(WidgetFactory)
+        .toDynamicValue(ctx => ({
+            id: AIReviewWidget.ID,
+            createWidget: () => ctx.container.get(AIReviewWidget)
+        }))
+        .inSingletonScope();
+    bindViewContribution(bind, AIReviewViewContribution);
+    bind(TabBarToolbarContribution).toService(AIReviewViewContribution);
 });

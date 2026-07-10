@@ -16,6 +16,7 @@
 
 /* Import base configuration styles */
 @import "./ai-configuration-base.css";
+@import "../review/style/review-decorations.css";
 @import "./ai-configuration-list-detail.css";
 @import "./ai-configuration-cards.css";
 @import "./ai-configuration-table.css";
