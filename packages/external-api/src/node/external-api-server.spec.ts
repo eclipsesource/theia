@@ -145,6 +145,21 @@ describe('ExternalApiServer', () => {
             expect(response.status).to.equal(200);
         });
 
+        it('warns when serving on a non-local hostname without a token', async () => {
+            const apiServer = createServer();
+            const warnings: string[] = [];
+            (apiServer as unknown as Record<string, unknown>)['logger'] = Object.assign(new MockLogger(), {
+                warn: async (message: string) => { warnings.push(message); }
+            });
+            const port = await freePort();
+            await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1' });
+            expect(warnings).to.have.length(0);
+            await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '0.0.0.0' });
+            expect(warnings).to.have.length(1);
+            await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '0.0.0.0', token: 'secret' });
+            expect(warnings).to.have.length(1);
+        });
+
         it('stops when delivery is set back to off', async () => {
             const apiServer = createServer();
             const port = await freePort();

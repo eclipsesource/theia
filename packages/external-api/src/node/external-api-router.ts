@@ -18,6 +18,7 @@ import { Disposable, DisposableCollection, MaybePromise } from '@theia/core';
 import { ILogger } from '@theia/core/lib/common/logger';
 import * as express from '@theia/core/shared/express';
 import { inject, injectable, named } from '@theia/core/shared/inversify';
+import * as http from 'http';
 import { ExternalApiEventStream, ExternalApiEventStreamFactory, ExternalApiEventStreamOptions } from './external-api-event-stream';
 import { ExternalApiResponseRenderer } from './external-api-response-renderer';
 import { RestResult } from './rest-result';
@@ -175,7 +176,7 @@ export class ExternalApiRouter implements Disposable {
             }
             const clientError = this.clientErrorStatus(error);
             if (clientError !== undefined) {
-                this.renderer.renderError(clientError, 'invalid request', response);
+                this.renderer.renderError(clientError, this.clientErrorCode(clientError), response);
             } else {
                 this.logger.error(`Failed to serve a request below '${this.options.contributionPath}'.`, error);
                 this.renderer.renderError(500, 'internal error', response);
@@ -226,5 +227,16 @@ export class ExternalApiRouter implements Disposable {
     protected clientErrorStatus(error: unknown): number | undefined {
         const status = (error as { status?: unknown } | undefined)?.status;
         return typeof status === 'number' && status >= 400 && status < 500 ? status : undefined;
+    }
+
+    /**
+     * Returns the error code rendered for unhandled client errors: the HTTP status text,
+     * except for plain `400`s, which keep the established `invalid request` code.
+     */
+    protected clientErrorCode(status: number): string {
+        if (status === 400) {
+            return 'invalid request';
+        }
+        return http.STATUS_CODES[status]?.toLowerCase() ?? 'invalid request';
     }
 }

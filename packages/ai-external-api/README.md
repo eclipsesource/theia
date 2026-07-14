@@ -203,6 +203,7 @@ an already restored session is a no-op and returns its detail.
 - `400 { "error": "invalid request" }`: malformed JSON or invalid/missing body fields.
 - `401 { "error": "unauthorized" }`: missing or invalid bearer token (when a token is configured).
 - `404 { "error": "not found" }`: unknown session id.
+- `413 { "error": "payload too large" }`: request body exceeding the size limit.
 - `500 { "error": "internal error" }`: failed to gather session data or perform the action.
 
 The creation and prompt endpoints additionally return the failure responses documented above.

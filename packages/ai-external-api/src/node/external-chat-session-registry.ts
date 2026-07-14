@@ -197,7 +197,7 @@ export class ExternalChatSessionRegistry {
             }
         }));
         return candidates
-            .sort((a, b) => this.prefer(a.session, b.session) ? -1 : 1)
+            .sort((a, b) => this.prefer(a.session, b.session) ? -1 : this.prefer(b.session, a.session) ? 1 : 0)
             .map(candidate => candidate.provider);
     }
 

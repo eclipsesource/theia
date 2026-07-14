@@ -207,6 +207,19 @@ describe('ExternalChatSessionRegistry', () => {
             }));
             expect(await registry.openSession('1')).to.equal(true);
         });
+
+        it('keeps the registration order when neither report is preferred', async () => {
+            const registry = createRegistry();
+            const opened: string[] = [];
+            registry.addProvider('first', provider([], [detail('1', 'idle', 100, true)], {
+                openSession: async () => { opened.push('first'); return true; }
+            }));
+            registry.addProvider('second', provider([], [detail('1', 'idle', 100, true)], {
+                openSession: async () => { opened.push('second'); return true; }
+            }));
+            expect(await registry.openSession('1')).to.equal(true);
+            expect(opened).to.deep.equal(['first']);
+        });
     });
 
     describe('restoreSession', () => {

@@ -22,7 +22,7 @@ import { inject, injectable, named } from '@theia/core/shared/inversify';
 import * as crypto from 'crypto';
 import * as http from 'http';
 import { ExternalApiConfigService, ExternalApiServerConfig } from '../common/external-api-configuration';
-import { EXTERNAL_API_PORT_PREF } from '../common/external-api-preferences';
+import { EXTERNAL_API_PORT_PREF, EXTERNAL_API_TOKEN_PREF } from '../common/external-api-preferences';
 import { ExternalApiContribution } from './external-api-contribution';
 import { ExternalApiResponseRenderer } from './external-api-response-renderer';
 import { ExternalApiRouterFactory } from './external-api-router';
@@ -121,12 +121,29 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
                 }
                 try {
                     this.server = await this.start(config);
-                    this.logger.info(`The external API is served at http://${config.hostname}:${config.port}`
-                        + (config.token ? ' (token required)' : ' (unprotected)'));
+                    this.logServed(config);
                 } catch (error) {
                     this.logger.error(`Failed to serve the external API at http://${config.hostname}:${config.port}.`, error);
                 }
         }
+    }
+
+    protected logServed(config: ExternalApiServerConfig): void {
+        const served = `The external API is served at http://${config.hostname}:${config.port}`;
+        if (config.token) {
+            this.logger.info(`${served} (token required)`);
+        } else if (this.isLoopbackHostname(config.hostname)) {
+            this.logger.info(`${served} (unprotected)`);
+        } else {
+            this.logger.warn(`${served} without token verification although '${config.hostname}' may accept remote connections. `
+                + `Configure a token ('${EXTERNAL_API_TOKEN_PREF}') to protect it.`);
+        }
+    }
+
+    /** Whether the hostname only accepts connections from the local machine. */
+    protected isLoopbackHostname(hostname: string): boolean {
+        const normalized = hostname.toLowerCase();
+        return normalized === 'localhost' || normalized === '::1' || /^127(\.\d{1,3}){3}$/.test(normalized);
     }
 
     protected start(config: ExternalApiServerConfig): Promise<http.Server> {

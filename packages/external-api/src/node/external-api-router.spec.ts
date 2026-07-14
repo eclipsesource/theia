@@ -117,7 +117,7 @@ describe('ExternalApiRouter', () => {
             const { url } = await serve(router => router.post('/echo', { body: isEchoBody, jsonLimit: '1kb' }, ({ body }) => RestResult.ok({ echo: body.text })));
             const response = await send('POST', `${url}/echo`, { text: 'x'.repeat(2000) });
             expect(response.status).to.equal(413);
-            expect(await response.json()).to.deep.equal({ error: 'invalid request' });
+            expect(await response.json()).to.deep.equal({ error: 'payload too large' });
         });
 
         it('reduces handler errors to internal errors', async () => {
@@ -156,6 +156,13 @@ describe('ExternalApiRouter', () => {
             const response = await fetch(`${url}/boom`);
             expect(response.status).to.equal(500);
             expect(await response.json()).to.deep.equal({ error: 'internal error' });
+        });
+
+        it('keeps the status of unhandled raw route client errors', async () => {
+            const { url } = await serve(router => router.raw.get('/missing', () => { throw Object.assign(new Error('nope'), { status: 404 }); }));
+            const response = await fetch(`${url}/missing`);
+            expect(response.status).to.equal(404);
+            expect(await response.json()).to.deep.equal({ error: 'not found' });
         });
     });
 
