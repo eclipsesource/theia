@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ContributionProvider } from '@theia/core';
+import { ContributionProvider, DisposableCollection } from '@theia/core';
 import { ILogger } from '@theia/core/lib/common/logger';
 import { BackendApplicationContribution } from '@theia/core/lib/node';
 import * as express from '@theia/core/shared/express';
@@ -24,6 +24,8 @@ import * as http from 'http';
 import { ExternalApiConfigService, ExternalApiServerConfig } from '../common/external-api-configuration';
 import { EXTERNAL_API_PORT_PREF } from '../common/external-api-preferences';
 import { ExternalApiContribution } from './external-api-contribution';
+import { ExternalApiResponseRenderer } from './external-api-response-renderer';
+import { ExternalApiRouterFactory } from './external-api-router';
 
 /**
  * Serves the {@link ExternalApiContribution}s, either on a dedicated HTTP server or on
@@ -45,12 +47,24 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
     @inject(ContributionProvider) @named(ExternalApiContribution)
     protected readonly contributions: ContributionProvider<ExternalApiContribution>;
 
+    @inject(ExternalApiResponseRenderer)
+    protected readonly renderer: ExternalApiResponseRenderer;
+
+    @inject(ExternalApiRouterFactory)
+    protected readonly routerFactory: ExternalApiRouterFactory;
+
     protected config?: ExternalApiServerConfig;
     protected server?: http.Server;
     /** Router serving the contributions on the main HTTP server with `samePort` delivery. */
     protected mainPortRouter?: express.Router;
     /** Serializes configuration updates to avoid concurrent server starts/stops. */
     protected pendingUpdate: Promise<void> = Promise.resolve();
+    /**
+     * The contribution routers of the current routing build. Disposed before the next build
+     * and on shutdown, so that long-lived connections such as event streams are closed and
+     * clients reconnect against the new configuration.
+     */
+    protected readonly toDisposeOnRebuild = new DisposableCollection();
 
     configure(app: express.Application): void {
         // delegate to the current router so that `samePort` delivery can follow preference
@@ -76,6 +90,7 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
     }
 
     onStop(): void {
+        this.toDisposeOnRebuild.dispose();
         this.stop().catch(error => this.logger.error('Failed to stop the external API server.', error));
     }
 
@@ -90,7 +105,7 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
         this.config = config;
         this.mainPortRouter = undefined;
         await this.stop();
-        this.notifyConfigChanged();
+        this.toDisposeOnRebuild.dispose();
         switch (config.delivery) {
             case 'off':
                 return;
@@ -111,17 +126,6 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
                 } catch (error) {
                     this.logger.error(`Failed to serve the external API at http://${config.hostname}:${config.port}.`, error);
                 }
-        }
-    }
-
-    /** Informs the contributions that the configuration changed so they can drop long-lived connections. */
-    protected notifyConfigChanged(): void {
-        for (const contribution of this.contributions.getContributions()) {
-            try {
-                contribution.onConfigChanged?.();
-            } catch (error) {
-                this.logger.error('An external API contribution failed to handle the configuration change.', error);
-            }
         }
     }
 
@@ -148,13 +152,27 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
 
     protected createRouter(config: ExternalApiServerConfig): express.Router {
         const apiRouter = express.Router();
+        const mountedPaths = new Set<string>();
         for (const contribution of this.contributions.getContributions()) {
+            if (mountedPaths.has(contribution.path)) {
+                this.logger.warn(`Skipped an external API contribution: another contribution already uses the path '${contribution.path}'.`);
+                continue;
+            }
+            mountedPaths.add(contribution.path);
             const router = express.Router();
             if (config.token && !contribution.unprotected) {
                 const token = config.token;
                 router.use((request, response, next) => this.checkAuthorization(token, request, response, next));
             }
-            contribution.configure(router);
+            const contributionRouter = this.routerFactory({ contributionPath: contribution.path, router });
+            this.toDisposeOnRebuild.push(contributionRouter);
+            try {
+                contribution.configure(contributionRouter);
+            } catch (error) {
+                this.logger.error(`Failed to configure the external API contribution for '${contribution.path}'; it is not served.`, error);
+                continue;
+            }
+            contributionRouter.finalize();
             apiRouter.use(contribution.path, router);
         }
         return apiRouter;
@@ -164,7 +182,7 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
         if (this.matchesToken(request.headers.authorization, `Bearer ${token}`)) {
             next();
         } else {
-            response.status(401).json({ error: 'unauthorized' });
+            this.renderer.renderError(401, 'unauthorized', response);
         }
     }
 

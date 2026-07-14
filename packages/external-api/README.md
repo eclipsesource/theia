@@ -47,15 +47,23 @@ delivery modes, or stops without requiring a restart.
 
 ### Contributing endpoints
 
-Extensions contribute endpoints by binding an `ExternalApiContribution` in their backend module:
+Extensions contribute endpoints by binding an `ExternalApiContribution` in their backend
+module. A contribution declares the absolute path it is mounted on (no path conventions are
+imposed) and registers its routes on the `ExternalApiRouter` passed to `configure`:
 
 ```typescript
 @injectable()
 export class MyExternalApi implements ExternalApiContribution {
     readonly path = '/api/my-feature';
 
-    configure(router: express.Router): void {
-        router.get('/', (request, response) => response.json({ ok: true }));
+    configure(router: ExternalApiRouter): void {
+        router.get('/', () => RestResult.ok({ ok: true }));
+        router.get('/items/:id', ({ params }) => {
+            const item = this.service.find(params.id);
+            return item ? RestResult.ok(item) : RestResult.notFound();
+        });
+        router.post('/items', { body: CreateItemRequest.is }, async ({ body }) =>
+            RestResult.created(await this.service.create(body)));
     }
 }
 
@@ -63,14 +71,49 @@ bind(MyExternalApi).toSelf().inSingletonScope();
 bind(ExternalApiContribution).toService(MyExternalApi);
 ```
 
+Typed routes take care of the recurring endpoint mechanics so that all contributions of the
+external API behave consistently:
+
+- Request bodies are parsed as JSON and validated with the type guard declared in the route
+  options; invalid, malformed, or too large bodies are rejected with a client error without
+  invoking the handler.
+- Handlers return a `RestResult` (`RestResult.ok`, `created`, `accepted`, `noContent`,
+  `badRequest`, `notFound`, `conflict`, ...) that is rendered to the response, so that
+  success and error responses share one wire format (errors as `{ "error": "<code>" }`).
+- Errors thrown by handlers are logged and answered with `500 { "error": "internal error" }`.
+
+Server-sent event streams are served through `eventStream`, which manages the connected
+clients, keep-alive comments, and coalesced broadcasts:
+
+```typescript
+configure(router: ExternalApiRouter): void {
+    const stream = router.eventStream('/events', {
+        event: 'items',
+        snapshot: () => this.service.getItems()
+    });
+    router.toDispose.push(this.service.onDidChangeItems(() => stream.notifyChanged()));
+}
+```
+
+`configure` is called whenever the routing is rebuilt, i.e. when the external API
+configuration changes. The router of the previous build is disposed beforehand: event
+streams are closed automatically — so clients reconnect against the new configuration — and
+contributions register their own build-scoped resources, such as the event listener above,
+in the router's `toDispose` collection.
+
+For anything the typed routes do not cover, `router.raw` exposes the underlying express
+router mounted at the contribution's path (behind the token verification): existing express
+routers and middlewares can be mounted there unchanged, keeping their own request handling
+and response format. Errors they do not handle themselves are still reduced to the uniform
+error format.
+
+The wire format is rendered by the `ExternalApiResponseRenderer`; rebinding it changes the
+format of all typed routes, validation failures, the token verification, and the fallback
+error handling consistently.
+
 When a token is configured, contributions are protected by bearer token verification.
 A contribution with its own authentication scheme (e.g. OAuth) or one that is conventionally
 public can opt out by declaring `unprotected = true`.
-
-Contributions holding long-lived connections (e.g. server-sent event streams) can implement
-the optional `onConfigChanged()` method, which is called whenever the server configuration
-changes and the routing is rebuilt; they should close such connections there so that clients
-reconnect against the new configuration.
 
 ### Security Considerations
 

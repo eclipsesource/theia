@@ -14,25 +14,29 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
+import { Disposable } from '@theia/core';
 import { MockLogger } from '@theia/core/lib/common/test/mock-logger';
 import * as express from '@theia/core/shared/express';
 import { expect } from 'chai';
 import * as http from 'http';
 import * as net from 'net';
 import { ExternalApiContribution } from './external-api-contribution';
+import { ExternalApiResponseRenderer } from './external-api-response-renderer';
 import { ExternalApiServer } from './external-api-server';
+import { RestResult } from './rest-result';
+import { ExternalApiTestSupport } from './test/external-api-test-support';
 
 describe('ExternalApiServer', () => {
 
     const pingContribution: ExternalApiContribution = {
         path: '/api/ping',
-        configure: (router: express.Router) => router.get('/', (request, response) => response.json({ pong: true }))
+        configure: router => router.get('/', () => RestResult.ok({ pong: true }))
     };
 
     const publicContribution: ExternalApiContribution = {
         path: '/public',
         unprotected: true,
-        configure: (router: express.Router) => router.get('/', (request, response) => response.json({ public: true }))
+        configure: router => router.get('/', () => RestResult.ok({ public: true }))
     };
 
     let server: ExternalApiServer | undefined;
@@ -49,6 +53,8 @@ describe('ExternalApiServer', () => {
         server = new ExternalApiServer();
         (server as unknown as Record<string, unknown>)['logger'] = new MockLogger();
         (server as unknown as Record<string, unknown>)['contributions'] = { getContributions: () => contributions };
+        (server as unknown as Record<string, unknown>)['renderer'] = new ExternalApiResponseRenderer();
+        (server as unknown as Record<string, unknown>)['routerFactory'] = ExternalApiTestSupport.createRouterFactory();
         return server;
     }
 
@@ -201,34 +207,45 @@ describe('ExternalApiServer', () => {
         });
     });
 
-    describe('configuration change notification', () => {
-        it('notifies contributions about effective configuration changes only', async () => {
-            let configChanges = 0;
+    describe('routing rebuild', () => {
+        it('disposes the previous build on effective configuration changes only', async () => {
+            let disposals = 0;
             const observingContribution: ExternalApiContribution = {
                 path: '/api/observer',
-                configure: () => { },
-                onConfigChanged: () => configChanges++
+                configure: router => router.toDispose.push(Disposable.create(() => disposals++))
             };
             const apiServer = createServer([observingContribution]);
             const port = await freePort();
             await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1' });
-            expect(configChanges).to.equal(1);
+            expect(disposals).to.equal(0);
             await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1' });
-            expect(configChanges).to.equal(1);
+            expect(disposals).to.equal(0);
             await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1', token: 'secret' });
-            expect(configChanges).to.equal(2);
+            expect(disposals).to.equal(1);
         });
 
-        it('keeps applying the configuration when a contribution fails to handle the change', async () => {
+        it('keeps serving other contributions when one fails to configure', async () => {
             const failingContribution: ExternalApiContribution = {
                 path: '/api/failing',
-                configure: router => router.get('/', (request, response) => response.json({ ok: true })),
-                onConfigChanged: () => { throw new Error('boom'); }
+                configure: () => { throw new Error('boom'); }
             };
-            const apiServer = createServer([failingContribution]);
+            const apiServer = createServer([failingContribution, pingContribution]);
             const port = await freePort();
             await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1' });
-            expect((await fetch(`http://127.0.0.1:${port}/api/failing`)).status).to.equal(200);
+            expect((await fetch(`http://127.0.0.1:${port}/api/failing`)).status).to.equal(404);
+            expect((await fetch(`http://127.0.0.1:${port}/api/ping`)).status).to.equal(200);
+        });
+
+        it('serves the first contribution when several declare the same path', async () => {
+            const rivalContribution: ExternalApiContribution = {
+                path: '/api/ping',
+                configure: router => router.get('/', () => RestResult.ok({ rival: true }))
+            };
+            const apiServer = createServer([pingContribution, rivalContribution]);
+            const port = await freePort();
+            await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1' });
+            const response = await fetch(`http://127.0.0.1:${port}/api/ping`);
+            expect(await response.json()).to.deep.equal({ pong: true });
         });
     });
 });

@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import * as express from '@theia/core/shared/express';
+import { ExternalApiRouter } from './external-api-router';
 
 export const ExternalApiContribution = Symbol('ExternalApiContribution');
 /**
@@ -28,7 +28,10 @@ export const ExternalApiContribution = Symbol('ExternalApiContribution');
  * verification unless they opt out via {@link unprotected}.
  */
 export interface ExternalApiContribution {
-    /** Base path under which this contribution's routes are mounted, e.g. `/api/ai/sessions`. */
+    /**
+     * Absolute path under which this contribution's routes are mounted, e.g. `/api/ai/sessions`.
+     * The server imposes no path conventions.
+     */
     readonly path: string;
     /**
      * Serve this contribution without token verification even when a token is configured.
@@ -36,12 +39,13 @@ export interface ExternalApiContribution {
      * conventionally public. Defaults to `false`.
      */
     readonly unprotected?: boolean;
-    /** Register the contribution's routes on the given router. */
-    configure(router: express.Router): void;
     /**
-     * Called when the external API server configuration changed (delivery, port, hostname, or
-     * token) and the routing is rebuilt. Contributions holding long-lived connections such as
-     * event streams should close them so that clients reconnect against the new configuration.
+     * Registers the contribution's routes, see {@link ExternalApiRouter}.
+     *
+     * Called whenever the routing is (re)built, i.e. when the external API server
+     * configuration changes. The router of the previous build — including everything
+     * registered in its `toDispose` collection — is disposed beforehand, so build-scoped
+     * state is set up here rather than held across builds.
      */
-    onConfigChanged?(): void;
+    configure(router: ExternalApiRouter): void;
 }

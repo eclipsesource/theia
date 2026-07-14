@@ -16,15 +16,34 @@
 
 import { bindRootContributionProvider, ConnectionHandler, RpcConnectionHandler } from '@theia/core';
 import { BackendApplicationContribution } from '@theia/core/lib/node';
-import { ContainerModule } from '@theia/core/shared/inversify';
+import { Container, ContainerModule } from '@theia/core/shared/inversify';
 import { EXTERNAL_API_CONFIG_SERVICE_PATH, ExternalApiConfigService } from '../common/external-api-configuration';
 import { ExternalApiContribution } from './external-api-contribution';
+import { ExternalApiEventStream, ExternalApiEventStreamFactory, ExternalApiEventStreamOptions } from './external-api-event-stream';
+import { ExternalApiResponseRenderer } from './external-api-response-renderer';
+import { ExternalApiRouter, ExternalApiRouterFactory, ExternalApiRouterOptions } from './external-api-router';
 import { ExternalApiServer } from './external-api-server';
 
 export default new ContainerModule(bind => {
     bind(ExternalApiServer).toSelf().inSingletonScope();
     bind(ExternalApiConfigService).toService(ExternalApiServer);
     bind(BackendApplicationContribution).toService(ExternalApiServer);
+
+    bind(ExternalApiResponseRenderer).toSelf().inSingletonScope();
+    bind(ExternalApiRouterFactory).toFactory(ctx => (options: ExternalApiRouterOptions): ExternalApiRouter => {
+        const child = new Container();
+        child.parent = ctx.container;
+        child.bind(ExternalApiRouterOptions).toConstantValue(options);
+        child.bind(ExternalApiRouter).toSelf();
+        return child.get(ExternalApiRouter);
+    });
+    bind(ExternalApiEventStreamFactory).toFactory(ctx => <T>(options: ExternalApiEventStreamOptions<T>): ExternalApiEventStream<T> => {
+        const child = new Container();
+        child.parent = ctx.container;
+        child.bind(ExternalApiEventStreamOptions).toConstantValue(options);
+        child.bind(ExternalApiEventStream).toSelf();
+        return child.get(ExternalApiEventStream) as ExternalApiEventStream<T>;
+    });
 
     bindRootContributionProvider(bind, ExternalApiContribution);
 

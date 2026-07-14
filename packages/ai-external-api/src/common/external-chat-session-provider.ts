@@ -85,6 +85,18 @@ export interface ExternalChatPrompt {
     interrupt?: boolean;
 }
 
+export namespace ExternalChatPrompt {
+    /** Checks whether the value is a valid {@link ExternalChatPrompt}. */
+    export function is(value: unknown): value is ExternalChatPrompt {
+        if (typeof value !== 'object' || !value) {
+            return false;
+        }
+        const prompt = value as Record<keyof ExternalChatPrompt, unknown>;
+        return typeof prompt.text === 'string' && prompt.text.trim().length > 0
+            && (prompt.interrupt === undefined || typeof prompt.interrupt === 'boolean');
+    }
+}
+
 /**
  * Result of sending a prompt: the created request, or the reason the prompt was rejected.
  *
@@ -113,6 +125,21 @@ export interface ExternalChatSessionCreateRequest {
      * session of its frontend in any case.
      */
     focus?: boolean;
+}
+
+export namespace ExternalChatSessionCreateRequest {
+    /** Checks whether the value is a valid {@link ExternalChatSessionCreateRequest}. */
+    export function is(value: unknown): value is ExternalChatSessionCreateRequest {
+        if (typeof value !== 'object' || !value) {
+            return false;
+        }
+        const request = value as Record<keyof ExternalChatSessionCreateRequest, unknown>;
+        const isOptionalText = (candidate: unknown): boolean => candidate === undefined || typeof candidate === 'string' && candidate.trim().length > 0;
+        return isOptionalText(request.workspace)
+            && isOptionalText(request.agentId)
+            && isOptionalText(request.prompt)
+            && (request.focus === undefined || typeof request.focus === 'boolean');
+    }
 }
 
 /**

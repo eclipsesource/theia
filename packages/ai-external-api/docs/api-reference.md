@@ -149,4 +149,5 @@ Restores the session in a connected frontend without focusing it and returns the
 | 409 | `{ "error": "busy" }` | A request is in progress and `interrupt` was not set. |
 | 409 | `{ "error": "ambiguous workspace" }` | No workspace given and several different workspaces are connected. |
 | 409 | `{ "error": "no agent available" }` | No agent was found to handle the prompt. |
+| 413 | `{ "error": "invalid request" }` | Request body exceeds the size limit (1 MB). |
 | 500 | `{ "error": "internal error" }` | Failed to gather session data or perform the action. |

@@ -15,8 +15,9 @@
 // *****************************************************************************
 
 import { Emitter } from '@theia/core';
-import { MockLogger } from '@theia/core/lib/common/test/mock-logger';
 import * as express from '@theia/core/shared/express';
+import { ExternalApiRouter } from '@theia/external-api/lib/node/external-api-router';
+import { ExternalApiTestSupport } from '@theia/external-api/lib/node/test/external-api-test-support';
 import { expect } from 'chai';
 import * as http from 'http';
 import { AddressInfo } from 'net';
@@ -43,14 +44,13 @@ describe('AIExternalApiEndpoint', () => {
 
     interface ServedEndpoint {
         url: string;
-        endpoint: AIExternalApiEndpoint;
+        router: ExternalApiRouter;
         sessionsChanged: Emitter<void>;
     }
 
     async function serve(registry: Partial<ExternalChatSessionRegistry> = {}): Promise<ServedEndpoint> {
         const sessionsChanged = new Emitter<void>();
         const endpoint = new AIExternalApiEndpoint();
-        (endpoint as unknown as Record<string, unknown>)['logger'] = new MockLogger();
         (endpoint as unknown as Record<string, unknown>)['registry'] = {
             getSessions: async () => sessions,
             getSession: async (id: string) => sessions.find(candidate => candidate.id === id),
@@ -63,41 +63,13 @@ describe('AIExternalApiEndpoint', () => {
             onDidChangeSessions: sessionsChanged.event,
             ...registry
         };
-        (endpoint as unknown as { init(): void }).init();
         const app = express();
-        const router = express.Router();
-        endpoint.configure(router);
-        app.use(endpoint.path, router);
+        const router = ExternalApiTestSupport.mountContribution(app, endpoint);
         const listening = new Promise<void>(resolve => {
             server = app.listen(0, '127.0.0.1', () => resolve());
         });
         await listening;
-        return { url: `http://127.0.0.1:${(server!.address() as AddressInfo).port}${endpoint.path}`, endpoint, sessionsChanged };
-    }
-
-    /** Incrementally reads server-sent events from the response, `undefined` once the stream ends. */
-    function eventReader(response: Response): { next(): Promise<string | undefined>; cancel(): Promise<void> } {
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
-        let buffered = '';
-        return {
-            async next(): Promise<string | undefined> {
-                for (;;) {
-                    const separator = buffered.indexOf('\n\n');
-                    if (separator >= 0) {
-                        const event = buffered.substring(0, separator);
-                        buffered = buffered.substring(separator + 2);
-                        return event;
-                    }
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        return undefined;
-                    }
-                    buffered += decoder.decode(value, { stream: true });
-                }
-            },
-            cancel: () => reader.cancel()
-        };
+        return { url: `http://127.0.0.1:${(server!.address() as AddressInfo).port}${endpoint.path}`, router, sessionsChanged };
     }
 
     function wait(milliseconds: number): Promise<void> {
@@ -259,7 +231,7 @@ describe('AIExternalApiEndpoint', () => {
             const response = await fetch(`${url}/events`);
             expect(response.status).to.equal(200);
             expect(response.headers.get('content-type')).to.equal('text/event-stream');
-            const events = eventReader(response);
+            const events = ExternalApiTestSupport.sseReader(response);
             const first = await events.next();
             expect(first).to.contain('event: sessions');
             expect(eventData(first)).to.deep.equal({ sessions });
@@ -269,7 +241,7 @@ describe('AIExternalApiEndpoint', () => {
         it('pushes an updated list when sessions change', async () => {
             const { url, sessionsChanged } = await serve();
             const response = await fetch(`${url}/events`);
-            const events = eventReader(response);
+            const events = ExternalApiTestSupport.sseReader(response);
             await events.next();
             sessionsChanged.fire();
             const update = await events.next();
@@ -280,7 +252,7 @@ describe('AIExternalApiEndpoint', () => {
         it('coalesces change bursts into one push', async () => {
             const { url, sessionsChanged } = await serve();
             const response = await fetch(`${url}/events`);
-            const events = eventReader(response);
+            const events = ExternalApiTestSupport.sseReader(response);
             await events.next();
             sessionsChanged.fire();
             sessionsChanged.fire();
@@ -291,12 +263,12 @@ describe('AIExternalApiEndpoint', () => {
             await events.cancel();
         });
 
-        it('closes event streams when the configuration changes', async () => {
-            const { url, endpoint } = await serve();
+        it('closes event streams when the routing is rebuilt', async () => {
+            const { url, router } = await serve();
             const response = await fetch(`${url}/events`);
-            const events = eventReader(response);
+            const events = ExternalApiTestSupport.sseReader(response);
             await events.next();
-            endpoint.onConfigChanged();
+            router.dispose();
             expect(await events.next()).to.equal(undefined);
         });
     });
