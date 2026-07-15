@@ -125,26 +125,26 @@ schema only; the optional route documentation makes the document useful to exter
 consumers — for generated clients, documentation UIs, or MCP tool definitions:
 
 ```typescript
-router.post('/items/:id/rename', {
-    operationId: 'renameItem',
-    summary: 'Rename an item.',
-    bodySchema: RenameRequest.SCHEMA,
-    validate: body => body.name.trim() ? undefined : 'name must not be blank',
-    params: { id: { description: 'The item id.' } },
+router.post('/items/query', {
+    operationId: 'queryItems',
+    summary: 'Query items by creation time range.',
+    bodySchema: ItemQuery.SCHEMA,
+    validate: body => body.from <= body.to ? undefined : 'from must not be after to',
     responses: {
-        200: { description: 'The renamed item.', schema: ITEM_SCHEMA },
-        404: { description: 'The item is unknown.' }
+        200: { description: 'The matching items.', schema: ITEM_LIST_SCHEMA }
     }
-}, async ({ params, body }) => this.rename(params.id, body));
+}, async ({ body }) => RestResult.ok(await this.service.query(body)));
 ```
 
 - `bodySchema` is a `RestBodySchema<B>` — a JSON Schema carrying the TypeScript type of the
   bodies it accepts. A schema constant is declared once, next to the body's interface, and is
   the single place asserting that schema and type agree; the type flows into the route's
   handler and `validate` function.
-- `validate` covers constraints JSON Schema cannot express (cross-field dependencies,
-  semantic checks) and runs on the schema-valid body: it returns `undefined` (or an empty
-  string) for valid bodies, otherwise the message the request is rejected with.
+- `validate` covers constraints JSON Schema cannot express — cross-field dependencies like
+  the range check above — and runs on the schema-valid body: it returns `undefined` (or an
+  empty string) for valid bodies, otherwise the message the request is rejected with. Prefer
+  expressing constraints in the schema (e.g. non-blank strings as `"pattern": "\\S"`) so that
+  they are visible to consumers of the OpenAPI document.
 - A contribution's `documentation` groups its routes under an OpenAPI tag; event streams are
   documented through their options (`summary`, `dataSchema`, ...).
 - Routes registered on `router.raw` are not recorded and do not appear in the document.

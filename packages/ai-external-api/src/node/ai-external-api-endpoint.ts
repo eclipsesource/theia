@@ -120,7 +120,6 @@ export class AIExternalApiEndpoint implements ExternalApiContribution {
             operationId: 'createChatSession',
             summary: 'Create a chat session in a connected frontend and optionally send an initial prompt.',
             bodySchema: ExternalChatSessionCreateRequest.SCHEMA,
-            validate: ExternalChatSessionCreateRequest.validate,
             responses: {
                 201: { description: 'The created session and, if an initial prompt was sent, the id of the created request.', schema: SESSION_CREATED_SCHEMA },
                 400: { description: 'The requested agent is not registered.' },
@@ -154,7 +153,6 @@ export class AIExternalApiEndpoint implements ExternalApiContribution {
             operationId: 'promptChatSession',
             summary: 'Send a prompt to the session, restoring it first if necessary.',
             bodySchema: ExternalChatPrompt.SCHEMA,
-            validate: ExternalChatPrompt.validate,
             params: { id: SESSION_ID_PARAM },
             responses: {
                 202: { description: 'The prompt was submitted; follow the progress via the event stream or the read endpoints.', schema: PROMPT_ACCEPTED_SCHEMA },

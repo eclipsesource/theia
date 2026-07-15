@@ -169,7 +169,9 @@ describe('AIExternalApiEndpoint', () => {
             const { url } = await serve();
             const response = await post(url, { workspace: '   ' });
             expect(response.status).to.equal(400);
-            expect(await response.json()).to.deep.equal({ error: 'invalid request', details: ['workspace must not be blank'] });
+            const error = await response.json();
+            expect(error.error).to.equal('invalid request');
+            expect(error.details[0]).to.contain('workspace');
         });
 
         it('rejects an unknown agent', async () => {
@@ -224,7 +226,9 @@ describe('AIExternalApiEndpoint', () => {
             const { url } = await serve();
             const response = await post(`${url}/1/prompt`, { text: '   ' });
             expect(response.status).to.equal(400);
-            expect(await response.json()).to.deep.equal({ error: 'invalid request', details: ['text must not be blank'] });
+            const error = await response.json();
+            expect(error.error).to.equal('invalid request');
+            expect(error.details[0]).to.contain('text');
         });
 
         it('rejects malformed JSON bodies', async () => {

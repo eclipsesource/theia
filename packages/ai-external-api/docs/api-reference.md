@@ -154,4 +154,4 @@ Restores the session in a connected frontend without focusing it and returns the
 | 413 | `{ "error": "payload too large" }` | Request body exceeds the size limit (1 MB). |
 | 500 | `{ "error": "internal error" }` | Failed to gather session data or perform the action. |
 
-The `error` codes are stable and machine-readable. Body validation failures additionally carry the validation messages in a human-readable `details` array (e.g. `{ "error": "invalid request", "details": ["text must not be blank"] }`), which makes no stability promise.
+The `error` codes are stable and machine-readable. Body validation failures additionally carry the validation messages in a human-readable `details` array (e.g. `{ "error": "invalid request", "details": ["should have required property 'text'"] }`), which makes no stability promise.

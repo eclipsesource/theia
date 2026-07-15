@@ -154,7 +154,11 @@ export namespace ExternalChatPrompt {
         required: ['text'],
         additionalProperties: false,
         properties: {
-            text: { type: 'string', description: 'The prompt text, including optional `@agent` mentions and variable references.' },
+            text: {
+                type: 'string',
+                pattern: '\\S',
+                description: 'The prompt text, including optional `@agent` mentions and variable references. Must not be blank.'
+            },
             interrupt: {
                 type: 'boolean',
                 description: 'Cancel an in-progress request (including pending tool calls) before sending. '
@@ -162,11 +166,6 @@ export namespace ExternalChatPrompt {
             }
         }
     };
-
-    /** Validates the constraints the {@link SCHEMA} cannot express, see `RestRouteOptions#validate`. */
-    export function validate(prompt: ExternalChatPrompt): string | undefined {
-        return prompt.text.trim() ? undefined : 'text must not be blank';
-    }
 }
 
 /**
@@ -207,23 +206,26 @@ export namespace ExternalChatSessionCreateRequest {
         properties: {
             workspace: {
                 type: 'string',
+                pattern: '\\S',
                 description: 'URI of the workspace in which to create the session. The session is created in a frontend that has this workspace open. '
                     + 'May be omitted when all connected frontends share the same workspace.'
             },
-            agentId: { type: 'string', description: 'ID of the agent to pin to the session. When omitted, the default agent handles prompts.' },
-            prompt: { type: 'string', description: 'Initial prompt to send right after creation.' },
+            agentId: {
+                type: 'string',
+                pattern: '\\S',
+                description: 'ID of the agent to pin to the session. When omitted, the default agent handles prompts.'
+            },
+            prompt: {
+                type: 'string',
+                pattern: '\\S',
+                description: 'Initial prompt to send right after creation. Must not be blank when given.'
+            },
             focus: {
                 type: 'boolean',
                 description: 'Raise the chat view in the IDE. The created session becomes the active session of its frontend in any case.'
             }
         }
     };
-
-    /** Validates the constraints the {@link SCHEMA} cannot express, see `RestRouteOptions#validate`. */
-    export function validate(request: ExternalChatSessionCreateRequest): string | undefined {
-        const blank = (['workspace', 'agentId', 'prompt'] as const).find(field => request[field] !== undefined && !request[field]!.trim());
-        return blank && `${blank} must not be blank`;
-    }
 }
 
 /**
