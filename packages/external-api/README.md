@@ -75,8 +75,9 @@ Typed routes take care of the recurring endpoint mechanics so that all contribut
 external API behave consistently:
 
 - Request bodies are parsed as JSON and validated with the type guard declared in the route
-  options; invalid, malformed, or too large bodies are rejected with a client error without
-  invoking the handler.
+  options, without invoking the handler on failure: invalid or malformed bodies are rejected
+  with `400 { "error": "invalid request" }`, bodies exceeding the size limit (default `1mb`,
+  configurable per route via `jsonLimit`) with `413 { "error": "payload too large" }`.
 - Handlers return a `RestResult` (`RestResult.ok`, `created`, `accepted`, `noContent`,
   `badRequest`, `notFound`, `conflict`, ...) that is rendered to the response, so that
   success and error responses share one wire format (errors as `{ "error": "<code>" }`).
@@ -105,22 +106,25 @@ For anything the typed routes do not cover, `router.raw` exposes the underlying 
 router mounted at the contribution's path (behind the token verification): existing express
 routers and middlewares can be mounted there unchanged, keeping their own request handling
 and response format. Errors they do not handle themselves are still reduced to the uniform
-error format.
+error format: server errors are answered with `500 { "error": "internal error" }`, client
+errors keep their status with the HTTP status text as the error code.
 
 The wire format is rendered by the `ExternalApiResponseRenderer`; rebinding it changes the
 format of all typed routes, validation failures, the token verification, and the fallback
 error handling consistently.
 
-When a token is configured, contributions are protected by bearer token verification.
-A contribution with its own authentication scheme (e.g. OAuth) or one that is conventionally
-public can opt out by declaring `unprotected = true`.
+When a token is configured, contributions are protected by bearer token verification;
+requests failing it are answered with `401 { "error": "unauthorized" }`. A contribution with
+its own authentication scheme (e.g. OAuth) or one that is conventionally public can opt out
+by declaring `unprotected = true`.
 
 ### Security Considerations
 
 - The token is stored in plain text in the user settings and transmitted as a bearer header.
   Use it to keep casual local processes out, not as a substitute for network-level security;
   prefer binding to `localhost` and use TLS-terminating reverse proxies for remote scenarios.
-- Without a token, anyone who can reach the configured port can call all contributed endpoints.
+- Without a token, anyone who can reach the configured port can call all contributed endpoints;
+  the backend logs a warning when serving without a token on a non-local hostname.
 
 ## Additional Information
 

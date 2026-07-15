@@ -31,14 +31,14 @@ their last request ended in an error and `idle` otherwise.
 ### Enabling the API
 
 The endpoints are contributed to the external API server of `@theia/external-api`, which is
-disabled by default. Enable it by setting the `externalApi.delivery` user preference to
-`samePort` or `separatePort` (with `externalApi.port`); optionally require a bearer token via
-`externalApi.token`. See the `@theia/external-api` documentation for details.
+disabled by default and configured through the `externalApi.*` user preferences (delivery
+mode, port, hostname, and bearer token). See the `@theia/external-api` README for the
+configuration and its security considerations.
 
 ### API Endpoints
 
-All endpoints are served on the configured external API port. A standalone, detailed API
-reference is available in [docs/api-reference.md](docs/api-reference.md).
+A standalone, detailed API reference is available in
+[docs/api-reference.md](docs/api-reference.md).
 
 #### `GET /api/ai/sessions`
 
@@ -200,26 +200,25 @@ an already restored session is a no-op and returns its detail.
 
 #### Error responses
 
-- `400 { "error": "invalid request" }`: malformed JSON or invalid/missing body fields.
-- `401 { "error": "unauthorized" }`: missing or invalid bearer token (when a token is configured).
+- `400 { "error": "invalid request" }`: invalid or missing body fields.
 - `404 { "error": "not found" }`: unknown session id.
-- `413 { "error": "payload too large" }`: request body exceeding the size limit.
 - `500 { "error": "internal error" }`: failed to gather session data or perform the action.
 
 The creation and prompt endpoints additionally return the failure responses documented above.
+The generic error responses of the external API server — `400` for malformed JSON, `401` for
+a missing or invalid bearer token, `413` for too large request bodies — apply as documented
+for `@theia/external-api`.
 
 ### Security Considerations
 
 - Chat histories can contain sensitive workspace content. Configure an `externalApi.token`
-  and keep the server bound to `localhost` unless remote access is required.
+  and mind the security considerations of `@theia/external-api`.
 - The creation and prompt endpoints trigger agent execution: they start language model
   requests and, depending on the configured tool confirmation settings, tool calls in the
   user's IDE. Do not expose them without a token.
 - The open and restore endpoints affect the IDE: opening raises the chat view in the user's
   frontend, creating switches the active session, and restoring loads persisted session data
   into memory.
-- When the external API configuration changes (delivery, port, or token), open event streams
-  are closed; clients are expected to reconnect against the new configuration.
 
 ## Additional Information
 
