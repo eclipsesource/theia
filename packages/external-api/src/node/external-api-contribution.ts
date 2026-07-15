@@ -16,6 +16,17 @@
 
 import { ExternalApiRouter } from './external-api-router';
 
+/**
+ * Documentation of an {@link ExternalApiContribution}, grouping its routes in the OpenAPI
+ * document of the external API.
+ */
+export interface ExternalApiContributionDocumentation {
+    /** Title of the contribution, used as the OpenAPI tag of its routes. */
+    title: string;
+    /** Description of the contribution; CommonMark. */
+    description?: string;
+}
+
 export const ExternalApiContribution = Symbol('ExternalApiContribution');
 /**
  * Contributes HTTP endpoints to the external API server.
@@ -39,6 +50,11 @@ export interface ExternalApiContribution {
      * conventionally public. Defaults to `false`.
      */
     readonly unprotected?: boolean;
+    /**
+     * Documentation of this contribution, grouping its routes under an OpenAPI tag in the
+     * OpenAPI document of the external API.
+     */
+    readonly documentation?: ExternalApiContributionDocumentation;
     /**
      * Registers the contribution's routes, see {@link ExternalApiRouter}.
      *

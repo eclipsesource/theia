@@ -14,12 +14,43 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
+import { IJSONSchema } from '@theia/core/lib/common/json-schema';
 import { inject, injectable } from '@theia/core/shared/inversify';
-import { ExternalApiContribution } from '@theia/external-api/lib/node/external-api-contribution';
-import { ExternalApiRouter } from '@theia/external-api/lib/node/external-api-router';
+import { ExternalApiContribution, ExternalApiContributionDocumentation } from '@theia/external-api/lib/node/external-api-contribution';
+import { ExternalApiRouter, RestParamDocumentation } from '@theia/external-api/lib/node/external-api-router';
 import { RestResult } from '@theia/external-api/lib/node/rest-result';
-import { AI_SESSIONS_API_PATH, ExternalChatPrompt, ExternalChatSessionCreateRequest } from '../common/external-chat-session-provider';
+import {
+    AI_SESSIONS_API_PATH, ExternalChatPrompt, ExternalChatSessionCreateRequest, ExternalChatSessionDetail, ExternalChatSessionSummary
+} from '../common/external-chat-session-provider';
 import { ExternalChatSessionRegistry } from './external-chat-session-registry';
+
+const SESSION_ID_PARAM: RestParamDocumentation = { description: 'The session id.' };
+
+const SESSION_LIST_SCHEMA: IJSONSchema = {
+    type: 'object',
+    required: ['sessions'],
+    properties: {
+        sessions: { type: 'array', items: ExternalChatSessionSummary.SCHEMA, description: 'The sessions, most recently used first.' }
+    }
+};
+
+const SESSION_CREATED_SCHEMA: IJSONSchema = {
+    type: 'object',
+    required: ['session'],
+    properties: {
+        session: ExternalChatSessionSummary.SCHEMA,
+        requestId: { type: 'string', description: 'Id of the request created for the initial prompt; absent when no prompt was sent.' }
+    }
+};
+
+const PROMPT_ACCEPTED_SCHEMA: IJSONSchema = {
+    type: 'object',
+    required: ['sessionId', 'requestId'],
+    properties: {
+        sessionId: { type: 'string', description: 'Id of the prompted session.' },
+        requestId: { type: 'string', description: 'Id of the created request.' }
+    }
+};
 
 /**
  * Contributes the AI session API to the external API server:
@@ -43,29 +74,94 @@ export class AIExternalApiEndpoint implements ExternalApiContribution {
 
     readonly path = AI_SESSIONS_API_PATH;
 
+    readonly documentation: ExternalApiContributionDocumentation = {
+        title: 'AI Chat Sessions',
+        description: 'Inspect, follow, open, prompt, and create the AI chat sessions of this Theia instance.'
+    };
+
     @inject(ExternalChatSessionRegistry)
     protected readonly registry: ExternalChatSessionRegistry;
 
     configure(router: ExternalApiRouter): void {
-        router.get('/', async () => RestResult.ok({ sessions: await this.registry.getSessions() }));
+        router.get('/', {
+            operationId: 'listChatSessions',
+            summary: 'List all AI chat sessions, most recently used first.',
+            responses: {
+                200: { description: 'The current sessions of all connected frontends.', schema: SESSION_LIST_SCHEMA }
+            }
+        }, async () => RestResult.ok({ sessions: await this.registry.getSessions() }));
         // register before '/:id' so that 'events' is not treated as a session id
         const events = router.eventStream('/events', {
             event: 'sessions',
+            operationId: 'streamChatSessions',
+            summary: 'Stream the session list as server-sent events.',
+            description: 'On connect, the stream immediately delivers the current session list; afterwards, the full, '
+                + 'updated list is pushed whenever sessions change. Consume each event as a replacement, not a delta.',
+            dataSchema: SESSION_LIST_SCHEMA,
             snapshot: async () => ({ sessions: await this.registry.getSessions() })
         });
         router.toDispose.push(this.registry.onDidChangeSessions(() => events.notifyChanged()));
-        router.get('/:id', async ({ params }) => {
+        router.get('/:id', {
+            operationId: 'getChatSession',
+            summary: 'Get a single session including its conversation reduced to plain-text messages.',
+            params: { id: SESSION_ID_PARAM },
+            responses: {
+                200: {
+                    description: 'The session detail. Persisted sessions that are not restored carry no messages.',
+                    schema: ExternalChatSessionDetail.SCHEMA
+                },
+                404: { description: 'The session is unknown to all connected frontends.' }
+            }
+        }, async ({ params }) => {
             const session = await this.registry.getSession(params.id);
             return session ? RestResult.ok(session) : RestResult.notFound();
         });
-        router.post('/', { body: ExternalChatSessionCreateRequest.is }, ({ body }) => this.createSession(body));
-        router.post('/:id/open', async ({ params }) =>
+        router.post('/', {
+            operationId: 'createChatSession',
+            summary: 'Create a chat session in a connected frontend and optionally send an initial prompt.',
+            bodySchema: ExternalChatSessionCreateRequest.SCHEMA,
+            validate: ExternalChatSessionCreateRequest.validate,
+            responses: {
+                201: { description: 'The created session and, if an initial prompt was sent, the id of the created request.', schema: SESSION_CREATED_SCHEMA },
+                400: { description: 'The requested agent is not registered.' },
+                404: { description: 'No connected frontend matches the requested workspace.' },
+                409: { description: 'The workspace is ambiguous or no agent could handle the initial prompt.' }
+            }
+        }, ({ body }) => this.createSession(body));
+        router.post('/:id/open', {
+            operationId: 'openChatSession',
+            summary: 'Show the session in the chat view of a connected frontend, restoring it first if necessary.',
+            params: { id: SESSION_ID_PARAM },
+            responses: {
+                204: { description: 'The session is shown in a frontend.' },
+                404: { description: 'The session is unknown to all connected frontends.' }
+            }
+        }, async ({ params }) =>
             await this.registry.openSession(params.id) ? RestResult.noContent() : RestResult.notFound());
-        router.post('/:id/restore', async ({ params }) => {
+        router.post('/:id/restore', {
+            operationId: 'restoreChatSession',
+            summary: 'Restore the session in a connected frontend without focusing it, and return its detail.',
+            params: { id: SESSION_ID_PARAM },
+            responses: {
+                200: { description: 'The detail of the restored session.', schema: ExternalChatSessionDetail.SCHEMA },
+                404: { description: 'The session is unknown to all connected frontends.' }
+            }
+        }, async ({ params }) => {
             const session = await this.registry.restoreSession(params.id);
             return session ? RestResult.ok(session) : RestResult.notFound();
         });
-        router.post('/:id/prompt', { body: ExternalChatPrompt.is }, ({ params, body }) => this.sendPrompt(params.id, body));
+        router.post('/:id/prompt', {
+            operationId: 'promptChatSession',
+            summary: 'Send a prompt to the session, restoring it first if necessary.',
+            bodySchema: ExternalChatPrompt.SCHEMA,
+            validate: ExternalChatPrompt.validate,
+            params: { id: SESSION_ID_PARAM },
+            responses: {
+                202: { description: 'The prompt was submitted; follow the progress via the event stream or the read endpoints.', schema: PROMPT_ACCEPTED_SCHEMA },
+                404: { description: 'The session is unknown to all connected frontends.' },
+                409: { description: 'A request is in progress and `interrupt` was not set, or no agent is available.' }
+            }
+        }, ({ params, body }) => this.sendPrompt(params.id, body));
     }
 
     protected async createSession(request: ExternalChatSessionCreateRequest): Promise<RestResult> {

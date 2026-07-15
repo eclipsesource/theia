@@ -15,9 +15,14 @@
 // *****************************************************************************
 
 import { ChatSessionStatus } from '@theia/ai-chat/lib/common/chat-model';
+import { IJSONSchema } from '@theia/core/lib/common/json-schema';
+import { RestBodySchema } from '@theia/external-api/lib/common/rest-body-schema';
 
 /** Base path of the external AI session HTTP API. */
 export const AI_SESSIONS_API_PATH = '/api/ai/sessions';
+
+/** All {@link ChatSessionStatus} values, for the external API schemas. */
+const CHAT_SESSION_STATUS_VALUES: ChatSessionStatus[] = ['idle', 'running', 'awaitingApproval', 'awaitingToolCall', 'awaitingInput', 'failed'];
 
 /** RPC path on which each frontend registers its {@link ExternalChatSessionProvider} with the backend. */
 export const EXTERNAL_CHAT_SESSION_PROVIDER_PATH = '/services/ai-external-api/session-provider';
@@ -47,6 +52,36 @@ export interface ExternalChatSessionSummary {
     restored: boolean;
 }
 
+export namespace ExternalChatSessionSummary {
+    /** JSON Schema of {@link ExternalChatSessionSummary}, published in the OpenAPI document. */
+    export const SCHEMA: IJSONSchema = {
+        type: 'object',
+        required: ['id', 'status', 'restored'],
+        properties: {
+            id: { type: 'string', description: 'Unique session id.' },
+            title: { type: 'string', description: 'Session title, if one has been set or generated.' },
+            status: {
+                type: 'string',
+                enum: CHAT_SESSION_STATUS_VALUES,
+                description: 'Aggregated session status, derived from the state of the last request. '
+                    + "'awaitingApproval' and 'awaitingInput' mean the session is blocked on the user."
+            },
+            lastInteraction: { type: 'number', description: 'Timestamp in milliseconds since epoch of the last interaction with the session.' },
+            workspace: { type: 'string', description: "URI of the workspace the session belongs to; absent when the session's frontend has no open workspace." },
+            preview: {
+                type: 'string',
+                description: 'The last few lines of the conversation as plain text; absent for an empty conversation and for sessions that are not restored.'
+            },
+            agentId: { type: 'string', description: 'ID of the agent driving the session; absent when no agent is pinned to the session.' },
+            agentName: { type: 'string', description: 'Human-readable name of the agent driving the session.' },
+            restored: {
+                type: 'boolean',
+                description: 'Whether the session is restored in a connected frontend. Sessions that are not restored report persisted metadata only.'
+            }
+        }
+    };
+}
+
 /**
  * A single entry of the simplified conversation exposed by the external session detail endpoint.
  *
@@ -61,6 +96,18 @@ export interface ExternalChatMessage {
     text: string;
 }
 
+export namespace ExternalChatMessage {
+    /** JSON Schema of {@link ExternalChatMessage}, published in the OpenAPI document. */
+    export const SCHEMA: IJSONSchema = {
+        type: 'object',
+        required: ['actor', 'text'],
+        properties: {
+            actor: { type: 'string', enum: ['user', 'ai'], description: 'Author of the entry.' },
+            text: { type: 'string', description: 'Plain-text representation of the entry.' }
+        }
+    };
+}
+
 /**
  * Chat session detail as exposed by the external session detail endpoint.
  */
@@ -70,6 +117,21 @@ export interface ExternalChatSessionDetail extends ExternalChatSessionSummary {
      * Absent when the session is not restored (see {@link ExternalChatSessionSummary.restored}).
      */
     messages?: ExternalChatMessage[];
+}
+
+export namespace ExternalChatSessionDetail {
+    /** JSON Schema of {@link ExternalChatSessionDetail}, published in the OpenAPI document. */
+    export const SCHEMA: IJSONSchema = {
+        ...ExternalChatSessionSummary.SCHEMA,
+        properties: {
+            ...ExternalChatSessionSummary.SCHEMA.properties,
+            messages: {
+                type: 'array',
+                items: ExternalChatMessage.SCHEMA,
+                description: "The session's conversation reduced to plain-text messages, oldest first. Absent when the session is not restored."
+            }
+        }
+    };
 }
 
 /**
@@ -86,14 +148,24 @@ export interface ExternalChatPrompt {
 }
 
 export namespace ExternalChatPrompt {
-    /** Checks whether the value is a valid {@link ExternalChatPrompt}. */
-    export function is(value: unknown): value is ExternalChatPrompt {
-        if (typeof value !== 'object' || !value) {
-            return false;
+    /** JSON Schema of {@link ExternalChatPrompt}; bodies of the prompt endpoint are validated against it. */
+    export const SCHEMA: RestBodySchema<ExternalChatPrompt> = {
+        type: 'object',
+        required: ['text'],
+        additionalProperties: false,
+        properties: {
+            text: { type: 'string', description: 'The prompt text, including optional `@agent` mentions and variable references.' },
+            interrupt: {
+                type: 'boolean',
+                description: 'Cancel an in-progress request (including pending tool calls) before sending. '
+                    + 'Without this flag, prompting a session whose status is in progress is rejected as busy.'
+            }
         }
-        const prompt = value as Record<keyof ExternalChatPrompt, unknown>;
-        return typeof prompt.text === 'string' && prompt.text.trim().length > 0
-            && (prompt.interrupt === undefined || typeof prompt.interrupt === 'boolean');
+    };
+
+    /** Validates the constraints the {@link SCHEMA} cannot express, see `RestRouteOptions#validate`. */
+    export function validate(prompt: ExternalChatPrompt): string | undefined {
+        return prompt.text.trim() ? undefined : 'text must not be blank';
     }
 }
 
@@ -128,17 +200,29 @@ export interface ExternalChatSessionCreateRequest {
 }
 
 export namespace ExternalChatSessionCreateRequest {
-    /** Checks whether the value is a valid {@link ExternalChatSessionCreateRequest}. */
-    export function is(value: unknown): value is ExternalChatSessionCreateRequest {
-        if (typeof value !== 'object' || !value) {
-            return false;
+    /** JSON Schema of {@link ExternalChatSessionCreateRequest}; bodies of the creation endpoint are validated against it. */
+    export const SCHEMA: RestBodySchema<ExternalChatSessionCreateRequest> = {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+            workspace: {
+                type: 'string',
+                description: 'URI of the workspace in which to create the session. The session is created in a frontend that has this workspace open. '
+                    + 'May be omitted when all connected frontends share the same workspace.'
+            },
+            agentId: { type: 'string', description: 'ID of the agent to pin to the session. When omitted, the default agent handles prompts.' },
+            prompt: { type: 'string', description: 'Initial prompt to send right after creation.' },
+            focus: {
+                type: 'boolean',
+                description: 'Raise the chat view in the IDE. The created session becomes the active session of its frontend in any case.'
+            }
         }
-        const request = value as Record<keyof ExternalChatSessionCreateRequest, unknown>;
-        const isOptionalText = (candidate: unknown): boolean => candidate === undefined || typeof candidate === 'string' && candidate.trim().length > 0;
-        return isOptionalText(request.workspace)
-            && isOptionalText(request.agentId)
-            && isOptionalText(request.prompt)
-            && (request.focus === undefined || typeof request.focus === 'boolean');
+    };
+
+    /** Validates the constraints the {@link SCHEMA} cannot express, see `RestRouteOptions#validate`. */
+    export function validate(request: ExternalChatSessionCreateRequest): string | undefined {
+        const blank = (['workspace', 'agentId', 'prompt'] as const).find(field => request[field] !== undefined && !request[field]!.trim());
+        return blank && `${blank} must not be blank`;
     }
 }
 

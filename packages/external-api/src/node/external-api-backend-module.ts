@@ -23,11 +23,17 @@ import { ExternalApiEventStream, ExternalApiEventStreamFactory, ExternalApiEvent
 import { ExternalApiResponseRenderer } from './external-api-response-renderer';
 import { ExternalApiRouter, ExternalApiRouterFactory, ExternalApiRouterOptions } from './external-api-router';
 import { ExternalApiServer } from './external-api-server';
+import { OpenApiDocumentBuilder } from './openapi-document-builder';
+import { OpenApiSpecContribution } from './openapi-spec-contribution';
 
 export default new ContainerModule(bind => {
     bind(ExternalApiServer).toSelf().inSingletonScope();
     bind(ExternalApiConfigService).toService(ExternalApiServer);
     bind(BackendApplicationContribution).toService(ExternalApiServer);
+
+    bind(OpenApiDocumentBuilder).toSelf().inSingletonScope();
+    bind(OpenApiSpecContribution).toSelf().inSingletonScope();
+    bind(ExternalApiContribution).toService(OpenApiSpecContribution);
 
     bind(ExternalApiResponseRenderer).toSelf().inSingletonScope();
     bind(ExternalApiRouterFactory).toFactory(ctx => (options: ExternalApiRouterOptions): ExternalApiRouter => {

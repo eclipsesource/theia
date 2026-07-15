@@ -155,11 +155,21 @@ describe('AIExternalApiEndpoint', () => {
             expect(await response.json()).to.deep.equal({ session: sessions[0], requestId: 'r1' });
         });
 
-        it('rejects an invalid creation request', async () => {
+        it('rejects an invalid creation request with the validation errors as details', async () => {
             const { url } = await serve();
             const response = await post(url, { focus: 'yes' });
             expect(response.status).to.equal(400);
-            expect(await response.json()).to.deep.equal({ error: 'invalid request' });
+            const body = await response.json();
+            expect(body.error).to.equal('invalid request');
+            expect(body.details).to.have.length(1);
+            expect(body.details[0]).to.contain('focus');
+        });
+
+        it('rejects a creation request with a blank workspace', async () => {
+            const { url } = await serve();
+            const response = await post(url, { workspace: '   ' });
+            expect(response.status).to.equal(400);
+            expect(await response.json()).to.deep.equal({ error: 'invalid request', details: ['workspace must not be blank'] });
         });
 
         it('rejects an unknown agent', async () => {
@@ -214,7 +224,7 @@ describe('AIExternalApiEndpoint', () => {
             const { url } = await serve();
             const response = await post(`${url}/1/prompt`, { text: '   ' });
             expect(response.status).to.equal(400);
-            expect(await response.json()).to.deep.equal({ error: 'invalid request' });
+            expect(await response.json()).to.deep.equal({ error: 'invalid request', details: ['text must not be blank'] });
         });
 
         it('rejects malformed JSON bodies', async () => {

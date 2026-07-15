@@ -16,3 +16,4 @@
 
 export * from './external-api-configuration';
 export * from './external-api-preferences';
+export * from './rest-body-schema';

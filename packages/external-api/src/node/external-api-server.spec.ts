@@ -23,6 +23,8 @@ import * as net from 'net';
 import { ExternalApiContribution } from './external-api-contribution';
 import { ExternalApiResponseRenderer } from './external-api-response-renderer';
 import { ExternalApiServer } from './external-api-server';
+import { OpenApiDocumentBuilder } from './openapi-document-builder';
+import { OpenApiSpecContribution } from './openapi-spec-contribution';
 import { RestResult } from './rest-result';
 import { ExternalApiTestSupport } from './test/external-api-test-support';
 
@@ -55,7 +57,15 @@ describe('ExternalApiServer', () => {
         (server as unknown as Record<string, unknown>)['contributions'] = { getContributions: () => contributions };
         (server as unknown as Record<string, unknown>)['renderer'] = new ExternalApiResponseRenderer();
         (server as unknown as Record<string, unknown>)['routerFactory'] = ExternalApiTestSupport.createRouterFactory();
+        (server as unknown as Record<string, unknown>)['documentBuilder'] = new OpenApiDocumentBuilder();
         return server;
+    }
+
+    /** Creates a spec contribution reading from the given server's document builder. */
+    function createSpecContribution(apiServer: ExternalApiServer): OpenApiSpecContribution {
+        const contribution = new OpenApiSpecContribution();
+        (contribution as unknown as Record<string, unknown>)['builder'] = (apiServer as unknown as Record<string, unknown>)['documentBuilder'];
+        return contribution;
     }
 
     /** Simulates Theia's main HTTP server with the api server's middleware installed. */
@@ -261,6 +271,36 @@ describe('ExternalApiServer', () => {
             await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1' });
             const response = await fetch(`http://127.0.0.1:${port}/api/ping`);
             expect(await response.json()).to.deep.equal({ pong: true });
+        });
+    });
+
+    describe('OpenAPI document', () => {
+        it('serves the OpenAPI document describing the served contributions', async () => {
+            const contributions: ExternalApiContribution[] = [pingContribution];
+            const apiServer = createServer(contributions);
+            contributions.push(createSpecContribution(apiServer));
+            const port = await freePort();
+            await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1' });
+            const response = await fetch(`http://127.0.0.1:${port}/api/openapi.json`);
+            expect(response.status).to.equal(200);
+            const document = await response.json();
+            expect(document.openapi).to.equal('3.1.0');
+            expect(document.paths).to.have.property('/api/ping');
+            expect(document.paths).to.have.property('/api/openapi.json');
+            expect(document.components).to.equal(undefined);
+        });
+
+        it('declares the bearer protection in the OpenAPI document when a token is configured', async () => {
+            const contributions: ExternalApiContribution[] = [pingContribution, publicContribution];
+            const apiServer = createServer(contributions);
+            contributions.push(createSpecContribution(apiServer));
+            const port = await freePort();
+            await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1', token: 'secret' });
+            const response = await fetch(`http://127.0.0.1:${port}/api/openapi.json`, { headers: { authorization: 'Bearer secret' } });
+            const document = await response.json();
+            expect(document.components.securitySchemes).to.deep.equal({ bearerAuth: { type: 'http', scheme: 'bearer' } });
+            expect(document.paths['/api/ping'].get.security).to.deep.equal([{ bearerAuth: [] }]);
+            expect(document.paths['/public'].get.security).to.equal(undefined);
         });
     });
 });

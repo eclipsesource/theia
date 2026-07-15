@@ -38,7 +38,10 @@ configuration and its security considerations.
 ### API Endpoints
 
 A standalone, detailed API reference is available in
-[docs/api-reference.md](docs/api-reference.md).
+[docs/api-reference.md](docs/api-reference.md). The API also describes itself: all endpoints
+are published — with descriptions and schemas — in the OpenAPI document served at
+`GET /api/openapi.json` (see `@theia/external-api`), e.g. to generate clients or MCP tool
+definitions.
 
 #### `GET /api/ai/sessions`
 
@@ -200,7 +203,8 @@ an already restored session is a no-op and returns its detail.
 
 #### Error responses
 
-- `400 { "error": "invalid request" }`: invalid or missing body fields.
+- `400 { "error": "invalid request" }`: invalid or missing body fields; the validation
+  messages are carried in a human-readable `details` array.
 - `404 { "error": "not found" }`: unknown session id.
 - `500 { "error": "internal error" }`: failed to gather session data or perform the action.
 

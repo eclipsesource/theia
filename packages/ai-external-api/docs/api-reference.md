@@ -4,6 +4,8 @@ HTTP API for inspecting, following, opening, prompting, and creating the AI chat
 
 **Availability:** disabled by default. Enabled via the `externalApi.delivery` preference — `samePort` (served on the main Theia port) or `separatePort` (served on `externalApi.port`). If `externalApi.token` is configured, every request must send `Authorization: Bearer <token>`.
 
+**Machine-readable description:** all endpoints are also published — with descriptions and schemas — in the OpenAPI 3.1 document served at `GET /api/openapi.json`.
+
 **Scope:** sessions currently *restored* (in memory) in a connected frontend are reported with their full state. Persisted sessions that have not been restored are reported with their persisted metadata and `"restored": false`; they can be restored on demand. With no frontend connected, the list is empty. Sessions known to multiple frontends are deduplicated (preferring restored, then in-progress, then more recent reports).
 
 ## `GET /api/ai/sessions`
@@ -151,3 +153,5 @@ Restores the session in a connected frontend without focusing it and returns the
 | 409 | `{ "error": "no agent available" }` | No agent was found to handle the prompt. |
 | 413 | `{ "error": "payload too large" }` | Request body exceeds the size limit (1 MB). |
 | 500 | `{ "error": "internal error" }` | Failed to gather session data or perform the action. |
+
+The `error` codes are stable and machine-readable. Body validation failures additionally carry the validation messages in a human-readable `details` array (e.g. `{ "error": "invalid request", "details": ["text must not be blank"] }`), which makes no stability promise.

@@ -31,7 +31,7 @@ export class ExternalApiResponseRenderer {
     /** Renders the result of a typed route handler to the response. */
     render(result: RestResult, response: express.Response): void {
         if (result.kind === 'error') {
-            this.renderError(result.status, result.code, response);
+            this.renderError(result.status, result.code, response, result.details);
         } else if (result.body !== undefined) {
             response.status(result.status).json(result.body);
         } else {
@@ -39,8 +39,12 @@ export class ExternalApiResponseRenderer {
         }
     }
 
-    /** Renders an error response with the given status and stable, machine-readable error code. */
-    renderError(status: number, code: string, response: express.Response): void {
-        response.status(status).json({ error: code });
+    /**
+     * Renders an error response with the given status, stable machine-readable error code,
+     * and optional human-readable details, e.g. body validation errors. Unlike the code,
+     * the details make no stability promise.
+     */
+    renderError(status: number, code: string, response: express.Response, details?: string[]): void {
+        response.status(status).json(details?.length ? { error: code, details } : { error: code });
     }
 }

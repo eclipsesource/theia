@@ -16,15 +16,15 @@
 
 /**
  * Result of a typed external API route handler: either a success with a status and an
- * optional JSON body, or an error with a status and a stable, machine-readable error code.
- * Results are rendered to the HTTP response by the `ExternalApiResponseRenderer`, so that
- * all external API endpoints share one wire format.
+ * optional JSON body, or an error with a status, a stable, machine-readable error code, and
+ * optional human-readable details. Results are rendered to the HTTP response by the
+ * `ExternalApiResponseRenderer`, so that all external API endpoints share one wire format.
  *
  * Use the constructor functions of the {@link RestResult} namespace to create results.
  */
 export type RestResult =
     | { kind: 'success'; status: number; body?: unknown }
-    | { kind: 'error'; status: number; code: string };
+    | { kind: 'error'; status: number; code: string; details?: string[] };
 
 export namespace RestResult {
     /** `200 OK` with the given JSON body. */
@@ -47,9 +47,9 @@ export namespace RestResult {
     export function success(status: number, body?: unknown): RestResult {
         return { kind: 'success', status, body };
     }
-    /** `400 Bad Request` with the given error code. */
-    export function badRequest(code: string = 'invalid request'): RestResult {
-        return error(400, code);
+    /** `400 Bad Request` with the given error code and optional human-readable details. */
+    export function badRequest(code: string = 'invalid request', details?: string[]): RestResult {
+        return error(400, code, details);
     }
     /** `404 Not Found` with the given error code. */
     export function notFound(code: string = 'not found'): RestResult {
@@ -59,8 +59,8 @@ export namespace RestResult {
     export function conflict(code: string): RestResult {
         return error(409, code);
     }
-    /** An error response with the given status and stable, machine-readable error code. */
-    export function error(status: number, code: string): RestResult {
-        return { kind: 'error', status, code };
+    /** An error response with the given status, stable, machine-readable error code, and optional human-readable details. */
+    export function error(status: number, code: string, details?: string[]): RestResult {
+        return { kind: 'error', status, code, details };
     }
 }

@@ -18,6 +18,7 @@ import * as express from '@theia/core/shared/express';
 import { expect } from 'chai';
 import * as http from 'http';
 import { AddressInfo } from 'net';
+import { RestBodySchema } from '../common/rest-body-schema';
 import { ExternalApiContribution } from './external-api-contribution';
 import { ExternalApiRouter } from './external-api-router';
 import { RestResult } from './rest-result';
@@ -60,9 +61,12 @@ describe('ExternalApiRouter', () => {
         text: string;
     }
 
-    function isEchoBody(value: unknown): value is EchoBody {
-        return typeof value === 'object' && !!value && typeof (value as EchoBody).text === 'string';
-    }
+    const ECHO_SCHEMA: RestBodySchema<EchoBody> = {
+        type: 'object',
+        required: ['text'],
+        additionalProperties: false,
+        properties: { text: { type: 'string' } }
+    };
 
     describe('typed routes', () => {
         it('renders success results as JSON', async () => {
@@ -92,29 +96,51 @@ describe('ExternalApiRouter', () => {
             expect(await response.json()).to.deep.equal({ item: '42' });
         });
 
-        it('passes validated bodies to handlers', async () => {
-            const { url } = await serve(router => router.post('/echo', { body: isEchoBody }, ({ body }) => RestResult.ok({ echo: body.text })));
+        it('passes schema-valid bodies to handlers', async () => {
+            const { url } = await serve(router => router.post('/echo', { bodySchema: ECHO_SCHEMA }, ({ body }) => RestResult.ok({ echo: body.text })));
             const response = await send('POST', `${url}/echo`, { text: 'hello' });
             expect(response.status).to.equal(200);
             expect(await response.json()).to.deep.equal({ echo: 'hello' });
         });
 
-        it('rejects bodies failing validation', async () => {
-            const { url } = await serve(router => router.post('/echo', { body: isEchoBody }, ({ body }) => RestResult.ok({ echo: body.text })));
+        it('rejects bodies violating the schema with the validation errors as details', async () => {
+            const { url } = await serve(router => router.post('/echo', { bodySchema: ECHO_SCHEMA }, ({ body }) => RestResult.ok({ echo: body.text })));
             const response = await send('POST', `${url}/echo`, { text: 42 });
             expect(response.status).to.equal(400);
-            expect(await response.json()).to.deep.equal({ error: 'invalid request' });
+            const error = await response.json();
+            expect(error.error).to.equal('invalid request');
+            expect(error.details).to.have.length(1);
+            expect(error.details[0]).to.contain('text');
+        });
+
+        it('rejects bodies failing the custom validation with its message', async () => {
+            const { url } = await serve(router => router.post('/echo', {
+                bodySchema: ECHO_SCHEMA,
+                validate: body => body.text.trim() ? undefined : 'text must not be blank'
+            }, ({ body }) => RestResult.ok({ echo: body.text })));
+            const response = await send('POST', `${url}/echo`, { text: '   ' });
+            expect(response.status).to.equal(400);
+            expect(await response.json()).to.deep.equal({ error: 'invalid request', details: ['text must not be blank'] });
+        });
+
+        it('treats an empty custom validation message as valid', async () => {
+            const { url } = await serve(router => router.post('/echo', {
+                bodySchema: ECHO_SCHEMA,
+                validate: () => ''
+            }, ({ body }) => RestResult.ok({ echo: body.text })));
+            const response = await send('POST', `${url}/echo`, { text: 'hello' });
+            expect(response.status).to.equal(200);
         });
 
         it('rejects malformed JSON bodies', async () => {
-            const { url } = await serve(router => router.post('/echo', { body: isEchoBody }, ({ body }) => RestResult.ok({ echo: body.text })));
+            const { url } = await serve(router => router.post('/echo', { bodySchema: ECHO_SCHEMA }, ({ body }) => RestResult.ok({ echo: body.text })));
             const response = await send('POST', `${url}/echo`, 'not json');
             expect(response.status).to.equal(400);
             expect(await response.json()).to.deep.equal({ error: 'invalid request' });
         });
 
         it('rejects bodies exceeding the size limit with their client error status', async () => {
-            const { url } = await serve(router => router.post('/echo', { body: isEchoBody, jsonLimit: '1kb' }, ({ body }) => RestResult.ok({ echo: body.text })));
+            const { url } = await serve(router => router.post('/echo', { bodySchema: ECHO_SCHEMA, jsonLimit: '1kb' }, ({ body }) => RestResult.ok({ echo: body.text })));
             const response = await send('POST', `${url}/echo`, { text: 'x'.repeat(2000) });
             expect(response.status).to.equal(413);
             expect(await response.json()).to.deep.equal({ error: 'payload too large' });
@@ -127,10 +153,25 @@ describe('ExternalApiRouter', () => {
             expect(await response.json()).to.deep.equal({ error: 'internal error' });
         });
 
+        it('records typed routes and event streams for the OpenAPI document', async () => {
+            const { router } = await serve(r => {
+                r.get('/', { operationId: 'listItems' }, () => RestResult.ok({}));
+                r.post('/', { bodySchema: ECHO_SCHEMA, summary: 'Echo.' }, ({ body }) => RestResult.ok({ echo: body.text }));
+                r.eventStream('/events', { event: 'items' });
+            });
+            expect(router.routeRegistrations.map(route => ({ method: route.method, path: route.path }))).to.deep.equal([
+                { method: 'get', path: '/' },
+                { method: 'post', path: '/' }
+            ]);
+            expect(router.routeRegistrations[0].documentation?.operationId).to.equal('listItems');
+            expect(router.routeRegistrations[1].bodySchema).to.equal(ECHO_SCHEMA);
+            expect(router.eventStreamRegistrations.map(stream => stream.path)).to.deep.equal(['/events']);
+        });
+
         it('supports put, patch, and delete routes', async () => {
             const { url } = await serve(router => {
-                router.put('/item', { body: isEchoBody }, ({ body }) => RestResult.ok({ put: body.text }));
-                router.patch('/item', { body: isEchoBody }, ({ body }) => RestResult.ok({ patched: body.text }));
+                router.put('/item', { bodySchema: ECHO_SCHEMA }, ({ body }) => RestResult.ok({ put: body.text }));
+                router.patch('/item', { bodySchema: ECHO_SCHEMA }, ({ body }) => RestResult.ok({ patched: body.text }));
                 router.delete('/item', () => RestResult.noContent());
             });
             expect(await (await send('PUT', `${url}/item`, { text: 'a' })).json()).to.deep.equal({ put: 'a' });

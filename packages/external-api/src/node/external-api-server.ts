@@ -26,6 +26,7 @@ import { EXTERNAL_API_PORT_PREF, EXTERNAL_API_TOKEN_PREF } from '../common/exter
 import { ExternalApiContribution } from './external-api-contribution';
 import { ExternalApiResponseRenderer } from './external-api-response-renderer';
 import { ExternalApiRouterFactory } from './external-api-router';
+import { OpenApiDocumentBuilder, OpenApiDocumentSource } from './openapi-document-builder';
 
 /**
  * Serves the {@link ExternalApiContribution}s, either on a dedicated HTTP server or on
@@ -52,6 +53,9 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
 
     @inject(ExternalApiRouterFactory)
     protected readonly routerFactory: ExternalApiRouterFactory;
+
+    @inject(OpenApiDocumentBuilder)
+    protected readonly documentBuilder: OpenApiDocumentBuilder;
 
     protected config?: ExternalApiServerConfig;
     protected server?: http.Server;
@@ -170,6 +174,7 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
     protected createRouter(config: ExternalApiServerConfig): express.Router {
         const apiRouter = express.Router();
         const mountedPaths = new Set<string>();
+        const documentSources: OpenApiDocumentSource[] = [];
         for (const contribution of this.contributions.getContributions()) {
             if (mountedPaths.has(contribution.path)) {
                 this.logger.warn(`Skipped an external API contribution: another contribution already uses the path '${contribution.path}'.`);
@@ -191,7 +196,13 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
             }
             contributionRouter.finalize();
             apiRouter.use(contribution.path, router);
+            documentSources.push({
+                contribution,
+                routes: contributionRouter.routeRegistrations,
+                eventStreams: contributionRouter.eventStreamRegistrations
+            });
         }
+        this.documentBuilder.update(documentSources, !!config.token);
         return apiRouter;
     }
 

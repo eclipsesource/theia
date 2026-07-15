@@ -15,6 +15,7 @@
 // *****************************************************************************
 
 import { Disposable, MaybePromise } from '@theia/core';
+import { IJSONSchema } from '@theia/core/lib/common/json-schema';
 import { ILogger } from '@theia/core/lib/common/logger';
 import * as express from '@theia/core/shared/express';
 import { inject, injectable, named } from '@theia/core/shared/inversify';
@@ -35,6 +36,14 @@ export interface ExternalApiEventStreamOptions<T = unknown> {
     coalesceDelay?: number;
     /** Interval in milliseconds of the keep-alive comments sent to connected clients. Defaults to 30000. */
     heartbeatInterval?: number;
+    /** Stable operation id of the stream's route, unique across the external API, published in the OpenAPI document. */
+    operationId?: string;
+    /** Short summary of the stream, published in the OpenAPI document. */
+    summary?: string;
+    /** Longer description of the stream, published in the OpenAPI document; CommonMark. */
+    description?: string;
+    /** JSON Schema of the event payloads, published in the OpenAPI document. */
+    dataSchema?: IJSONSchema;
 }
 
 export const ExternalApiEventStreamFactory = Symbol('ExternalApiEventStreamFactory');

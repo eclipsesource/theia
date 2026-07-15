@@ -62,7 +62,7 @@ export class MyExternalApi implements ExternalApiContribution {
             const item = this.service.find(params.id);
             return item ? RestResult.ok(item) : RestResult.notFound();
         });
-        router.post('/items', { body: CreateItemRequest.is }, async ({ body }) =>
+        router.post('/items', { bodySchema: CreateItemRequest.SCHEMA }, async ({ body }) =>
             RestResult.created(await this.service.create(body)));
     }
 }
@@ -74,10 +74,13 @@ bind(ExternalApiContribution).toService(MyExternalApi);
 Typed routes take care of the recurring endpoint mechanics so that all contributions of the
 external API behave consistently:
 
-- Request bodies are parsed as JSON and validated with the type guard declared in the route
-  options, without invoking the handler on failure: invalid or malformed bodies are rejected
-  with `400 { "error": "invalid request" }`, bodies exceeding the size limit (default `1mb`,
-  configurable per route via `jsonLimit`) with `413 { "error": "payload too large" }`.
+- Request bodies are parsed as JSON and validated against the JSON Schema declared in the
+  route options, without invoking the handler on failure: schema violations are rejected with
+  `400 { "error": "invalid request", "details": [...] }` carrying the validation messages,
+  malformed JSON with `400 { "error": "invalid request" }`, and bodies exceeding the size
+  limit (default `1mb`, configurable per route via `jsonLimit`) with
+  `413 { "error": "payload too large" }`. Unlike the stable `error` codes, `details` are
+  human-readable and make no stability promise.
 - Handlers return a `RestResult` (`RestResult.ok`, `created`, `accepted`, `noContent`,
   `badRequest`, `notFound`, `conflict`, ...) that is rendered to the response, so that
   success and error responses share one wire format (errors as `{ "error": "<code>" }`).
@@ -112,6 +115,43 @@ errors keep their status with the HTTP status text as the error code.
 The wire format is rendered by the `ExternalApiResponseRenderer`; rebinding it changes the
 format of all typed routes, validation failures, the token verification, and the fallback
 error handling consistently.
+
+### Documentation and OpenAPI
+
+The external API describes itself: the typed routes and event streams of all contributions
+are recorded and served as an OpenAPI 3.1 document at `GET /api/openapi.json` (protected
+like any other contribution). Undocumented routes appear with their method, path, and body
+schema only; the optional route documentation makes the document useful to external
+consumers — for generated clients, documentation UIs, or MCP tool definitions:
+
+```typescript
+router.post('/items/:id/rename', {
+    operationId: 'renameItem',
+    summary: 'Rename an item.',
+    bodySchema: RenameRequest.SCHEMA,
+    validate: body => body.name.trim() ? undefined : 'name must not be blank',
+    params: { id: { description: 'The item id.' } },
+    responses: {
+        200: { description: 'The renamed item.', schema: ITEM_SCHEMA },
+        404: { description: 'The item is unknown.' }
+    }
+}, async ({ params, body }) => this.rename(params.id, body));
+```
+
+- `bodySchema` is a `RestBodySchema<B>` — a JSON Schema carrying the TypeScript type of the
+  bodies it accepts. A schema constant is declared once, next to the body's interface, and is
+  the single place asserting that schema and type agree; the type flows into the route's
+  handler and `validate` function.
+- `validate` covers constraints JSON Schema cannot express (cross-field dependencies,
+  semantic checks) and runs on the schema-valid body: it returns `undefined` (or an empty
+  string) for valid bodies, otherwise the message the request is rejected with.
+- A contribution's `documentation` groups its routes under an OpenAPI tag; event streams are
+  documented through their options (`summary`, `dataSchema`, ...).
+- Routes registered on `router.raw` are not recorded and do not appear in the document.
+
+The document is assembled by the `OpenApiDocumentBuilder`; rebind it to customize the
+document. When a token is configured, it declares a `bearerAuth` security scheme on all
+protected operations.
 
 When a token is configured, contributions are protected by bearer token verification;
 requests failing it are answered with `401 { "error": "unauthorized" }`. A contribution with

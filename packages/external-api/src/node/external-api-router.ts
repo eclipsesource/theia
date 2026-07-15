@@ -15,10 +15,13 @@
 // *****************************************************************************
 
 import { Disposable, DisposableCollection, MaybePromise } from '@theia/core';
+import { IJSONSchema } from '@theia/core/lib/common/json-schema';
 import { ILogger } from '@theia/core/lib/common/logger';
+import * as Ajv from '@theia/core/shared/ajv';
 import * as express from '@theia/core/shared/express';
 import { inject, injectable, named } from '@theia/core/shared/inversify';
 import * as http from 'http';
+import { RestBodySchema } from '../common/rest-body-schema';
 import { ExternalApiEventStream, ExternalApiEventStreamFactory, ExternalApiEventStreamOptions } from './external-api-event-stream';
 import { ExternalApiResponseRenderer } from './external-api-response-renderer';
 import { RestResult } from './rest-result';
@@ -27,16 +30,63 @@ import { RestResult } from './rest-result';
 export type RestMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 /**
+ * Documentation of a typed route, published in the OpenAPI document of the external API.
+ *
+ * All documentation is optional: undocumented routes are served all the same and appear in
+ * the OpenAPI document with their method, path, and body schema only.
+ */
+export interface RestRouteDocumentation {
+    /** Stable operation id, unique across the external API, e.g. `createChatSession`. Becomes the tool name when the API is wrapped as MCP tools. */
+    operationId?: string;
+    /** Short summary of what the route does. */
+    summary?: string;
+    /** Longer description of the route; CommonMark. */
+    description?: string;
+    /** Documentation of the route's path parameters, e.g. of `id` for a route registered on `/:id`. */
+    params?: Record<string, RestParamDocumentation>;
+    /** Documented responses of the route by status code. Declarative documentation only — not enforced. */
+    responses?: Record<number, RestResponseDocumentation>;
+}
+
+/**
+ * Documentation of a path parameter of a typed route, see {@link RestRouteDocumentation}.
+ */
+export interface RestParamDocumentation {
+    /** Description of the parameter. */
+    description: string;
+    /** JSON Schema of the parameter. Defaults to `{ "type": "string" }`. */
+    schema?: IJSONSchema;
+}
+
+/**
+ * Documentation of a response of a typed route, see {@link RestRouteDocumentation}.
+ */
+export interface RestResponseDocumentation {
+    /** Description of the response. */
+    description: string;
+    /** JSON Schema of the JSON response body, if the response carries one. */
+    schema?: IJSONSchema;
+}
+
+/**
  * Options of a typed route, see {@link ExternalApiRouter}.
  */
-export interface RestRouteOptions<B = unknown> {
+export interface RestRouteOptions<B = undefined> extends RestRouteDocumentation {
     /**
-     * Validates the request body, which is parsed as JSON when this guard is declared.
-     * Bodies rejected by the guard — as well as malformed or too large JSON — are answered
-     * with a client error in the uniform error format without invoking the handler.
+     * JSON Schema of the request body. When declared, the request body is parsed as JSON and
+     * validated against the schema — violations are rejected with a client error carrying
+     * the validation messages as details, without invoking the handler — and the schema is
+     * published in the OpenAPI document.
      */
-    body?: (body: unknown) => body is B;
-    /** JSON body size limit of this route, e.g. '2mb'. Defaults to '1mb'. Only used together with {@link body}. */
+    bodySchema?: RestBodySchema<B>;
+    /**
+     * Additional validation for constraints the {@link bodySchema} cannot express, such as
+     * cross-field dependencies, running on the schema-valid body. Returns `undefined` (or an
+     * empty string) when the body is valid, otherwise the error message the request is
+     * rejected with.
+     */
+    validate?: (body: B) => string | undefined;
+    /** JSON body size limit of this route, e.g. '2mb'. Defaults to '1mb'. Only used together with {@link bodySchema}. */
     jsonLimit?: string;
 }
 
@@ -46,7 +96,7 @@ export interface RestRouteOptions<B = unknown> {
 export interface RestRequest<B = undefined> {
     /** Path parameters of the matched route, e.g. `id` for a route registered on `/:id`. */
     readonly params: Readonly<Record<string, string>>;
-    /** The validated request body; `undefined` for routes without a body guard. */
+    /** The schema-valid request body; `undefined` for routes without a body schema. */
     readonly body: B;
     /** The underlying express request, e.g. to access the query string or headers. */
     readonly raw: express.Request;
@@ -57,6 +107,30 @@ export interface RestRequest<B = undefined> {
  * Thrown errors are logged and answered with `500` in the uniform error format.
  */
 export type RestHandler<B = undefined> = (request: RestRequest<B>) => MaybePromise<RestResult>;
+
+/**
+ * A typed route registered on an {@link ExternalApiRouter}, recorded for the OpenAPI
+ * document builder.
+ */
+export interface RestRouteRegistration {
+    method: RestMethod;
+    /** Contribution-relative express path, e.g. `/:id/prompt`. */
+    path: string;
+    /** The route's documentation, when given. */
+    documentation?: RestRouteDocumentation;
+    /** JSON Schema of the request body, when declared. */
+    bodySchema?: IJSONSchema;
+}
+
+/**
+ * An event stream registered on an {@link ExternalApiRouter}, recorded for the OpenAPI
+ * document builder.
+ */
+export interface RestEventStreamRegistration {
+    /** Contribution-relative express path, e.g. `/events`. */
+    path: string;
+    options: ExternalApiEventStreamOptions<unknown>;
+}
 
 export const ExternalApiRouterOptions = Symbol('ExternalApiRouterOptions');
 /**
@@ -77,9 +151,12 @@ export type ExternalApiRouterFactory = (options: ExternalApiRouterOptions) => Ex
  * Registers the routes of an `ExternalApiContribution`, taking care of the recurring endpoint
  * mechanics so that all contributions of the external API behave consistently:
  *
- * - Typed routes ({@link get}, {@link post}, ...) parse and validate JSON request bodies and
- *   render the handler's {@link RestResult} — including all error cases — through the
+ * - Typed routes ({@link get}, {@link post}, ...) parse request bodies as JSON, validate them
+ *   against the declared body schema (plus the optional custom validation), and render the
+ *   handler's {@link RestResult} — including all error cases — through the
  *   {@link ExternalApiResponseRenderer}, giving all endpoints one wire format.
+ * - Typed routes and their optional documentation are recorded and published in the OpenAPI
+ *   document of the external API, see `OpenApiDocumentBuilder`.
  * - {@link eventStream} serves server-sent events with connected-client management,
  *   keep-alive comments, and coalesced broadcasts.
  * - {@link raw} exposes the underlying express router as an escape hatch for routes the
@@ -108,37 +185,53 @@ export class ExternalApiRouter implements Disposable {
     /** Disposed when the routing is rebuilt or the external API server stops. */
     readonly toDispose = new DisposableCollection();
 
+    protected readonly routes: RestRouteRegistration[] = [];
+    protected readonly eventStreams: RestEventStreamRegistration[] = [];
+
+    /** The typed routes registered on this router, in registration order. */
+    get routeRegistrations(): readonly RestRouteRegistration[] {
+        return this.routes;
+    }
+
+    /** The event streams registered on this router, in registration order. */
+    get eventStreamRegistrations(): readonly RestEventStreamRegistration[] {
+        return this.eventStreams;
+    }
+
     /**
      * The underlying express router, mounted at the contribution's path behind the token
      * verification. Full-power escape hatch: existing express routers and middlewares can
      * be mounted here unchanged, keeping their own request handling and response format.
-     * Errors they do not handle themselves are reduced to the uniform error format, and
-     * their build-scoped resources belong in {@link toDispose}.
+     * Errors they do not handle themselves are reduced to the uniform error format, their
+     * routes are not published in the OpenAPI document, and their build-scoped resources
+     * belong in {@link toDispose}.
      */
     get raw(): express.Router {
         return this.options.router;
     }
 
     /** Registers a typed `GET` route. */
-    get(path: string, handler: RestHandler<undefined>): void {
-        this.route('get', path, undefined, handler);
+    get(path: string, handler: RestHandler<undefined>): void;
+    get(path: string, documentation: RestRouteDocumentation, handler: RestHandler<undefined>): void;
+    get(path: string, documentationOrHandler: RestRouteDocumentation | RestHandler<undefined>, handler?: RestHandler<undefined>): void {
+        this.registerRoute('get', path, documentationOrHandler, handler);
     }
 
-    /** Registers a typed `POST` route, validating the request body when a body guard is declared. */
+    /** Registers a typed `POST` route, validating the request body when a body schema is declared. */
     post(path: string, handler: RestHandler<undefined>): void;
     post<B>(path: string, options: RestRouteOptions<B>, handler: RestHandler<B>): void;
     post<B>(path: string, optionsOrHandler: RestRouteOptions<B> | RestHandler<undefined>, handler?: RestHandler<B>): void {
         this.registerRoute('post', path, optionsOrHandler, handler);
     }
 
-    /** Registers a typed `PUT` route, validating the request body when a body guard is declared. */
+    /** Registers a typed `PUT` route, validating the request body when a body schema is declared. */
     put(path: string, handler: RestHandler<undefined>): void;
     put<B>(path: string, options: RestRouteOptions<B>, handler: RestHandler<B>): void;
     put<B>(path: string, optionsOrHandler: RestRouteOptions<B> | RestHandler<undefined>, handler?: RestHandler<B>): void {
         this.registerRoute('put', path, optionsOrHandler, handler);
     }
 
-    /** Registers a typed `PATCH` route, validating the request body when a body guard is declared. */
+    /** Registers a typed `PATCH` route, validating the request body when a body schema is declared. */
     patch(path: string, handler: RestHandler<undefined>): void;
     patch<B>(path: string, options: RestRouteOptions<B>, handler: RestHandler<B>): void;
     patch<B>(path: string, optionsOrHandler: RestRouteOptions<B> | RestHandler<undefined>, handler?: RestHandler<B>): void {
@@ -146,8 +239,10 @@ export class ExternalApiRouter implements Disposable {
     }
 
     /** Registers a typed `DELETE` route. */
-    delete(path: string, handler: RestHandler<undefined>): void {
-        this.route('delete', path, undefined, handler);
+    delete(path: string, handler: RestHandler<undefined>): void;
+    delete(path: string, documentation: RestRouteDocumentation, handler: RestHandler<undefined>): void;
+    delete(path: string, documentationOrHandler: RestRouteDocumentation | RestHandler<undefined>, handler?: RestHandler<undefined>): void {
+        this.registerRoute('delete', path, documentationOrHandler, handler);
     }
 
     /**
@@ -157,6 +252,7 @@ export class ExternalApiRouter implements Disposable {
      * configuration.
      */
     eventStream<T>(path: string, options: ExternalApiEventStreamOptions<T>): ExternalApiEventStream<T> {
+        this.eventStreams.push({ path, options });
         const stream = this.eventStreamFactory(options);
         this.toDispose.push(stream);
         this.raw.get(path, (request, response) => stream.handle(request, response));
@@ -197,15 +293,25 @@ export class ExternalApiRouter implements Disposable {
     }
 
     protected route<B>(method: RestMethod, path: string, options: RestRouteOptions<B> | undefined, handler: RestHandler<B>): void {
+        this.routes.push({ method, path, documentation: options, bodySchema: options?.bodySchema });
+        const validator = options?.bodySchema && this.compileBodySchema(options.bodySchema);
         const handlers: express.RequestHandler[] = [];
-        if (options?.body) {
+        if (options?.bodySchema) {
             handlers.push(express.json({ limit: options.jsonLimit ?? this.defaultJsonLimit }));
         }
         handlers.push(async (request, response) => {
             try {
-                if (options?.body && !options.body(request.body)) {
-                    this.renderer.renderError(400, 'invalid request', response);
-                    return;
+                if (validator) {
+                    const schemaErrors = validator(request.body);
+                    if (schemaErrors) {
+                        this.renderer.renderError(400, 'invalid request', response, schemaErrors);
+                        return;
+                    }
+                    const validationError = options?.validate?.(request.body as B);
+                    if (validationError) {
+                        this.renderer.renderError(400, 'invalid request', response, [validationError]);
+                        return;
+                    }
                 }
                 const result = await handler({ params: request.params, body: request.body as B, raw: request });
                 this.renderer.render(result, response);
@@ -217,6 +323,23 @@ export class ExternalApiRouter implements Disposable {
             }
         });
         this.raw[method](path, ...handlers);
+    }
+
+    /**
+     * Compiles the body schema into a validator returning the validation error messages, or
+     * `undefined` when the body is valid. An invalid schema throws, failing the
+     * contribution's configuration.
+     */
+    protected compileBodySchema(schema: IJSONSchema): (body: unknown) => string[] | undefined {
+        const validate = new Ajv().compile(schema);
+        return body => validate(body) ? undefined : (validate.errors ?? []).map(error => this.renderSchemaError(error));
+    }
+
+    /** Renders a schema validation error to a human-readable message, e.g. `text should be string`. */
+    protected renderSchemaError(error: Ajv.ErrorObject): string {
+        const path = error.dataPath.replace(/^\./, '');
+        const message = error.message ?? 'is invalid';
+        return path ? `${path} ${message}` : message;
     }
 
     protected get defaultJsonLimit(): string {
