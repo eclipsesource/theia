@@ -82,9 +82,11 @@ external API behave consistently:
   `413 { "error": "payload too large" }`. Unlike the stable `error` codes, `details` are
   human-readable and make no stability promise.
 - Handlers return a `RestResult` (`RestResult.ok`, `created`, `accepted`, `noContent`,
-  `badRequest`, `notFound`, `conflict`, ...) that is rendered to the response, so that
+  `badRequest`, `notFound`, `conflict`, ...) that is written to the response, so that
   success and error responses share one wire format (errors as `{ "error": "<code>" }`).
 - Errors thrown by handlers are logged and answered with `500 { "error": "internal error" }`.
+- Requests to paths no route matches are answered with `404 { "error": "not found" }`
+  instead of an HTML error page.
 
 Server-sent event streams are served through `eventStream`, which manages the connected
 clients, keep-alive comments, and coalesced broadcasts:
@@ -112,17 +114,20 @@ and response format. Errors they do not handle themselves are still reduced to t
 error format: server errors are answered with `500 { "error": "internal error" }`, client
 errors keep their status with the HTTP status text as the error code.
 
-The wire format is rendered by the `ExternalApiResponseRenderer`; rebinding it changes the
+The wire format is written by the `ExternalApiResponseWriter`; rebinding it changes the
 format of all typed routes, validation failures, the token verification, and the fallback
 error handling consistently.
 
 ### Documentation and OpenAPI
 
 The external API describes itself: the typed routes and event streams of all contributions
-are recorded and served as an OpenAPI 3.1 document at `GET /api/openapi.json` (protected
-like any other contribution). Undocumented routes appear with their method, path, and body
-schema only; the optional route documentation makes the document useful to external
-consumers — for generated clients, documentation UIs, or MCP tool definitions:
+are recorded and served as an OpenAPI 3.1 document at `GET /api/openapi.json`. The endpoint
+is served without token verification, but scopes the document to the requester: when a token
+is configured, requests without it receive a document covering only the unprotected
+contributions, while requests carrying the token receive the full document. Undocumented
+routes appear with their method, path, and body schema only; the optional route
+documentation makes the document useful to external consumers — for generated clients,
+documentation UIs, or MCP tool definitions:
 
 ```typescript
 router.post('/items/query', {
@@ -150,8 +155,8 @@ router.post('/items/query', {
 - Routes registered on `router.raw` are not recorded and do not appear in the document.
 
 The document is assembled by the `OpenApiDocumentBuilder`; rebind it to customize the
-document. When a token is configured, it declares a `bearerAuth` security scheme on all
-protected operations.
+document. When a token is configured, the full document declares a `bearerAuth` security
+scheme on all protected operations.
 
 When a token is configured, contributions are protected by bearer token verification;
 requests failing it are answered with `401 { "error": "unauthorized" }`. A contribution with

@@ -21,7 +21,7 @@ FrontendApplicationConfigProvider.set({});
 
 import { ChatAgentLocation } from '@theia/ai-chat/lib/common/chat-agents';
 import { ChatModel, ChatSessionStatus } from '@theia/ai-chat/lib/common/chat-model';
-import { ChatService, ChatSession, SessionOptions } from '@theia/ai-chat/lib/common/chat-service';
+import { ChatService, ChatSession, NoChatAgentError, SessionOptions } from '@theia/ai-chat/lib/common/chat-service';
 import { ChatSessionMetadata } from '@theia/ai-chat/lib/common/chat-session-store';
 import { MockLogger } from '@theia/core/lib/common/test/mock-logger';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
@@ -68,7 +68,8 @@ describe('FrontendExternalChatSessionProvider', () => {
         restorable?: ChatSession[],
         agents?: Record<string, { id: string; name: string }>,
         workspace?: string,
-        noAgent?: boolean
+        noAgent?: boolean,
+        requestFailure?: Error
     }): ProviderContext {
         const sessions = options.sessions ?? [];
         const activatedSessions: { sessionId: string; options?: SessionOptions }[] = [];
@@ -91,9 +92,10 @@ describe('FrontendExternalChatSessionProvider', () => {
             },
             sendRequest: async (sessionId: string, request: { text: string }) => {
                 sentRequests.push({ sessionId, text: request.text });
+                const failure = options.noAgent ? new NoChatAgentError('no agent') : options.requestFailure;
                 return {
-                    requestCompleted: options.noAgent
-                        ? Promise.reject(new Error('no agent'))
+                    requestCompleted: failure
+                        ? Promise.reject(failure)
                         : Promise.resolve({ id: `request-for-${sessionId}` })
                 };
             },
@@ -322,6 +324,17 @@ describe('FrontendExternalChatSessionProvider', () => {
             const { provider } = createProvider({ sessions: [liveSession('1', 'idle')], noAgent: true });
             expect(await provider.sendPrompt('1', { text: 'continue' })).to.deep.equal({ failure: 'noAgent' });
         });
+
+        it('propagates unexpected request failures instead of reporting them as missing agents', async () => {
+            const { provider } = createProvider({ sessions: [liveSession('1', 'idle')], requestFailure: new Error('connection lost') });
+            let thrown: unknown;
+            try {
+                await provider.sendPrompt('1', { text: 'continue' });
+            } catch (error) {
+                thrown = error;
+            }
+            expect((thrown as Error).message).to.equal('connection lost');
+        });
     });
 
     describe('createSession', () => {
@@ -355,6 +368,18 @@ describe('FrontendExternalChatSessionProvider', () => {
         it('deletes the session when no agent handles the initial prompt', async () => {
             const { provider, deletedSessions } = createProvider({ noAgent: true });
             expect(await provider.createSession({ prompt: 'fix the build' })).to.deep.equal({ failure: 'noAgent' });
+            expect(deletedSessions).to.deep.equal(['created-session']);
+        });
+
+        it('deletes the session and propagates unexpected initial prompt failures', async () => {
+            const { provider, deletedSessions } = createProvider({ requestFailure: new Error('connection lost') });
+            let thrown: unknown;
+            try {
+                await provider.createSession({ prompt: 'fix the build' });
+            } catch (error) {
+                thrown = error;
+            }
+            expect((thrown as Error).message).to.equal('connection lost');
             expect(deletedSessions).to.deep.equal(['created-session']);
         });
     });

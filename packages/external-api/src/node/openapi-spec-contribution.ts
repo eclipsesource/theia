@@ -24,18 +24,24 @@ import { RestResult } from './rest-result';
 export const OPENAPI_SPEC_PATH = '/api/openapi.json';
 
 /**
- * Serves the OpenAPI document describing all endpoints of the external API at
- * {@link OPENAPI_SPEC_PATH}. Protected by the bearer token like any other contribution,
- * as the document reveals the API surface.
+ * Serves the OpenAPI document describing the endpoints of the external API at
+ * {@link OPENAPI_SPEC_PATH}.
+ *
+ * The endpoint itself is served without token verification, but scopes the document to the
+ * requester: when a token is configured, requests without it receive a document covering only
+ * the unprotected contributions, while requests carrying the token receive the full document —
+ * the protected API surface is not revealed to unauthorized clients.
  */
 @injectable()
 export class OpenApiSpecContribution implements ExternalApiContribution {
 
     readonly path = OPENAPI_SPEC_PATH;
 
+    readonly unprotected = true;
+
     readonly documentation: ExternalApiContributionDocumentation = {
         title: 'OpenAPI',
-        description: 'The OpenAPI document describing all endpoints of the external API.'
+        description: 'The OpenAPI document describing the endpoints of the external API.'
     };
 
     @inject(OpenApiDocumentBuilder)
@@ -44,8 +50,10 @@ export class OpenApiSpecContribution implements ExternalApiContribution {
     configure(router: ExternalApiRouter): void {
         router.get('/', {
             operationId: 'getOpenApiDocument',
-            summary: 'Get the OpenAPI document describing all endpoints of the external API.',
+            summary: 'Get the OpenAPI document describing the endpoints of the external API.',
+            description: 'Without the configured bearer token, the document covers only the endpoints served without token verification; '
+                + 'with the token, it covers all endpoints.',
             responses: { 200: { description: 'The OpenAPI 3.1 document.' } }
-        }, () => RestResult.ok(this.builder.build()));
+        }, ({ authorized }) => RestResult.ok(this.builder.build(authorized)));
     }
 }

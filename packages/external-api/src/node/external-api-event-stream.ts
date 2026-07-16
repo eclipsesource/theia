@@ -50,6 +50,7 @@ export const ExternalApiEventStreamFactory = Symbol('ExternalApiEventStreamFacto
 /** Creates {@link ExternalApiEventStream}s, see `ExternalApiRouter#eventStream`. */
 export type ExternalApiEventStreamFactory = <T>(options: ExternalApiEventStreamOptions<T>) => ExternalApiEventStream<T>;
 
+export const ExternalApiEventStream = Symbol('ExternalApiEventStream');
 /**
  * Serves data as server-sent events to the clients of an external API endpoint.
  *
@@ -60,8 +61,29 @@ export type ExternalApiEventStreamFactory = <T>(options: ExternalApiEventStreamO
  * automatically when the routing is rebuilt, so that clients reconnect against the new
  * configuration.
  */
+export interface ExternalApiEventStream<T = unknown> extends Disposable {
+
+    /** The number of currently connected clients. */
+    readonly clientCount: number;
+
+    /** Serves the event stream to a client; registered as the route's request handler by `ExternalApiRouter#eventStream`. */
+    handle(request: express.Request, response: express.Response): Promise<void>;
+
+    /**
+     * Schedules a coalesced broadcast of a fresh snapshot to all connected clients.
+     * No-op without a configured snapshot provider or without connected clients.
+     */
+    notifyChanged(): void;
+
+    /** Sends the data to all connected clients immediately, bypassing the coalescing. */
+    send(data: T): void;
+}
+
+/**
+ * Default implementation of the {@link ExternalApiEventStream}.
+ */
 @injectable()
-export class ExternalApiEventStream<T = unknown> implements Disposable {
+export class ExternalApiEventStreamImpl<T = unknown> implements ExternalApiEventStream<T> {
 
     @inject(ILogger) @named('external-api:ExternalApiEventStream')
     protected readonly logger: ILogger;
@@ -75,12 +97,10 @@ export class ExternalApiEventStream<T = unknown> implements Disposable {
     protected broadcastTimer?: NodeJS.Timeout;
     protected disposed = false;
 
-    /** The number of currently connected clients. */
     get clientCount(): number {
         return this.clients.size;
     }
 
-    /** Serves the event stream to a client; registered as the route's request handler by `ExternalApiRouter#eventStream`. */
     async handle(request: express.Request, response: express.Response): Promise<void> {
         if (this.disposed) {
             response.status(503).end();
@@ -108,10 +128,6 @@ export class ExternalApiEventStream<T = unknown> implements Disposable {
         await this.sendSnapshot(response);
     }
 
-    /**
-     * Schedules a coalesced broadcast of a fresh snapshot to all connected clients.
-     * No-op without a configured snapshot provider or without connected clients.
-     */
     notifyChanged(): void {
         const snapshot = this.options.snapshot;
         if (!snapshot || this.clients.size === 0 || this.broadcastTimer) {
@@ -127,7 +143,6 @@ export class ExternalApiEventStream<T = unknown> implements Disposable {
         }, this.coalesceDelay);
     }
 
-    /** Sends the data to all connected clients immediately, bypassing the coalescing. */
     send(data: T): void {
         for (const client of this.clients) {
             this.write(client, data);

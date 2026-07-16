@@ -19,11 +19,11 @@ import { BackendApplicationContribution } from '@theia/core/lib/node';
 import { Container, ContainerModule } from '@theia/core/shared/inversify';
 import { EXTERNAL_API_CONFIG_SERVICE_PATH, ExternalApiConfigService } from '../common/external-api-configuration';
 import { ExternalApiContribution } from './external-api-contribution';
-import { ExternalApiEventStream, ExternalApiEventStreamFactory, ExternalApiEventStreamOptions } from './external-api-event-stream';
-import { ExternalApiResponseRenderer } from './external-api-response-renderer';
-import { ExternalApiRouter, ExternalApiRouterFactory, ExternalApiRouterOptions } from './external-api-router';
+import { ExternalApiEventStream, ExternalApiEventStreamFactory, ExternalApiEventStreamImpl, ExternalApiEventStreamOptions } from './external-api-event-stream';
+import { ExternalApiResponseWriter } from './external-api-response-writer';
+import { ExternalApiRouter, ExternalApiRouterFactory, ExternalApiRouterImpl, ExternalApiRouterOptions } from './external-api-router';
 import { ExternalApiServer } from './external-api-server';
-import { OpenApiDocumentBuilder } from './openapi-document-builder';
+import { OpenApiDocumentBuilder, OpenApiDocumentBuilderImpl } from './openapi-document-builder';
 import { OpenApiSpecContribution } from './openapi-spec-contribution';
 
 export default new ContainerModule(bind => {
@@ -31,24 +31,26 @@ export default new ContainerModule(bind => {
     bind(ExternalApiConfigService).toService(ExternalApiServer);
     bind(BackendApplicationContribution).toService(ExternalApiServer);
 
-    bind(OpenApiDocumentBuilder).toSelf().inSingletonScope();
+    bind(OpenApiDocumentBuilder).to(OpenApiDocumentBuilderImpl).inSingletonScope();
     bind(OpenApiSpecContribution).toSelf().inSingletonScope();
     bind(ExternalApiContribution).toService(OpenApiSpecContribution);
 
-    bind(ExternalApiResponseRenderer).toSelf().inSingletonScope();
+    bind(ExternalApiResponseWriter).toSelf().inSingletonScope();
+    // routers and event streams are transient: the factories create one per routing build,
+    // resolving through a child container carrying the instantiation options
+    bind(ExternalApiRouter).to(ExternalApiRouterImpl);
     bind(ExternalApiRouterFactory).toFactory(ctx => (options: ExternalApiRouterOptions): ExternalApiRouter => {
         const child = new Container();
         child.parent = ctx.container;
         child.bind(ExternalApiRouterOptions).toConstantValue(options);
-        child.bind(ExternalApiRouter).toSelf();
         return child.get(ExternalApiRouter);
     });
+    bind(ExternalApiEventStream).to(ExternalApiEventStreamImpl);
     bind(ExternalApiEventStreamFactory).toFactory(ctx => <T>(options: ExternalApiEventStreamOptions<T>): ExternalApiEventStream<T> => {
         const child = new Container();
         child.parent = ctx.container;
         child.bind(ExternalApiEventStreamOptions).toConstantValue(options);
-        child.bind(ExternalApiEventStream).toSelf();
-        return child.get(ExternalApiEventStream) as ExternalApiEventStream<T>;
+        return child.get<ExternalApiEventStream<T>>(ExternalApiEventStream);
     });
 
     bindRootContributionProvider(bind, ExternalApiContribution);

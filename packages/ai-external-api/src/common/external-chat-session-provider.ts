@@ -21,9 +21,6 @@ import { RestBodySchema } from '@theia/external-api/lib/common/rest-body-schema'
 /** Base path of the external AI session HTTP API. */
 export const AI_SESSIONS_API_PATH = '/api/ai/sessions';
 
-/** All {@link ChatSessionStatus} values, for the external API schemas. */
-const CHAT_SESSION_STATUS_VALUES: ChatSessionStatus[] = ['idle', 'running', 'awaitingApproval', 'awaitingToolCall', 'awaitingInput', 'failed'];
-
 /** RPC path on which each frontend registers its {@link ExternalChatSessionProvider} with the backend. */
 export const EXTERNAL_CHAT_SESSION_PROVIDER_PATH = '/services/ai-external-api/session-provider';
 
@@ -62,7 +59,7 @@ export namespace ExternalChatSessionSummary {
             title: { type: 'string', description: 'Session title, if one has been set or generated.' },
             status: {
                 type: 'string',
-                enum: CHAT_SESSION_STATUS_VALUES,
+                enum: [...ChatSessionStatus.VALUES],
                 description: 'Aggregated session status, derived from the state of the last request. '
                     + "'awaitingApproval' and 'awaitingInput' mean the session is blocked on the user."
             },

@@ -24,7 +24,7 @@ import * as http from 'http';
 import { ExternalApiConfigService, ExternalApiServerConfig } from '../common/external-api-configuration';
 import { EXTERNAL_API_PORT_PREF, EXTERNAL_API_TOKEN_PREF } from '../common/external-api-preferences';
 import { ExternalApiContribution } from './external-api-contribution';
-import { ExternalApiResponseRenderer } from './external-api-response-renderer';
+import { ExternalApiResponseWriter } from './external-api-response-writer';
 import { ExternalApiRouterFactory } from './external-api-router';
 import { OpenApiDocumentBuilder, OpenApiDocumentSource } from './openapi-document-builder';
 
@@ -37,7 +37,7 @@ import { OpenApiDocumentBuilder, OpenApiDocumentSource } from './openapi-documen
  * The dedicated server allows external tools to consume Theia APIs independently of the
  * main server's frontend-oriented protections. Note that in Electron deployments the main
  * port requires the Electron security token, so `samePort` delivery is not reachable for
- * external processes there.
+ * external processes there without further customizations.
  */
 @injectable()
 export class ExternalApiServer implements ExternalApiConfigService, BackendApplicationContribution {
@@ -48,8 +48,8 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
     @inject(ContributionProvider) @named(ExternalApiContribution)
     protected readonly contributions: ContributionProvider<ExternalApiContribution>;
 
-    @inject(ExternalApiResponseRenderer)
-    protected readonly renderer: ExternalApiResponseRenderer;
+    @inject(ExternalApiResponseWriter)
+    protected readonly responseWriter: ExternalApiResponseWriter;
 
     @inject(ExternalApiRouterFactory)
     protected readonly routerFactory: ExternalApiRouterFactory;
@@ -153,6 +153,8 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
     protected start(config: ExternalApiServerConfig): Promise<http.Server> {
         const app = express();
         app.use(this.createRouter(config));
+        // answer paths outside all contributions in the uniform error format instead of express' HTML 404
+        app.use((request: express.Request, response: express.Response) => this.responseWriter.writeError(404, 'not found', response));
         return new Promise((resolve, reject) => {
             const server = app.listen(config.port, config.hostname, () => resolve(server));
             server.on('error', reject);
@@ -175,6 +177,8 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
         const apiRouter = express.Router();
         const mountedPaths = new Set<string>();
         const documentSources: OpenApiDocumentSource[] = [];
+        const token = config.token;
+        const isAuthorized = token ? (request: express.Request) => this.matchesToken(request.headers.authorization, `Bearer ${token}`) : undefined;
         for (const contribution of this.contributions.getContributions()) {
             if (mountedPaths.has(contribution.path)) {
                 this.logger.warn(`Skipped an external API contribution: another contribution already uses the path '${contribution.path}'.`);
@@ -182,11 +186,10 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
             }
             mountedPaths.add(contribution.path);
             const router = express.Router();
-            if (config.token && !contribution.unprotected) {
-                const token = config.token;
+            if (token && !contribution.unprotected) {
                 router.use((request, response, next) => this.checkAuthorization(token, request, response, next));
             }
-            const contributionRouter = this.routerFactory({ contributionPath: contribution.path, router });
+            const contributionRouter = this.routerFactory({ contributionPath: contribution.path, router, isAuthorized });
             this.toDisposeOnRebuild.push(contributionRouter);
             try {
                 contribution.configure(contributionRouter);
@@ -210,7 +213,7 @@ export class ExternalApiServer implements ExternalApiConfigService, BackendAppli
         if (this.matchesToken(request.headers.authorization, `Bearer ${token}`)) {
             next();
         } else {
-            this.renderer.renderError(401, 'unauthorized', response);
+            this.responseWriter.writeError(401, 'unauthorized', response);
         }
     }
 

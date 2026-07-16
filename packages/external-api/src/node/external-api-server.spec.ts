@@ -21,9 +21,9 @@ import { expect } from 'chai';
 import * as http from 'http';
 import * as net from 'net';
 import { ExternalApiContribution } from './external-api-contribution';
-import { ExternalApiResponseRenderer } from './external-api-response-renderer';
+import { ExternalApiResponseWriter } from './external-api-response-writer';
 import { ExternalApiServer } from './external-api-server';
-import { OpenApiDocumentBuilder } from './openapi-document-builder';
+import { OpenApiDocumentBuilderImpl } from './openapi-document-builder';
 import { OpenApiSpecContribution } from './openapi-spec-contribution';
 import { RestResult } from './rest-result';
 import { ExternalApiTestSupport } from './test/external-api-test-support';
@@ -55,9 +55,11 @@ describe('ExternalApiServer', () => {
         server = new ExternalApiServer();
         (server as unknown as Record<string, unknown>)['logger'] = new MockLogger();
         (server as unknown as Record<string, unknown>)['contributions'] = { getContributions: () => contributions };
-        (server as unknown as Record<string, unknown>)['renderer'] = new ExternalApiResponseRenderer();
+        (server as unknown as Record<string, unknown>)['responseWriter'] = new ExternalApiResponseWriter();
         (server as unknown as Record<string, unknown>)['routerFactory'] = ExternalApiTestSupport.createRouterFactory();
-        (server as unknown as Record<string, unknown>)['documentBuilder'] = new OpenApiDocumentBuilder();
+        const documentBuilder = new OpenApiDocumentBuilderImpl();
+        (documentBuilder as unknown as Record<string, unknown>)['applicationPackage'] = { pck: { version: '1.2.3' } };
+        (server as unknown as Record<string, unknown>)['documentBuilder'] = documentBuilder;
         return server;
     }
 
@@ -145,6 +147,18 @@ describe('ExternalApiServer', () => {
             const response = await fetch(`http://127.0.0.1:${port}/public`);
             expect(response.status).to.equal(200);
             expect(await response.json()).to.deep.equal({ public: true });
+        });
+
+        it('answers unmatched paths with the uniform JSON 404', async () => {
+            const apiServer = createServer();
+            const port = await freePort();
+            await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1' });
+            const belowContribution = await fetch(`http://127.0.0.1:${port}/api/ping/no-such-route`);
+            expect(belowContribution.status).to.equal(404);
+            expect(await belowContribution.json()).to.deep.equal({ error: 'not found' });
+            const outsideContributions = await fetch(`http://127.0.0.1:${port}/no-such-contribution`);
+            expect(outsideContributions.status).to.equal(404);
+            expect(await outsideContributions.json()).to.deep.equal({ error: 'not found' });
         });
 
         it('treats an empty token as no token', async () => {
@@ -301,6 +315,27 @@ describe('ExternalApiServer', () => {
             expect(document.components.securitySchemes).to.deep.equal({ bearerAuth: { type: 'http', scheme: 'bearer' } });
             expect(document.paths['/api/ping'].get.security).to.deep.equal([{ bearerAuth: [] }]);
             expect(document.paths['/public'].get.security).to.equal(undefined);
+        });
+
+        it('scopes the OpenAPI document to the unprotected contributions for unauthorized requests', async () => {
+            const contributions: ExternalApiContribution[] = [pingContribution, publicContribution];
+            const apiServer = createServer(contributions);
+            contributions.push(createSpecContribution(apiServer));
+            const port = await freePort();
+            await apiServer.updateConfig({ delivery: 'separatePort', port, hostname: '127.0.0.1', token: 'secret' });
+
+            const unauthorized = await fetch(`http://127.0.0.1:${port}/api/openapi.json`);
+            expect(unauthorized.status).to.equal(200);
+            const publicDocument = await unauthorized.json();
+            expect(publicDocument.paths).to.not.have.property('/api/ping');
+            expect(publicDocument.paths).to.have.property('/public');
+            expect(publicDocument.paths).to.have.property('/api/openapi.json');
+            expect(publicDocument.components).to.equal(undefined);
+
+            const authorized = await fetch(`http://127.0.0.1:${port}/api/openapi.json`, { headers: { authorization: 'Bearer secret' } });
+            const fullDocument = await authorized.json();
+            expect(fullDocument.paths).to.have.property('/api/ping');
+            expect(fullDocument.paths).to.have.property('/public');
         });
     });
 });

@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { ConnectionHandler, RpcConnectionHandler, generateUuid } from '@theia/core';
+import { ConnectionHandler, RpcConnectionHandler } from '@theia/core';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { ExternalApiContribution } from '@theia/external-api/lib/node/external-api-contribution';
 import { EXTERNAL_CHAT_SESSION_PROVIDER_PATH, ExternalChatSessionBackendService, ExternalChatSessionProvider } from '../common/external-chat-session-provider';
@@ -30,9 +30,8 @@ export default new ContainerModule(bind => {
     bind(ConnectionHandler).toDynamicValue(ctx =>
         new RpcConnectionHandler<ExternalChatSessionProvider>(EXTERNAL_CHAT_SESSION_PROVIDER_PATH, provider => {
             const registry = ctx.container.get(ExternalChatSessionRegistry);
-            const id = generateUuid();
-            registry.addProvider(id, provider);
-            provider.onDidCloseConnection(() => registry.removeProvider(id));
+            registry.addProvider(provider);
+            provider.onDidCloseConnection(() => registry.removeProvider(provider));
             const backendService: ExternalChatSessionBackendService = {
                 notifySessionsChanged: () => registry.notifySessionsChanged()
             };

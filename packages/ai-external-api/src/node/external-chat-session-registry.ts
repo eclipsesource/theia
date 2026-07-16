@@ -39,19 +39,19 @@ export class ExternalChatSessionRegistry {
     @inject(ILogger) @named('ai-external-api:ExternalChatSessionRegistry')
     protected readonly logger: ILogger;
 
-    protected readonly providers = new Map<string, ExternalChatSessionProvider>();
+    protected readonly providers = new Set<ExternalChatSessionProvider>();
 
     protected readonly onDidChangeSessionsEmitter = new Emitter<void>();
     /** Fired when the set of connected frontends changes or a frontend reports a session change. */
     readonly onDidChangeSessions: Event<void> = this.onDidChangeSessionsEmitter.event;
 
-    addProvider(id: string, provider: ExternalChatSessionProvider): void {
-        this.providers.set(id, provider);
+    addProvider(provider: ExternalChatSessionProvider): void {
+        this.providers.add(provider);
         this.notifySessionsChanged();
     }
 
-    removeProvider(id: string): void {
-        if (this.providers.delete(id)) {
+    removeProvider(provider: ExternalChatSessionProvider): void {
+        if (this.providers.delete(provider)) {
             this.notifySessionsChanged();
         }
     }

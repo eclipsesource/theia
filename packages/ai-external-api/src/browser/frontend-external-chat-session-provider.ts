@@ -17,7 +17,7 @@
 import { ChatAgentService } from '@theia/ai-chat/lib/common/chat-agent-service';
 import { ChatAgent, ChatAgentLocation } from '@theia/ai-chat/lib/common/chat-agents';
 import { ChatSessionStatus } from '@theia/ai-chat/lib/common/chat-model';
-import { ChatService, ChatSession } from '@theia/ai-chat/lib/common/chat-service';
+import { ChatService, ChatSession, NoChatAgentError } from '@theia/ai-chat/lib/common/chat-service';
 import { ChatSessionMetadata } from '@theia/ai-chat/lib/common/chat-session-store';
 import { ILogger } from '@theia/core/lib/common/logger';
 import { inject, injectable, named } from '@theia/core/shared/inversify';
@@ -106,9 +106,12 @@ export class FrontendExternalChatSessionProvider implements ExternalChatSessionP
         }
         try {
             return { sent: { sessionId, requestId: (await invocation.requestCompleted).id } };
-        } catch {
-            // the request was not created because no agent was found to handle it
-            return { failure: 'noAgent' };
+        } catch (error) {
+            if (NoChatAgentError.is(error)) {
+                return { failure: 'noAgent' };
+            }
+            // unexpected failure: propagate to the backend, which logs it and falls back to another frontend
+            throw error;
         }
     }
 
@@ -126,10 +129,14 @@ export class FrontendExternalChatSessionProvider implements ExternalChatSessionP
             const invocation = await this.chatService.sendRequest(session.id, { text: request.prompt });
             try {
                 requestId = invocation && (await invocation.requestCompleted).id;
-            } catch {
-                // no agent was found to handle the prompt; do not keep the unusable empty session
+            } catch (error) {
+                // do not keep the unusable session when its initial prompt failed
                 await this.chatService.deleteSession(session.id);
-                return { failure: 'noAgent' };
+                if (NoChatAgentError.is(error)) {
+                    return { failure: 'noAgent' };
+                }
+                // unexpected failure: propagate to the backend, which logs it and falls back to another frontend
+                throw error;
             }
         }
         const created = this.chatService.getSession(session.id) ?? session;

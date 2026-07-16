@@ -17,8 +17,8 @@
 /**
  * Result of a typed external API route handler: either a success with a status and an
  * optional JSON body, or an error with a status, a stable, machine-readable error code, and
- * optional human-readable details. Results are rendered to the HTTP response by the
- * `ExternalApiResponseRenderer`, so that all external API endpoints share one wire format.
+ * optional human-readable details. Results are written to the HTTP response by the
+ * `ExternalApiResponseWriter`, so that all external API endpoints share one wire format.
  *
  * Use the constructor functions of the {@link RestResult} namespace to create results.
  */

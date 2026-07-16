@@ -17,9 +17,9 @@
 import { MockLogger } from '@theia/core/lib/common/test/mock-logger';
 import * as express from '@theia/core/shared/express';
 import { ExternalApiContribution } from '../external-api-contribution';
-import { ExternalApiEventStream, ExternalApiEventStreamFactory, ExternalApiEventStreamOptions } from '../external-api-event-stream';
-import { ExternalApiResponseRenderer } from '../external-api-response-renderer';
-import { ExternalApiRouter, ExternalApiRouterFactory } from '../external-api-router';
+import { ExternalApiEventStream, ExternalApiEventStreamFactory, ExternalApiEventStreamImpl, ExternalApiEventStreamOptions } from '../external-api-event-stream';
+import { ExternalApiResponseWriter } from '../external-api-response-writer';
+import { ExternalApiRouter, ExternalApiRouterFactory, ExternalApiRouterImpl } from '../external-api-router';
 
 function assign(target: object, property: string, value: unknown): void {
     (target as Record<string, unknown>)[property] = value;
@@ -33,20 +33,20 @@ export namespace ExternalApiTestSupport {
     /** Creates an event stream factory backed by a mock logger. */
     export function createEventStreamFactory(): ExternalApiEventStreamFactory {
         return <T>(options: ExternalApiEventStreamOptions<T>): ExternalApiEventStream<T> => {
-            const stream = new ExternalApiEventStream<T>();
+            const stream = new ExternalApiEventStreamImpl<T>();
             assign(stream, 'logger', new MockLogger());
             assign(stream, 'options', options);
             return stream;
         };
     }
 
-    /** Creates a router factory backed by a mock logger and the default response renderer. */
+    /** Creates a router factory backed by a mock logger and the default response writer. */
     export function createRouterFactory(): ExternalApiRouterFactory {
         return options => {
-            const router = new ExternalApiRouter();
+            const router = new ExternalApiRouterImpl();
             assign(router, 'logger', new MockLogger());
             assign(router, 'options', options);
-            assign(router, 'renderer', new ExternalApiResponseRenderer());
+            assign(router, 'responseWriter', new ExternalApiResponseWriter());
             assign(router, 'eventStreamFactory', createEventStreamFactory());
             return router;
         };
@@ -55,12 +55,14 @@ export namespace ExternalApiTestSupport {
     /**
      * Configures the contribution on the given express application the way the external API
      * server does — mounted at the contribution's path, with the fallback error handling,
-     * but without token verification. Returns the contribution's router, e.g. to dispose it
-     * as a routing rebuild would.
+     * but without token verification. An `isAuthorized` check may be given to test the
+     * `authorized` flag of typed route requests. Returns the contribution's router, e.g. to
+     * dispose it as a routing rebuild would.
      */
-    export function mountContribution(app: express.Application, contribution: ExternalApiContribution): ExternalApiRouter {
+    export function mountContribution(app: express.Application, contribution: ExternalApiContribution,
+        isAuthorized?: (request: express.Request) => boolean): ExternalApiRouter {
         const router = express.Router();
-        const contributionRouter = createRouterFactory()({ contributionPath: contribution.path, router });
+        const contributionRouter = createRouterFactory()({ contributionPath: contribution.path, router, isAuthorized });
         contribution.configure(contributionRouter);
         contributionRouter.finalize();
         app.use(contribution.path, router);

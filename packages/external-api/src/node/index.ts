@@ -16,7 +16,7 @@
 
 export * from './external-api-contribution';
 export * from './external-api-event-stream';
-export * from './external-api-response-renderer';
+export * from './external-api-response-writer';
 export * from './external-api-router';
 export * from './external-api-server';
 export * from './openapi-document-builder';

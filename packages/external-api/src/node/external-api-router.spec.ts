@@ -39,10 +39,11 @@ describe('ExternalApiRouter', () => {
         router: ExternalApiRouter;
     }
 
-    async function serve(configure: (router: ExternalApiRouter) => void): Promise<ServedRouter> {
+    async function serve(configure: (router: ExternalApiRouter) => void,
+        isAuthorized?: (request: express.Request) => boolean): Promise<ServedRouter> {
         const app = express();
         const contribution: ExternalApiContribution = { path: '/api/test', configure };
-        const router = ExternalApiTestSupport.mountContribution(app, contribution);
+        const router = ExternalApiTestSupport.mountContribution(app, contribution, isAuthorized);
         await new Promise<void>(resolve => {
             server = app.listen(0, '127.0.0.1', () => resolve());
         });
@@ -166,6 +167,27 @@ describe('ExternalApiRouter', () => {
             expect(router.routeRegistrations[0].documentation?.operationId).to.equal('listItems');
             expect(router.routeRegistrations[1].bodySchema).to.equal(ECHO_SCHEMA);
             expect(router.eventStreamRegistrations.map(stream => stream.path)).to.deep.equal(['/events']);
+        });
+
+        it('answers unmatched paths below the contribution with the uniform JSON 404', async () => {
+            const { url } = await serve(router => router.get('/', () => RestResult.ok({})));
+            const response = await fetch(`${url}/no-such-route`);
+            expect(response.status).to.equal(404);
+            expect(await response.json()).to.deep.equal({ error: 'not found' });
+        });
+
+        it('reports whether requests are authorized to handlers', async () => {
+            const { url } = await serve(
+                router => router.get('/', ({ authorized }) => RestResult.ok({ authorized })),
+                request => request.headers.authorization === 'Bearer secret'
+            );
+            expect(await (await fetch(url)).json()).to.deep.equal({ authorized: false });
+            expect(await (await fetch(url, { headers: { authorization: 'Bearer secret' } })).json()).to.deep.equal({ authorized: true });
+        });
+
+        it('treats requests as authorized without an authorization check', async () => {
+            const { url } = await serve(router => router.get('/', ({ authorized }) => RestResult.ok({ authorized })));
+            expect(await (await fetch(url)).json()).to.deep.equal({ authorized: true });
         });
 
         it('supports put, patch, and delete routes', async () => {

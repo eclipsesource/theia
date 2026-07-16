@@ -15,7 +15,8 @@
 // *****************************************************************************
 
 import { IJSONSchema } from '@theia/core/lib/common/json-schema';
-import { injectable } from '@theia/core/shared/inversify';
+import { ApplicationPackage } from '@theia/core/shared/@theia/application-package';
+import { inject, injectable } from '@theia/core/shared/inversify';
 import { ExternalApiContribution } from './external-api-contribution';
 import { RestEventStreamRegistration, RestParamDocumentation, RestRouteDocumentation, RestRouteRegistration } from './external-api-router';
 
@@ -68,6 +69,7 @@ export interface OpenApiDocument {
     components?: { securitySchemes: Record<string, { type: string; scheme: string }> };
 }
 
+export const OpenApiDocumentBuilder = Symbol('OpenApiDocumentBuilder');
 /**
  * Builds the OpenAPI document describing the external API.
  *
@@ -76,28 +78,45 @@ export interface OpenApiDocument {
  * the `OpenApiSpecContribution` serving it. Routes registered on a contribution's raw
  * express router are not recorded and do not appear in the document.
  *
- * Rebind this class to customize the document.
+ * Rebind the {@link OpenApiDocumentBuilder} to customize the document.
+ */
+export interface OpenApiDocumentBuilder {
+    /** Replaces the documented routes; called by the external API server on each routing build. */
+    update(sources: readonly OpenApiDocumentSource[], tokenConfigured: boolean): void;
+    /**
+     * Builds the OpenAPI document for the routes of the current routing build. With
+     * `includeProtected` set to `false`, the document covers only the contributions served
+     * without token verification — the view presented to unauthorized requests.
+     */
+    build(includeProtected?: boolean): OpenApiDocument;
+}
+
+/**
+ * Default implementation of the {@link OpenApiDocumentBuilder}.
  */
 @injectable()
-export class OpenApiDocumentBuilder {
+export class OpenApiDocumentBuilderImpl implements OpenApiDocumentBuilder {
+
+    @inject(ApplicationPackage)
+    protected readonly applicationPackage: ApplicationPackage;
 
     protected sources: readonly OpenApiDocumentSource[] = [];
     protected tokenConfigured = false;
 
-    /** Replaces the documented routes; called by the external API server on each routing build. */
     update(sources: readonly OpenApiDocumentSource[], tokenConfigured: boolean): void {
         this.sources = sources;
         this.tokenConfigured = tokenConfigured;
     }
 
-    /** Builds the OpenAPI document for the routes of the current routing build. */
-    build(): OpenApiDocument {
+    build(includeProtected: boolean = true): OpenApiDocument {
         const document: OpenApiDocument = {
             openapi: '3.1.0',
             info: this.info(),
             paths: {}
         };
-        for (const source of this.sources) {
+        // without a token every contribution is served unprotected, so nothing is filtered then
+        const sources = includeProtected || !this.tokenConfigured ? this.sources : this.sources.filter(source => source.contribution.unprotected);
+        for (const source of sources) {
             const documentation = source.contribution.documentation;
             if (documentation) {
                 (document.tags ??= []).push({ name: documentation.title, description: documentation.description });
@@ -109,7 +128,7 @@ export class OpenApiDocumentBuilder {
                 this.operations(document, source, stream.path).get = this.createEventStreamOperation(source, stream);
             }
         }
-        if (this.tokenConfigured) {
+        if (this.tokenConfigured && includeProtected) {
             document.components = { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } } };
         }
         return document;
@@ -118,7 +137,7 @@ export class OpenApiDocumentBuilder {
     protected info(): OpenApiDocument['info'] {
         return {
             title: 'Theia External API',
-            version: require('../../package.json').version
+            version: this.applicationPackage.pck.version ?? '0.0.0'
         };
     }
 

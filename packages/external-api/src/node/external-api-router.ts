@@ -23,7 +23,7 @@ import { inject, injectable, named } from '@theia/core/shared/inversify';
 import * as http from 'http';
 import { RestBodySchema } from '../common/rest-body-schema';
 import { ExternalApiEventStream, ExternalApiEventStreamFactory, ExternalApiEventStreamOptions } from './external-api-event-stream';
-import { ExternalApiResponseRenderer } from './external-api-response-renderer';
+import { ExternalApiResponseWriter } from './external-api-response-writer';
 import { RestResult } from './rest-result';
 
 /** HTTP methods supported by the typed routes of the {@link ExternalApiRouter}. */
@@ -36,7 +36,7 @@ export type RestMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
  * the OpenAPI document with their method, path, and body schema only.
  */
 export interface RestRouteDocumentation {
-    /** Stable operation id, unique across the external API, e.g. `createChatSession`. Becomes the tool name when the API is wrapped as MCP tools. */
+    /** Stable operation id, unique across the external API, e.g. `createChatSession`. */
     operationId?: string;
     /** Short summary of what the route does. */
     summary?: string;
@@ -98,6 +98,14 @@ export interface RestRequest<B = undefined> {
     readonly params: Readonly<Record<string, string>>;
     /** The schema-valid request body; `undefined` for routes without a body schema. */
     readonly body: B;
+    /**
+     * Whether the request carries the configured external API token; `true` when no token is
+     * configured. For routes of token-protected contributions this is always `true`, as
+     * unauthorized requests are rejected before the handler runs. Unprotected contributions
+     * can use it to serve a reduced public view to unauthorized requests, as the OpenAPI
+     * document endpoint does.
+     */
+    readonly authorized: boolean;
     /** The underlying express request, e.g. to access the query string or headers. */
     readonly raw: express.Request;
 }
@@ -141,20 +149,27 @@ export interface ExternalApiRouterOptions {
     contributionPath: string;
     /** The underlying express router. */
     router: express.Router;
+    /**
+     * Checks whether a request carries the configured external API token, see
+     * {@link RestRequest.authorized}. `undefined` when no token is configured; every
+     * request counts as authorized then.
+     */
+    isAuthorized?: (request: express.Request) => boolean;
 }
 
 export const ExternalApiRouterFactory = Symbol('ExternalApiRouterFactory');
 /** Creates the {@link ExternalApiRouter} passed to each `ExternalApiContribution`. */
 export type ExternalApiRouterFactory = (options: ExternalApiRouterOptions) => ExternalApiRouter;
 
+export const ExternalApiRouter = Symbol('ExternalApiRouter');
 /**
  * Registers the routes of an `ExternalApiContribution`, taking care of the recurring endpoint
  * mechanics so that all contributions of the external API behave consistently:
  *
  * - Typed routes ({@link get}, {@link post}, ...) parse request bodies as JSON, validate them
- *   against the declared body schema (plus the optional custom validation), and render the
+ *   against the declared body schema (plus the optional custom validation), and write the
  *   handler's {@link RestResult} — including all error cases — through the
- *   {@link ExternalApiResponseRenderer}, giving all endpoints one wire format.
+ *   {@link ExternalApiResponseWriter}, giving all endpoints one wire format.
  * - Typed routes and their optional documentation are recorded and published in the OpenAPI
  *   document of the external API, see `OpenApiDocumentBuilder`.
  * - {@link eventStream} serves server-sent events with connected-client management,
@@ -167,83 +182,47 @@ export type ExternalApiRouterFactory = (options: ExternalApiRouterOptions) => Ex
  * contributions register their own build-scoped resources — such as event listeners — in
  * {@link toDispose}.
  */
-@injectable()
-export class ExternalApiRouter implements Disposable {
-
-    @inject(ILogger) @named('external-api:ExternalApiRouter')
-    protected readonly logger: ILogger;
-
-    @inject(ExternalApiRouterOptions)
-    protected readonly options: ExternalApiRouterOptions;
-
-    @inject(ExternalApiResponseRenderer)
-    protected readonly renderer: ExternalApiResponseRenderer;
-
-    @inject(ExternalApiEventStreamFactory)
-    protected readonly eventStreamFactory: ExternalApiEventStreamFactory;
+export interface ExternalApiRouter extends Disposable {
 
     /** Disposed when the routing is rebuilt or the external API server stops. */
-    readonly toDispose = new DisposableCollection();
-
-    protected readonly routes: RestRouteRegistration[] = [];
-    protected readonly eventStreams: RestEventStreamRegistration[] = [];
+    readonly toDispose: DisposableCollection;
 
     /** The typed routes registered on this router, in registration order. */
-    get routeRegistrations(): readonly RestRouteRegistration[] {
-        return this.routes;
-    }
+    readonly routeRegistrations: readonly RestRouteRegistration[];
 
     /** The event streams registered on this router, in registration order. */
-    get eventStreamRegistrations(): readonly RestEventStreamRegistration[] {
-        return this.eventStreams;
-    }
+    readonly eventStreamRegistrations: readonly RestEventStreamRegistration[];
 
     /**
      * The underlying express router, mounted at the contribution's path behind the token
      * verification. Full-power escape hatch: existing express routers and middlewares can
      * be mounted here unchanged, keeping their own request handling and response format.
-     * Errors they do not handle themselves are reduced to the uniform error format, their
-     * routes are not published in the OpenAPI document, and their build-scoped resources
-     * belong in {@link toDispose}.
+     * Errors they do not handle themselves are reduced to the uniform error format and
+     * unmatched paths are answered with `404` in that format, their routes are not
+     * published in the OpenAPI document, and their build-scoped resources belong in
+     * {@link toDispose}.
      */
-    get raw(): express.Router {
-        return this.options.router;
-    }
+    readonly raw: express.Router;
 
     /** Registers a typed `GET` route. */
     get(path: string, handler: RestHandler<undefined>): void;
     get(path: string, documentation: RestRouteDocumentation, handler: RestHandler<undefined>): void;
-    get(path: string, documentationOrHandler: RestRouteDocumentation | RestHandler<undefined>, handler?: RestHandler<undefined>): void {
-        this.registerRoute('get', path, documentationOrHandler, handler);
-    }
 
     /** Registers a typed `POST` route, validating the request body when a body schema is declared. */
     post(path: string, handler: RestHandler<undefined>): void;
     post<B>(path: string, options: RestRouteOptions<B>, handler: RestHandler<B>): void;
-    post<B>(path: string, optionsOrHandler: RestRouteOptions<B> | RestHandler<undefined>, handler?: RestHandler<B>): void {
-        this.registerRoute('post', path, optionsOrHandler, handler);
-    }
 
     /** Registers a typed `PUT` route, validating the request body when a body schema is declared. */
     put(path: string, handler: RestHandler<undefined>): void;
     put<B>(path: string, options: RestRouteOptions<B>, handler: RestHandler<B>): void;
-    put<B>(path: string, optionsOrHandler: RestRouteOptions<B> | RestHandler<undefined>, handler?: RestHandler<B>): void {
-        this.registerRoute('put', path, optionsOrHandler, handler);
-    }
 
     /** Registers a typed `PATCH` route, validating the request body when a body schema is declared. */
     patch(path: string, handler: RestHandler<undefined>): void;
     patch<B>(path: string, options: RestRouteOptions<B>, handler: RestHandler<B>): void;
-    patch<B>(path: string, optionsOrHandler: RestRouteOptions<B> | RestHandler<undefined>, handler?: RestHandler<B>): void {
-        this.registerRoute('patch', path, optionsOrHandler, handler);
-    }
 
     /** Registers a typed `DELETE` route. */
     delete(path: string, handler: RestHandler<undefined>): void;
     delete(path: string, documentation: RestRouteDocumentation, handler: RestHandler<undefined>): void;
-    delete(path: string, documentationOrHandler: RestRouteDocumentation | RestHandler<undefined>, handler?: RestHandler<undefined>): void {
-        this.registerRoute('delete', path, documentationOrHandler, handler);
-    }
 
     /**
      * Registers a `GET` route serving server-sent events. The returned stream manages the
@@ -251,6 +230,82 @@ export class ExternalApiRouter implements Disposable {
      * router, ending all client connections so that clients reconnect against a new
      * configuration.
      */
+    eventStream<T>(path: string, options: ExternalApiEventStreamOptions<T>): ExternalApiEventStream<T>;
+
+    /**
+     * Appends the fallback handling that answers unmatched paths below the contribution with
+     * `404` and reduces unhandled route errors — including malformed JSON bodies — to the
+     * uniform error format. Called by the external API server once the contribution is
+     * configured, so that it runs after all contributed routes.
+     */
+    finalize(): void;
+}
+
+/**
+ * Default implementation of the {@link ExternalApiRouter}.
+ */
+@injectable()
+export class ExternalApiRouterImpl implements ExternalApiRouter {
+
+    @inject(ILogger) @named('external-api:ExternalApiRouter')
+    protected readonly logger: ILogger;
+
+    @inject(ExternalApiRouterOptions)
+    protected readonly options: ExternalApiRouterOptions;
+
+    @inject(ExternalApiResponseWriter)
+    protected readonly responseWriter: ExternalApiResponseWriter;
+
+    @inject(ExternalApiEventStreamFactory)
+    protected readonly eventStreamFactory: ExternalApiEventStreamFactory;
+
+    readonly toDispose = new DisposableCollection();
+
+    protected readonly routes: RestRouteRegistration[] = [];
+    protected readonly eventStreams: RestEventStreamRegistration[] = [];
+
+    get routeRegistrations(): readonly RestRouteRegistration[] {
+        return this.routes;
+    }
+
+    get eventStreamRegistrations(): readonly RestEventStreamRegistration[] {
+        return this.eventStreams;
+    }
+
+    get raw(): express.Router {
+        return this.options.router;
+    }
+
+    get(path: string, handler: RestHandler<undefined>): void;
+    get(path: string, documentation: RestRouteDocumentation, handler: RestHandler<undefined>): void;
+    get(path: string, documentationOrHandler: RestRouteDocumentation | RestHandler<undefined>, handler?: RestHandler<undefined>): void {
+        this.registerRoute('get', path, documentationOrHandler, handler);
+    }
+
+    post(path: string, handler: RestHandler<undefined>): void;
+    post<B>(path: string, options: RestRouteOptions<B>, handler: RestHandler<B>): void;
+    post<B>(path: string, optionsOrHandler: RestRouteOptions<B> | RestHandler<undefined>, handler?: RestHandler<B>): void {
+        this.registerRoute('post', path, optionsOrHandler, handler);
+    }
+
+    put(path: string, handler: RestHandler<undefined>): void;
+    put<B>(path: string, options: RestRouteOptions<B>, handler: RestHandler<B>): void;
+    put<B>(path: string, optionsOrHandler: RestRouteOptions<B> | RestHandler<undefined>, handler?: RestHandler<B>): void {
+        this.registerRoute('put', path, optionsOrHandler, handler);
+    }
+
+    patch(path: string, handler: RestHandler<undefined>): void;
+    patch<B>(path: string, options: RestRouteOptions<B>, handler: RestHandler<B>): void;
+    patch<B>(path: string, optionsOrHandler: RestRouteOptions<B> | RestHandler<undefined>, handler?: RestHandler<B>): void {
+        this.registerRoute('patch', path, optionsOrHandler, handler);
+    }
+
+    delete(path: string, handler: RestHandler<undefined>): void;
+    delete(path: string, documentation: RestRouteDocumentation, handler: RestHandler<undefined>): void;
+    delete(path: string, documentationOrHandler: RestRouteDocumentation | RestHandler<undefined>, handler?: RestHandler<undefined>): void {
+        this.registerRoute('delete', path, documentationOrHandler, handler);
+    }
+
     eventStream<T>(path: string, options: ExternalApiEventStreamOptions<T>): ExternalApiEventStream<T> {
         this.eventStreams.push({ path, options });
         const stream = this.eventStreamFactory(options);
@@ -259,12 +314,10 @@ export class ExternalApiRouter implements Disposable {
         return stream;
     }
 
-    /**
-     * Appends the fallback error handling that reduces unhandled route errors — including
-     * malformed JSON bodies — to the uniform error format. Called by the external API server
-     * once the contribution is configured, so that it runs after all contributed routes.
-     */
     finalize(): void {
+        this.raw.use((request: express.Request, response: express.Response) => {
+            this.responseWriter.writeError(404, 'not found', response);
+        });
         this.raw.use((error: unknown, request: express.Request, response: express.Response, next: express.NextFunction) => {
             if (response.headersSent) {
                 next(error);
@@ -272,10 +325,10 @@ export class ExternalApiRouter implements Disposable {
             }
             const clientError = this.clientErrorStatus(error);
             if (clientError !== undefined) {
-                this.renderer.renderError(clientError, this.clientErrorCode(clientError), response);
+                this.responseWriter.writeError(clientError, this.clientErrorCode(clientError), response);
             } else {
                 this.logger.error(`Failed to serve a request below '${this.options.contributionPath}'.`, error);
-                this.renderer.renderError(500, 'internal error', response);
+                this.responseWriter.writeError(500, 'internal error', response);
             }
         });
     }
@@ -304,25 +357,30 @@ export class ExternalApiRouter implements Disposable {
                 if (validator) {
                     const schemaErrors = validator(request.body);
                     if (schemaErrors) {
-                        this.renderer.renderError(400, 'invalid request', response, schemaErrors);
+                        this.responseWriter.writeError(400, 'invalid request', response, schemaErrors);
                         return;
                     }
                     const validationError = options?.validate?.(request.body as B);
                     if (validationError) {
-                        this.renderer.renderError(400, 'invalid request', response, [validationError]);
+                        this.responseWriter.writeError(400, 'invalid request', response, [validationError]);
                         return;
                     }
                 }
-                const result = await handler({ params: request.params, body: request.body as B, raw: request });
-                this.renderer.render(result, response);
+                const result = await handler({ params: request.params, body: request.body as B, authorized: this.isAuthorized(request), raw: request });
+                this.responseWriter.write(result, response);
             } catch (error) {
                 this.logger.error(`Failed to serve '${method.toUpperCase()} ${this.options.contributionPath}${path === '/' ? '' : path}'.`, error);
                 if (!response.headersSent) {
-                    this.renderer.renderError(500, 'internal error', response);
+                    this.responseWriter.writeError(500, 'internal error', response);
                 }
             }
         });
         this.raw[method](path, ...handlers);
+    }
+
+    /** Whether the request counts as authorized, see {@link RestRequest.authorized}. */
+    protected isAuthorized(request: express.Request): boolean {
+        return this.options.isAuthorized?.(request) ?? true;
     }
 
     /**
@@ -353,7 +411,7 @@ export class ExternalApiRouter implements Disposable {
     }
 
     /**
-     * Returns the error code rendered for unhandled client errors: the HTTP status text,
+     * Returns the error code written for unhandled client errors: the HTTP status text,
      * except for plain `400`s, which keep the established `invalid request` code.
      */
     protected clientErrorCode(status: number): string {

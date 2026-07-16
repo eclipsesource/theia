@@ -19,19 +19,19 @@ import { injectable } from '@theia/core/shared/inversify';
 import { RestResult } from './rest-result';
 
 /**
- * Renders {@link RestResult}s and error responses of the external API to HTTP responses.
+ * Writes {@link RestResult}s and error responses of the external API to HTTP responses.
  *
  * All responses of the external API go through this class: the results of typed routes,
  * request body validation failures, the token verification, and the fallback error handling.
  * Rebind it to change the wire format of the external API consistently.
  */
 @injectable()
-export class ExternalApiResponseRenderer {
+export class ExternalApiResponseWriter {
 
-    /** Renders the result of a typed route handler to the response. */
-    render(result: RestResult, response: express.Response): void {
+    /** Writes the result of a typed route handler to the response. */
+    write(result: RestResult, response: express.Response): void {
         if (result.kind === 'error') {
-            this.renderError(result.status, result.code, response, result.details);
+            this.writeError(result.status, result.code, response, result.details);
         } else if (result.body !== undefined) {
             response.status(result.status).json(result.body);
         } else {
@@ -40,11 +40,11 @@ export class ExternalApiResponseRenderer {
     }
 
     /**
-     * Renders an error response with the given status, stable machine-readable error code,
+     * Writes an error response with the given status, stable machine-readable error code,
      * and optional human-readable details, e.g. body validation errors. Unlike the code,
      * the details make no stability promise.
      */
-    renderError(status: number, code: string, response: express.Response, details?: string[]): void {
+    writeError(status: number, code: string, response: express.Response, details?: string[]): void {
         response.status(status).json(details?.length ? { error: code, details } : { error: code });
     }
 }

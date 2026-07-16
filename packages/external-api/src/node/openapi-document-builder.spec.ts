@@ -17,7 +17,7 @@
 import { IJSONSchema } from '@theia/core/lib/common/json-schema';
 import { expect } from 'chai';
 import { ExternalApiContribution } from './external-api-contribution';
-import { OpenApiDocumentBuilder, OpenApiDocumentSource } from './openapi-document-builder';
+import { OpenApiDocument, OpenApiDocumentBuilderImpl, OpenApiDocumentSource } from './openapi-document-builder';
 
 describe('OpenApiDocumentBuilder', () => {
 
@@ -52,17 +52,18 @@ describe('OpenApiDocumentBuilder', () => {
         };
     }
 
-    function build(sources: OpenApiDocumentSource[], tokenConfigured: boolean = false): ReturnType<OpenApiDocumentBuilder['build']> {
-        const builder = new OpenApiDocumentBuilder();
+    function build(sources: OpenApiDocumentSource[], tokenConfigured: boolean = false, includeProtected: boolean = true): OpenApiDocument {
+        const builder = new OpenApiDocumentBuilderImpl();
+        (builder as unknown as Record<string, unknown>)['applicationPackage'] = { pck: { version: '1.2.3' } };
         builder.update(sources, tokenConfigured);
-        return builder.build();
+        return builder.build(includeProtected);
     }
 
     it('builds an empty document without sources', () => {
         const document = build([]);
         expect(document.openapi).to.equal('3.1.0');
         expect(document.info.title).to.equal('Theia External API');
-        expect(document.info.version).to.not.be.empty;
+        expect(document.info.version).to.equal('1.2.3');
         expect(document.paths).to.deep.equal({});
         expect(document.components).to.equal(undefined);
     });
@@ -110,5 +111,24 @@ describe('OpenApiDocumentBuilder', () => {
         const document = build([itemsSource()]);
         expect(document.components).to.equal(undefined);
         expect(document.paths['/api/items'].get.security).to.equal(undefined);
+    });
+
+    it('covers only unprotected contributions when protected routes are excluded', () => {
+        const unprotectedContribution: ExternalApiContribution = {
+            path: '/public', unprotected: true, documentation: { title: 'Public' }, configure: () => { }
+        };
+        const sources: OpenApiDocumentSource[] = [
+            itemsSource(),
+            { contribution: unprotectedContribution, routes: [{ method: 'get', path: '/' }], eventStreams: [] }
+        ];
+        const document = build(sources, true, false);
+        expect(Object.keys(document.paths)).to.deep.equal(['/public']);
+        expect(document.tags).to.deep.equal([{ name: 'Public', description: undefined }]);
+        expect(document.components).to.equal(undefined);
+    });
+
+    it('covers all contributions when no token is configured, even when protected routes are excluded', () => {
+        const document = build([itemsSource()], false, false);
+        expect(document.paths).to.have.property('/api/items');
     });
 });

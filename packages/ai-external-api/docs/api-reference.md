@@ -4,7 +4,7 @@ HTTP API for inspecting, following, opening, prompting, and creating the AI chat
 
 **Availability:** disabled by default. Enabled via the `externalApi.delivery` preference — `samePort` (served on the main Theia port) or `separatePort` (served on `externalApi.port`). If `externalApi.token` is configured, every request must send `Authorization: Bearer <token>`.
 
-**Machine-readable description:** all endpoints are also published — with descriptions and schemas — in the OpenAPI 3.1 document served at `GET /api/openapi.json`.
+**Machine-readable description:** all endpoints are also published — with descriptions and schemas — in the OpenAPI 3.1 document served at `GET /api/openapi.json`. When a token is configured, the document lists these (protected) endpoints only for requests carrying the token.
 
 **Scope:** sessions currently *restored* (in memory) in a connected frontend are reported with their full state. Persisted sessions that have not been restored are reported with their persisted metadata and `"restored": false`; they can be restored on demand. With no frontend connected, the list is empty. Sessions known to multiple frontends are deduplicated (preferring restored, then in-progress, then more recent reports).
 
