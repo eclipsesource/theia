@@ -84,12 +84,16 @@ export class TauriMainApplication {
                 await contribution.onStart?.(this);
             }
             const claimed = await this.isClaimed(options.args);
+            const initialUrl = this.launchUrl(options.args);
             const fragment = claimed ? '!empty' : await this.launchFragment(options.args, process.cwd(), '');
             const session = await this.startBackend('main', options.args, this.getBackendPort(options.args));
             this.state = 'ready';
             this.readyResolve();
             this.send({ version: 1, type: 'ready', window: session.label, url: this.windowUrl(session, fragment),
                 token: session.token, cookieName: session.cookieName });
+            if (initialUrl) {
+                this.send({ version: 1, type: 'open-url', url: initialUrl });
+            }
             process.stdin.setEncoding('utf8');
             let pending = '';
             process.stdin.on('data', (chunk: string) => {
@@ -226,6 +230,11 @@ export class TauriMainApplication {
                 }
                 await this.readyPromise;
                 if (this.state !== 'ready') { throw new Error('Desktop controller is unavailable'); }
+                const launchUrl = this.launchUrl(request.args);
+                if (launchUrl) {
+                    this.send({ version: 1, type: 'open-url', url: launchUrl });
+                    return;
+                }
                 const claimed = await this.isClaimed(request.args);
                 const fragment = claimed ? '!empty' : await this.forwardedFragment(request.args, request.cwd);
                 await this.openWindow(fragment, request.args, '', request.cwd);
@@ -235,6 +244,23 @@ export class TauriMainApplication {
 
     protected async forwardedFragment(args: readonly string[], cwd: string): Promise<string> {
         return this.launchFragment(args, cwd, '!empty');
+    }
+
+    protected launchUrl(args: readonly string[]): string | undefined {
+        const index = args.indexOf('--open-url');
+        if (index < 0) {
+            return undefined;
+        }
+        const value = args[index + 1];
+        if (!value || value.length > 8192 || /[\r\n\0]/.test(value)) {
+            throw new Error('Invalid --open-url value');
+        }
+        try {
+            new URL(value);
+        } catch {
+            throw new Error('Invalid --open-url URL');
+        }
+        return value;
     }
 
     protected async launchFragment(args: readonly string[], cwd: string, missingFragment: string): Promise<string> {

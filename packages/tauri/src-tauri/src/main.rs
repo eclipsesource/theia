@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Eclipse Theia contributors.
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -16,6 +16,13 @@ mod window_state;
 struct ControllerChild {
     process: Child,
     input: Arc<Mutex<ChildStdin>>,
+}
+
+#[derive(Default)]
+struct UrlDispatchState {
+    focused: Option<String>,
+    loaded: HashSet<String>,
+    pending: HashMap<String, Vec<String>>,
 }
 
 impl Drop for ControllerChild {
@@ -64,11 +71,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let app_handle: Arc<Mutex<Option<tauri::AppHandle>>> = Arc::new(Mutex::new(None));
     let controller_ended = Arc::new(AtomicBool::new(false));
     let close_pending: Arc<Mutex<HashMap<String, u64>>> = Arc::new(Mutex::new(HashMap::new()));
+    let url_dispatch = Arc::new(Mutex::new(UrlDispatchState::default()));
     let close_next_id = Arc::new(AtomicU64::new(0));
     let response_input = input.clone();
     let response_handle = app_handle.clone();
     let response_controller_ended = controller_ended.clone();
     let response_close_pending = close_pending.clone();
+    let response_url_dispatch = url_dispatch.clone();
     let (sender, receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let mut reader = BufReader::new(output);
@@ -115,6 +124,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         Ok(request) if request["type"] == "create-window" => {
                             handle_create_window(&response_handle, &response_input, &request);
+                            None
+                        }
+                        Ok(request) if request["type"] == "open-url" => {
+                            if request["version"] == 1 {
+                                if let Some(url) = request["url"].as_str() {
+                                    queue_open_url(&response_handle, &response_url_dispatch, url);
+                                }
+                            }
                             None
                         }
                         Ok(request) if request["type"] == "window-backend-exited" => {
@@ -176,6 +193,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let setup_controller_ended = controller_ended.clone();
     let event_input = input.clone();
     let event_close_pending = close_pending.clone();
+    let event_url_dispatch = url_dispatch.clone();
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
@@ -183,6 +201,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 return Err("Desktop controller stopped before window startup".into());
             }
             app.manage(window_state::WindowStateStore::new(&app.handle())?);
+            app.manage(url_dispatch.clone());
             *setup_handle.lock().map_err(|_| "Native host state is unavailable")? = Some(app.handle().clone());
             create_window(&app.handle(), &message)?;
             if setup_controller_ended.load(Ordering::Acquire) {
@@ -191,6 +210,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         })
         .on_window_event(move |window, event| {
+            if let tauri::WindowEvent::Focused(true) = event {
+                if let Ok(mut dispatch) = event_url_dispatch.lock() {
+                    dispatch.focused = Some(window.label().to_owned());
+                }
+            }
             if matches!(event, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) | tauri::WindowEvent::ScaleFactorChanged { .. }
                 | tauri::WindowEvent::CloseRequested { .. }) {
                 if let Some(store) = window.app_handle().try_state::<Arc<window_state::WindowStateStore>>() {
@@ -198,6 +222,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             if let tauri::WindowEvent::Destroyed = event {
+                if let Ok(mut dispatch) = event_url_dispatch.lock() {
+                    dispatch.loaded.remove(window.label());
+                    dispatch.pending.remove(window.label());
+                    if dispatch.focused.as_deref() == Some(window.label()) {
+                        dispatch.focused = None;
+                    }
+                }
                 if let Ok(mut pending) = event_close_pending.lock() {
                     pending.remove(window.label());
                 }
@@ -311,6 +342,8 @@ fn create_window(
         .ok_or("Missing cookie name")?;
     let allowed_backend_origin = target_url.origin();
     let allowed_port = target_url.port_or_known_default();
+    let page_load_port = allowed_port;
+    let url_dispatch = app.state::<Arc<Mutex<UrlDispatchState>>>().inner().clone();
     let data_directory = match std::env::var_os("THEIA_CONFIG_DIR") {
         Some(config_directory) => std::path::PathBuf::from(config_directory).join("tauri-webview"),
         None => app.path().app_data_dir()?.join("webview"),
@@ -333,6 +366,26 @@ fn create_window(
         .apply(app, builder);
     let window = builder
         .data_directory(data_directory)
+        .on_page_load(move |window, payload| {
+            if payload.url().host_str() != Some("127.0.0.1")
+                || payload.url().port_or_known_default() != page_load_port
+            {
+                return;
+            }
+            if let Ok(mut dispatch) = url_dispatch.lock() {
+                match payload.event() {
+                    tauri::webview::PageLoadEvent::Started => {
+                        dispatch.loaded.remove(window.label());
+                    }
+                    tauri::webview::PageLoadEvent::Finished => {
+                        dispatch.loaded.insert(window.label().to_owned());
+                    }
+                }
+            }
+            if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                deliver_urls(&window.app_handle(), &url_dispatch, window.label());
+            }
+        })
         .on_navigation(move |url| {
             url.as_str() == "about:blank"
                 || url.origin() == allowed_backend_origin
@@ -378,6 +431,74 @@ fn create_window(
         let _ = window.destroy();
     }
     launch_result
+}
+
+fn queue_open_url(
+    handle: &Arc<Mutex<Option<tauri::AppHandle>>>,
+    dispatch: &Arc<Mutex<UrlDispatchState>>,
+    url: &str,
+) {
+    if url.len() > 8192
+        || url.bytes().any(|byte| matches!(byte, b'\r' | b'\n' | 0))
+        || url::Url::parse(url).is_err()
+    {
+        eprintln!("Ignoring invalid Tauri open URL");
+        return;
+    }
+    let app = handle.lock().ok().and_then(|handle| handle.clone());
+    let label = {
+        let Ok(mut state) = dispatch.lock() else {
+            return;
+        };
+        let label = app
+            .as_ref()
+            .and_then(|app| {
+                state
+                    .focused
+                    .as_deref()
+                    .filter(|label| app.get_webview_window(label).is_some())
+                    .map(str::to_owned)
+                    .or_else(|| app.get_webview_window("main").map(|_| "main".to_owned()))
+                    .or_else(|| app.webview_windows().keys().next().cloned())
+            })
+            .unwrap_or_else(|| "main".to_owned());
+        let pending = state.pending.entry(label.clone()).or_default();
+        if pending.len() >= 32 {
+            eprintln!("Ignoring excess Tauri open URLs");
+            return;
+        }
+        pending.push(url.to_owned());
+        label
+    };
+    if let Some(app) = app {
+        deliver_urls(&app, dispatch, &label);
+    }
+}
+
+fn deliver_urls(app: &tauri::AppHandle, dispatch: &Arc<Mutex<UrlDispatchState>>, label: &str) {
+    let Some(window) = app.get_webview_window(label) else {
+        return;
+    };
+    let urls = {
+        let Ok(mut state) = dispatch.lock() else {
+            return;
+        };
+        if !state.loaded.contains(label) {
+            return;
+        }
+        state.pending.remove(label).unwrap_or_default()
+    };
+    for url in urls {
+        let Ok(value) = serde_json::to_string(&url) else {
+            continue;
+        };
+        let script = format!(
+            "(window.__theiaTauriOpenUrls ||= []).push({value}); window.dispatchEvent(new Event('theia-tauri-open-url'));"
+        );
+        if let Err(error) = window.eval(&script) {
+            eprintln!("Could not dispatch Tauri URL: {error}");
+        }
+    }
 }
 
 fn handle_create_window(

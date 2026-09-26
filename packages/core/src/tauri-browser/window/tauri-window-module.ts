@@ -21,12 +21,15 @@ import { TauriClipboardService } from './tauri-clipboard-service';
 import { TauriWindowService } from './tauri-window-service';
 import { PreferenceContribution } from '../../common/preferences/preference-schema';
 import { tauriWindowPreferencesSchema } from './tauri-window-preferences';
+import { TauriUriHandlerContribution } from '../tauri-uri-handler';
 
 export default new ContainerModule(bind => {
     bind(TauriWindowService).toSelf().inSingletonScope();
     bind(DefaultWindowService).toService(TauriWindowService);
     bind(WindowService).toService(TauriWindowService);
     bind(FrontendApplicationContribution).toService(TauriWindowService);
+    bind(TauriUriHandlerContribution).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(TauriUriHandlerContribution);
     bind(ClipboardService).to(TauriClipboardService).inSingletonScope();
     bind(SecondaryWindowService).to(DefaultSecondaryWindowService).inSingletonScope();
     bind(WindowFocusService).toSelf().inSingletonScope();
