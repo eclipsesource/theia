@@ -84,10 +84,11 @@ export class TauriMainApplication {
                 await contribution.onStart?.(this);
             }
             const claimed = await this.isClaimed(options.args);
+            const fragment = claimed ? '!empty' : await this.launchFragment(options.args, process.cwd(), '');
             const session = await this.startBackend('main', options.args, this.getBackendPort(options.args));
             this.state = 'ready';
             this.readyResolve();
-            this.send({ version: 1, type: 'ready', window: session.label, url: this.windowUrl(session, claimed ? '!empty' : ''),
+            this.send({ version: 1, type: 'ready', window: session.label, url: this.windowUrl(session, fragment),
                 token: session.token, cookieName: session.cookieName });
             process.stdin.setEncoding('utf8');
             let pending = '';
@@ -233,21 +234,25 @@ export class TauriMainApplication {
     }
 
     protected async forwardedFragment(args: readonly string[], cwd: string): Promise<string> {
-        const valueOptions = new Set(['--port', '-p', '--hostname', '-h', '--plugins', '--ovsx-router-config', '--attach-container']);
+        return this.launchFragment(args, cwd, '!empty');
+    }
+
+    protected async launchFragment(args: readonly string[], cwd: string, missingFragment: string): Promise<string> {
+        const valueOptions = new Set(['--port', '-p', '--hostname', '-h', '--plugins', '--ovsx-router-config', '--attach-container', '--open-url']);
         let candidate: string | undefined;
         for (let i = 0; i < args.length; i++) {
             const value = args[i];
             if (valueOptions.has(value)) { i++; continue; }
-            if (!value.startsWith('-')) { candidate = value; }
+            if (!value.startsWith('-') && candidate === undefined) { candidate = value; }
         }
-        if (!candidate) { return '!empty'; }
+        if (!candidate) { return missingFragment; }
         const workspace = resolvePath(cwd, candidate);
         try {
             await realpath(workspace);
             return workspace;
         } catch {
-            this.reportError('Could not resolve forwarded workspace', workspace);
-            return '!empty';
+            this.reportError('Could not resolve launch workspace', workspace);
+            return missingFragment;
         }
     }
 
