@@ -97,6 +97,19 @@ exports.activate = context => {
         await vscode.workspace.fs.writeFile(resource, Buffer.from('Tauri custom editor probe\n'));
         await vscode.commands.executeCommand('vscode.openWith', resource, 'tauriProbe.customEditor');
     }));
+    context.subscriptions.push(vscode.commands.registerCommand('tauriProbe.saveDialog', async () => {
+        await vscode.workspace.fs.createDirectory(context.globalStorageUri);
+        const defaultUri = vscode.Uri.joinPath(context.globalStorageUri, 'new-save.txt');
+        const selected = await vscode.window.showSaveDialog({
+            title: 'Tauri Probe Save Dialog',
+            defaultUri,
+            filters: { Text: ['txt'] }
+        });
+        console.log(`TAURI_PROBE_SAVE_DIALOG ${selected?.toString() ?? 'cancelled'}`);
+        if (selected) {
+            await vscode.workspace.fs.writeFile(selected, Buffer.from('Tauri save dialog probe\n'));
+        }
+    }));
 };
 
 exports.deactivate = () => console.log('TAURI_PROBE_DEACTIVATED');

@@ -27,6 +27,10 @@
       {
         "command": "tauriProbe.openCustomEditor",
         "title": "Tauri Probe: Open Custom Editor"
+      },
+      {
+        "command": "tauriProbe.saveDialog",
+        "title": "Tauri Probe: Test Save Dialog"
       }
     ],
     "customEditors": [
