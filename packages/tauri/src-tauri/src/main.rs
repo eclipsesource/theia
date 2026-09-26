@@ -11,6 +11,8 @@ use tauri::menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuIte
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
+mod window_state;
+
 struct ControllerChild {
     process: Child,
     input: Arc<Mutex<ChildStdin>>,
@@ -180,6 +182,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             if setup_controller_ended.load(Ordering::Acquire) {
                 return Err("Desktop controller stopped before window startup".into());
             }
+            app.manage(window_state::WindowStateStore::new(&app.handle())?);
             *setup_handle.lock().map_err(|_| "Native host state is unavailable")? = Some(app.handle().clone());
             create_window(&app.handle(), &message)?;
             if setup_controller_ended.load(Ordering::Acquire) {
@@ -188,6 +191,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         })
         .on_window_event(move |window, event| {
+            if matches!(event, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) | tauri::WindowEvent::ScaleFactorChanged { .. }
+                | tauri::WindowEvent::CloseRequested { .. }) {
+                if let Some(store) = window.app_handle().try_state::<Arc<window_state::WindowStateStore>>() {
+                    store.record(window, matches!(event, tauri::WindowEvent::CloseRequested { .. }));
+                }
+            }
             if let tauri::WindowEvent::Destroyed = event {
                 if let Ok(mut pending) = event_close_pending.lock() {
                     pending.remove(window.label());
@@ -312,37 +321,41 @@ fn create_window(
         data_directory.join(label)
     };
     std::fs::create_dir_all(&data_directory)?;
-    let window = tauri::WebviewWindowBuilder::new(
+    let builder = tauri::WebviewWindowBuilder::new(
         app,
         label,
         tauri::WebviewUrl::External("about:blank".parse()?),
     )
     .title("Theia Tauri Example")
-    .inner_size(1200.0, 800.0)
-    .data_directory(data_directory)
-    .on_navigation(move |url| {
-        url.as_str() == "about:blank"
-            || url.origin() == allowed_backend_origin
-            || (url.scheme() == "http"
-                && url.port_or_known_default() == allowed_port
-                && url.host_str().is_some_and(|host| {
-                    host.ends_with(".webview.localhost")
-                        || host.ends_with(".mini-browser.localhost")
-                }))
-    })
-    .on_menu_event(|native_window, event| {
-        if let Some(webview) = native_window
-            .app_handle()
-            .get_webview_window(native_window.label())
-        {
-            if let Ok(id) = serde_json::to_string(&event.id().0) {
-                let _ = webview.eval(&format!(
+    .inner_size(1200.0, 800.0);
+    let builder = app
+        .state::<Arc<window_state::WindowStateStore>>()
+        .apply(app, builder);
+    let window = builder
+        .data_directory(data_directory)
+        .on_navigation(move |url| {
+            url.as_str() == "about:blank"
+                || url.origin() == allowed_backend_origin
+                || (url.scheme() == "http"
+                    && url.port_or_known_default() == allowed_port
+                    && url.host_str().is_some_and(|host| {
+                        host.ends_with(".webview.localhost")
+                            || host.ends_with(".mini-browser.localhost")
+                    }))
+        })
+        .on_menu_event(|native_window, event| {
+            if let Some(webview) = native_window
+                .app_handle()
+                .get_webview_window(native_window.label())
+            {
+                if let Ok(id) = serde_json::to_string(&event.id().0) {
+                    let _ = webview.eval(&format!(
                     "window.dispatchEvent(new CustomEvent('theia-tauri-menu', {{ detail: {id} }}))"
                 ));
+                }
             }
-        }
-    })
-    .build()?;
+        })
+        .build()?;
     let cookie = tauri::webview::Cookie::build((cookie_name.to_owned(), token.to_owned()))
         .domain("127.0.0.1")
         .path("/")
