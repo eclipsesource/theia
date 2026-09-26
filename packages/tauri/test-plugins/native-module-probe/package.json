@@ -1,0 +1,12 @@
+{
+  "name": "theia-tauri-native-module-probe",
+  "version": "0.0.1",
+  "publisher": "theia",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./main.js",
+  "activationEvents": [
+    "*"
+  ]
+}
