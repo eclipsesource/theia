@@ -124,7 +124,10 @@
     "performance:startup": "npm run -s performance:startup:browser && npm run -s performance:startup:electron",
     "performance:startup:browser": "concurrently --success first -k -r \"cd scripts/performance && node browser-performance.js --name 'Browser Frontend Startup' --folder browser --runs 10\" \"npm --prefix examples/browser run -s start -- --log-level=debug\"",
     "performance:startup:electron": "npm run -s rebuild:electron && cd scripts/performance && node electron-performance.js --name 'Electron Frontend Startup' --folder electron --runs 10",
-    "zip:native:dependencies": "node ./scripts/zip-native-dependencies.js"
+    "zip:native:dependencies": "node ./scripts/zip-native-dependencies.js",
+    "build:tauri": "cd examples/tauri && npm run build",
+    "start:tauri": "cd examples/tauri && npm run start --",
+    "watch:tauri": "cd examples/tauri && npm run -s watch"
   },
   "workspaces": [
     "dev-packages/*",

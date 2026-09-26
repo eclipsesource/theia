@@ -1,0 +1,32 @@
+# Experimental Tauri example (Linux)
+
+This example uses the same Theia extension dependency inventory as `examples/electron`. It is an experimental source integration with incomplete desktop parity. The Rust host starts a Node desktop controller, which starts the Theia backend and opens one WebKitGTK window. The controller has a per-launch authenticated backend connection and a narrow bridge for window controls and native file dialogs. Tauri JavaScript invoke capabilities remain disabled.
+
+## Prerequisites
+
+- Node.js 24 or newer, npm, Rust and Cargo.
+- A Linux graphical session and the Tauri 2 Linux development libraries: WebKitGTK 4.1, JavaScriptCoreGTK 4.1, libsoup 3, GTK 3, and their dependencies. On Ubuntu, see the [Tauri Linux prerequisites](https://v2.tauri.app/start/prerequisites/#linux).
+- `xdg-open` for the navigator's system editor and containing-folder commands.
+- The repository's normal native Node dependencies installed for the selected Node executable.
+
+From the repository root, run `npm install`, `npm run compile`, then `npm run build:tauri`. Start it with `npm run start:tauri -- --port=3000 /path/to/workspace`. `build:tauri` compiles the Rust host explicitly; normal builds of other targets do not require Rust. The generated frontend and backend bundles are local to `examples/tauri/lib`.
+
+Use a disposable profile while evaluating: set `THEIA_CONFIG_DIR`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, and `XDG_CACHE_HOME` to separate directories. The WebKit data directory is created under `THEIA_CONFIG_DIR/tauri-webview` when `THEIA_CONFIG_DIR` is set. An explicit free port is required for reproducible runs; ports 1–65534 are accepted. The port is not reserved and a collision fails startup.
+
+`npm run watch:tauri` watches TypeScript and application bundles. Rust edits require `npm --prefix examples/tauri run build:host` and restarting the application. Rebuilds that switch between Electron and standalone Node native modules must be run serially with the other target stopped.
+
+The small VS Code plugin at `packages/tauri/test-plugins/webview-probe` can be copied into a disposable profile's `plugins` directory. It activates at startup and exposes `Tauri Probe: Open Webview` to check webview script, local resource, HTML update, dispose/recreate, reload and relaunch restoration, service worker readiness, and service-channel isolation. Accept workspace trust in the disposable profile before testing plugin activation.
+
+The same probe exposes `Tauri Probe: Test Secret Storage` for a store/read/delete check and `Tauri Probe: Store Secret For Relaunch` for a same-profile persistence check. The latter reports its result in the plugin log on next activation and deletes the fixed test value.
+
+## Current limitations
+
+The example uses a Tauri-specific raw WebSocket service channel because the WebKitGTK Socket.IO path stalled during startup in repeated Xvfb runs. A native close request asks the frontend whether it may shut down; this has been checked under Xvfb with a window manager. The `close.window` command used the same close path and shut down a disposable host cleanly. Native open, folder, and save dialogs work for local files, while remote and mixed file/folder selection use Theia's dialog. The navigator's system editor and containing-folder commands send local file URIs to an `xdg-open` backend service; remote URIs are refused. The external-terminal adapter also rejects remote workspace URIs; a configured executable was verified to start in a local workspace directory. The active editor title updates the native window title. Frontend commands for focus, minimize, maximize, fullscreen and zoom use the native bridge. Zoom preference changes and reload persistence were checked in WebKitGTK. On the available X11 display, maximize, fullscreen and minimize changed the expected window-manager states. Focusing a minimized window returned success but did not restore it, even after explicit unminimize/show calls; this remains a known deviation.
+
+The Tauri clipboard service uses the native bridge for text because WebKitGTK's browser Clipboard API rejected read and write in this host. Unicode text copied from Theia was readable by `xclip`, and Theia read text owned by `xclip` in Xvfb. Rich clipboard formats and persistence after the owner exits are untested.
+
+Extension webviews use `*.webview.localhost` on a separate `::1` static server at the same port as the trusted `127.0.0.1` backend. The source-built probe loaded its script and local resource, received messages after an HTML update and dispose/recreate, and could not open the trusted service WebSocket. Its serializer restored the panel after frontend reload and after same-profile relaunch; resource loading and WebSocket denial still held. Its service worker reported ready. The static server exposes only `/webview` assets. The host rejected a top-level navigation to a different local origin while still loading extension webviews. Other embedded-content paths and the full authority boundary remain unverified.
+
+An earlier repeated-launch stall was traced to `@parcel/watcher` hanging when this desktop session exhausted its Linux inotify instance limit. Tauri uses snapshot polling for the two small AI registry watches; three subsequent launches of one profile with the probe plugin reached `ready`. Killing each of the host, controller and backend after readiness closed the remaining processes and backend port in disposable tests. Closing through `close.window` with a live terminal running `sleep 300` stopped the shell child; killing the native host with an active `sleep 300` terminal also stopped that process and closed the backend port. This does not establish long-session reliability or cleanup after every crash. Multi-window ownership, remote and dev-container workflows, other native services, and the broader Electron workflow matrix remain incomplete. Do not use this target with untrusted workspaces or extensions.
+
+Normal native close now runs Theia's unload hook after the frontend accepts the close, so the current editor layout is stored before Tauri destroys the webview. A local editor's saved text and open tab restored after closing and relaunching the same disposable profile. Abrupt exits and other session state have not been covered by that check.

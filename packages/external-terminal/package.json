@@ -14,7 +14,9 @@
   "theiaExtensions": [
     {
       "backendElectron": "lib/electron-node/external-terminal-backend-module",
-      "frontendElectron": "lib/electron-browser/external-terminal-frontend-module"
+      "frontendElectron": "lib/electron-browser/external-terminal-frontend-module",
+      "backendTauri": "lib/tauri-node/external-terminal-backend-module",
+      "frontendTauri": "lib/tauri-browser/external-terminal-frontend-module"
     }
   ],
   "keywords": [

@@ -1,0 +1,29 @@
+{
+  "name": "theia-tauri-webview-probe",
+  "displayName": "Theia Tauri Webview Probe",
+  "version": "0.0.1",
+  "publisher": "theia",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./main.js",
+  "activationEvents": [
+    "*"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "tauriProbe.openWebview",
+        "title": "Tauri Probe: Open Webview"
+      },
+      {
+        "command": "tauriProbe.secrets",
+        "title": "Tauri Probe: Test Secret Storage"
+      },
+      {
+        "command": "tauriProbe.persistSecret",
+        "title": "Tauri Probe: Store Secret For Relaunch"
+      }
+    ]
+  }
+}

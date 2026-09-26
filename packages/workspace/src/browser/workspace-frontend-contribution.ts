@@ -134,8 +134,8 @@ export class WorkspaceFrontendContribution implements CommandContribution, Keybi
     registerCommands(commands: CommandRegistry): void {
         // Not visible/enabled on Windows/Linux in electron.
         commands.registerCommand(WorkspaceCommands.OPEN, {
-            isEnabled: () => isOSX || !this.isElectron(),
-            isVisible: () => isOSX || !this.isElectron(),
+            isEnabled: () => isOSX || !this.isDesktop(),
+            isVisible: () => isOSX || !this.isDesktop(),
             execute: () => this.doOpen()
         });
         // Visible/enabled only on Windows/Linux in electron.
@@ -178,13 +178,13 @@ export class WorkspaceFrontendContribution implements CommandContribution, Keybi
     }
 
     registerMenus(menus: MenuModelRegistry): void {
-        if (isOSX || !this.isElectron()) {
+        if (isOSX || !this.isDesktop()) {
             menus.registerMenuAction(CommonMenus.FILE_OPEN, {
                 commandId: WorkspaceCommands.OPEN.id,
                 order: 'a00'
             });
         }
-        if (!isOSX && this.isElectron()) {
+        if (!isOSX && this.isDesktop()) {
             menus.registerMenuAction(CommonMenus.FILE_OPEN, {
                 commandId: WorkspaceCommands.OPEN_FILE.id,
                 label: `${WorkspaceCommands.OPEN_FILE.dialogLabel}...`,
@@ -230,10 +230,10 @@ export class WorkspaceFrontendContribution implements CommandContribution, Keybi
 
     registerKeybindings(keybindings: KeybindingRegistry): void {
         keybindings.registerKeybinding({
-            command: isOSX || !this.isElectron() ? WorkspaceCommands.OPEN.id : WorkspaceCommands.OPEN_FILE.id,
-            keybinding: this.isElectron() ? 'ctrlcmd+o' : 'ctrlcmd+alt+o',
+            command: isOSX || !this.isDesktop() ? WorkspaceCommands.OPEN.id : WorkspaceCommands.OPEN_FILE.id,
+            keybinding: this.isDesktop() ? 'ctrlcmd+o' : 'ctrlcmd+alt+o',
         });
-        if (!isOSX && this.isElectron()) {
+        if (!isOSX && this.isDesktop()) {
             keybindings.registerKeybinding({
                 command: WorkspaceCommands.OPEN_FOLDER.id,
                 keybinding: 'ctrl+k ctrl+o',
@@ -263,7 +263,7 @@ export class WorkspaceFrontendContribution implements CommandContribution, Keybi
      * Except when you are on either Windows or Linux `AND` running in electron. If so, it opens a file.
      */
     protected async doOpen(): Promise<URI[] | undefined> {
-        if (!isOSX && this.isElectron()) {
+        if (!isOSX && this.isDesktop()) {
             return this.doOpenFile();
         }
         const [rootStat] = await this.workspaceService.roots;
@@ -490,8 +490,8 @@ export class WorkspaceFrontendContribution implements CommandContribution, Keybi
         return filters;
     }
 
-    private isElectron(): boolean {
-        return environment.electron.is();
+    private isDesktop(): boolean {
+        return environment.electron.is() || environment.tauri.is();
     }
 
     /**

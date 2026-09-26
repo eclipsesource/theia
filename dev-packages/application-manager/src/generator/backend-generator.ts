@@ -29,7 +29,37 @@ export class BackendGenerator extends AbstractGenerator {
         await this.write(this.pck.backend('main.js'), this.compileMain(backendModules));
         if (this.pck.isElectron()) {
             await this.write(this.pck.backend('electron-main.js'), this.compileElectronMain(this.pck.targetElectronMainModules));
+        } else if (this.pck.isTauri()) {
+            await this.write(this.pck.backend('tauri-main.js'), this.compileTauriMain(this.pck.targetTauriMainModules));
         }
+    }
+
+    protected compileTauriMain(tauriMainModules: Map<string, string>): string {
+        return `// @ts-check
+// Standard output is reserved for the host control protocol.
+console.log = console.info = console.debug = (...args) => console.error(...args);
+require('@theia/core/shared/reflect-metadata');
+const { Container } = require('@theia/core/shared/inversify');
+const { TauriMainApplication } = require('@theia/core/lib/tauri-main/tauri-main-application');
+const { default: tauriMainApplicationModule } = require('@theia/core/lib/tauri-main/tauri-main-application-module');
+
+process.env.THEIA_APP_PROJECT_PATH = require('path').resolve(__dirname, '..', '..');
+const container = new Container();
+container.load(tauriMainApplicationModule);
+
+(async () => {
+    try {
+${Array.from(tauriMainModules.values(), jsModulePath => `        container.load((await Promise.resolve(require('${jsModulePath}'))).default);`).join(EOL)}
+        await container.get(TauriMainApplication).start({
+            backendPath: require('path').resolve(__dirname, 'main.js'),
+            args: process.argv.slice(2)
+        });
+    } catch (error) {
+        console.error('Failed to start the Tauri desktop controller:', error);
+        process.exitCode = 1;
+    }
+})();
+`;
     }
 
     protected compileElectronMain(electronMainModules?: Map<string, string>): string {
@@ -142,6 +172,7 @@ const container = new Container();
 container.load(backendApplicationModule);
 container.load(messagingBackendModule);
 container.load(loggerBackendModule);
+${this.ifTauri('container.load(require(\'@theia/core/lib/tauri-node/messaging/tauri-messaging-backend-module\').default);')}
 ${this.emitStartupLog('container created')}
 
 function defaultServeStatic(app) {

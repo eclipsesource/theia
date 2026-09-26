@@ -48,7 +48,8 @@
       "frontend": "lib/browser/file-dialog/file-dialog-module"
     },
     {
-      "frontendElectron": "lib/electron-browser/file-dialog/electron-file-dialog-module"
+      "frontendElectron": "lib/electron-browser/file-dialog/electron-file-dialog-module",
+      "frontendTauri": "lib/tauri-browser/file-dialog/tauri-file-dialog-module"
     }
   ],
   "keywords": [

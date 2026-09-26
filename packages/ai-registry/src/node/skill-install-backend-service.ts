@@ -17,7 +17,7 @@
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AsyncSubscription, subscribe } from '@theia/core/shared/@parcel/watcher';
+import { AsyncSubscription } from '@theia/core/shared/@parcel/watcher';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import { Disposable, ILogger, PreferenceService } from '@theia/core';
 import { Headers, RequestContext, RequestService } from '@theia/core/shared/@theia/request';
@@ -25,6 +25,7 @@ import { SkillInstallBackendService, SkillInstallClient } from '../common/skill/
 import { InstalledSkillInfo, ResolvedSkillEntry } from '../common/skill/skill-registry-types';
 import { computeContentHash, FileContent } from '../common/content-hash';
 import { GITHUB_TOKEN_PREF } from '../common/skill/skill-registry-preferences';
+import { subscribeToRegistryDirectory } from './registry-directory-watcher';
 
 /** File name of the per-skill registry metadata. Dot-prefixed so it is excluded from the content hash. */
 const REGISTRY_METADATA_FILE = '.registry.json';
@@ -470,7 +471,7 @@ export class SkillInstallBackendServiceImpl implements SkillInstallBackendServic
         this.watching = true;
         const root = this.skillsRoot();
         fs.mkdir(root, { recursive: true })
-            .then(() => subscribe(root, (error, events) => {
+            .then(() => subscribeToRegistryDirectory(root, (error, events) => {
                 if (error) {
                     this.logger.warn('Stopped watching the skills directory after a watcher error.', error);
                     this.stopWatching();

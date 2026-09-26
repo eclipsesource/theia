@@ -22,7 +22,7 @@ import { Widget } from './widgets';
 import { ApplicationShell } from './shell/application-shell';
 import { ShellLayoutRestorer, ApplicationShellLayoutMigrationError } from './shell/shell-layout-restorer';
 import { FrontendApplicationStateService } from './frontend-application-state';
-import { preventNavigation, parseCssTime, animationFrame } from './browser';
+import { preventNavigation, parseCssTime } from './browser';
 import { CorePreferences } from '../common/core-preferences';
 import { WindowService } from './window/window-service';
 import { TooltipService } from './tooltip-service';
@@ -88,7 +88,7 @@ export class FrontendApplication {
         const host = await this.getHost();
         this.attachShell(host);
         this.attachTooltip(host);
-        await animationFrame();
+        await this.nextAnimationFrameOrTimeout();
         this.stateService.state = 'attached_shell';
 
         await this.measure('initializeLayout', () => this.initializeLayout(), 'Initialize the workbench layout', false);
@@ -175,6 +175,17 @@ export class FrontendApplication {
         this.tooltipService.attachTo(host);
     }
 
+    /** A webview can withhold animation frames while its native window lacks focus. */
+    protected nextAnimationFrameOrTimeout(): Promise<void> {
+        return new Promise(resolve => {
+            const timeout = window.setTimeout(resolve, 500);
+            window.requestAnimationFrame(() => {
+                window.clearTimeout(timeout);
+                resolve();
+            });
+        });
+    }
+
     /**
      * If a startup indicator is present, it is first hidden with the `theia-hidden` CSS class and then
      * removed after a while. The delay until removal is taken from the CSS transition duration.
@@ -183,7 +194,7 @@ export class FrontendApplication {
         const startupElem = this.getStartupIndicator(host);
         if (startupElem) {
             return new Promise(resolve => {
-                window.requestAnimationFrame(() => {
+                this.nextAnimationFrameOrTimeout().then(() => {
                     startupElem.classList.add('theia-hidden');
                     const preloadStyle = window.getComputedStyle(startupElem);
                     const transitionDuration = parseCssTime(preloadStyle.transitionDuration, 0);

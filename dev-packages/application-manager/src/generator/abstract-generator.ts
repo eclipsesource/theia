@@ -37,6 +37,10 @@ export abstract class AbstractGenerator {
         return this.pck.ifElectron(value, defaultValue);
     }
 
+    protected ifTauri(value: string, defaultValue: string = ''): string {
+        return this.pck.ifTauri(value, defaultValue);
+    }
+
     protected ifBrowserOnly(value: string, defaultValue: string = ''): string {
         return this.pck.ifBrowserOnly(value, defaultValue);
     }

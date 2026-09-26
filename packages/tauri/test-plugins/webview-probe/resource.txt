@@ -1,0 +1,1 @@
+Tauri webview local resource loaded.

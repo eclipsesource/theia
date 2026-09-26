@@ -72,5 +72,16 @@ class ElectronEnv {
 }
 
 const electron = new ElectronEnv();
-const environment: Readonly<{ electron: ElectronEnv }> = { electron };
+class TauriEnv {
+    is(): boolean {
+        if (typeof window !== 'undefined') {
+            // The generated frontend entrypoint sets this before loading Theia modules.
+            return (window as typeof window & { theia?: { target?: string } }).theia?.target === 'tauri';
+        }
+        return typeof process !== 'undefined' && process.env.THEIA_TARGET === 'tauri';
+    }
+}
+
+const tauri = new TauriEnv();
+const environment: Readonly<{ electron: ElectronEnv; tauri: TauriEnv }> = { electron, tauri };
 export { environment };

@@ -19,7 +19,8 @@
       "backend": "lib/node/mcp-backend-module"
     },
     {
-      "backendElectron": "lib/electron-node/mcp-electron-node-module"
+      "backendElectron": "lib/electron-node/mcp-electron-node-module",
+      "backendTauri": "lib/tauri-node/mcp-tauri-node-module"
     }
   ],
   "keywords": [

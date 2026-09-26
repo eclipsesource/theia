@@ -20,6 +20,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import { ApplicationPackage } from './application-package';
 import { ApplicationProps } from './application-props';
+import { ExtensionPackage } from './extension-package';
 import * as sinon from 'sinon';
 
 const track = temp.track();
@@ -52,6 +53,49 @@ describe('application-package', function (): void {
         const root = createProjectWithTarget(pckTarget);
         const applicationPackage = new ApplicationPackage({ projectPath: root, appTarget: optTarget });
         assert.deepStrictEqual(applicationPackage.target, optTarget);
+    });
+
+    it('selects Tauri replacements per manifest entry and reports Electron-only entries', function (): void {
+        const root = createProjectWithTarget('tauri');
+        const pck = new ApplicationPackage({ projectPath: root });
+        // Preserve the collector's package and entry order while avoiding a fixture install.
+        (pck as unknown as { _extensionPackages: ExtensionPackage[] })._extensionPackages = [{
+            name: '@fixture/mixed',
+            theiaExtensions: [
+                { frontend: 'generic/a', frontendElectron: 'electron/a', frontendTauri: 'tauri/a', backend: 'generic/b', backendTauri: 'tauri/b' },
+                { frontend: 'generic/c', backend: 'generic/d', electronMain: 'electron/main' },
+                { frontendElectron: 'electron/only', tauriMain: 'tauri/main' }
+            ]
+        } as ExtensionPackage];
+        assert.deepStrictEqual([...pck.targetFrontendModules.values()], ['@fixture/mixed/tauri/a', '@fixture/mixed/generic/c']);
+        assert.deepStrictEqual([...pck.targetBackendModules.values()], ['@fixture/mixed/tauri/b', '@fixture/mixed/generic/d']);
+        assert.deepStrictEqual([...pck.targetTauriMainModules.values()], ['@fixture/mixed/tauri/main']);
+        assert.deepStrictEqual(pck.missingTauriContributions, [
+            '@fixture/mixed: electronMain=electron/main',
+            '@fixture/mixed: frontendElectron=electron/only'
+        ]);
+    });
+
+    it('keeps browser, browser-only, and Electron contribution selection distinct', function (): void {
+        for (const [target, frontend, backend, main] of [
+            ['browser', ['fixture/generic'], ['fixture/backend'], []],
+            ['browser-only', ['fixture/generic'], [], []],
+            ['electron', ['fixture/electron'], ['fixture/electron-backend'], ['fixture/main']]
+        ] as const) {
+            const pck = new ApplicationPackage({ projectPath: createProjectWithTarget(target) });
+            (pck as unknown as { _extensionPackages: ExtensionPackage[] })._extensionPackages = [{
+                name: 'fixture',
+                theiaExtensions: [{
+                    frontend: 'generic', frontendElectron: 'electron', frontendTauri: 'tauri',
+                    backend: 'backend', backendElectron: 'electron-backend', backendTauri: 'tauri-backend',
+                    electronMain: 'main', tauriMain: 'tauri-main'
+                }]
+            } as ExtensionPackage];
+            assert.deepStrictEqual([...pck.targetFrontendModules.values()], frontend);
+            assert.deepStrictEqual([...pck.targetBackendModules.values()], backend);
+            assert.deepStrictEqual([...pck.targetElectronMainModules.values()], main);
+            assert.deepStrictEqual([...pck.targetTauriMainModules.values()], []);
+        }
     });
 
     function createProjectWithTarget(target: string): string {

@@ -17,7 +17,7 @@
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AsyncSubscription, subscribe } from '@theia/core/shared/@parcel/watcher';
+import { AsyncSubscription } from '@theia/core/shared/@parcel/watcher';
 import { inject, injectable, named, postConstruct } from '@theia/core/shared/inversify';
 import { Disposable, ILogger, nls } from '@theia/core';
 import { computeContentHash, FileContent } from '../common/content-hash';
@@ -26,6 +26,7 @@ import { PluginDirectoryNaming } from '../common/plugin/plugin-directory-naming'
 import { PluginInstallBackendService, PluginInstallClient } from '../common/plugin/plugin-install-protocol';
 import { InstalledPluginInfo, PluginRegistryMetadata, ResolvedPluginEntry, StagedPluginInstall } from '../common/plugin/plugin-registry-types';
 import { GitHubTarballSource } from './github-tarball-source';
+import { subscribeToRegistryDirectory } from './registry-directory-watcher';
 
 /** Dot-prefixed so it is excluded from the content hash. */
 const REGISTRY_METADATA_FILE = '.registry.json';
@@ -607,7 +608,7 @@ export class PluginInstallBackendServiceImpl implements PluginInstallBackendServ
         this.watching = true;
         const root = this.pluginsRoot();
         fs.mkdir(root, { recursive: true })
-            .then(() => subscribe(root, (error, events) => {
+            .then(() => subscribeToRegistryDirectory(root, (error, events) => {
                 if (error) {
                     this.logger.warn('Stopped watching the plugins directory after a watcher error.', error);
                     this.stopWatching();

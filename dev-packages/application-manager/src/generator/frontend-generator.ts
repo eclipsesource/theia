@@ -80,6 +80,7 @@ export class FrontendGenerator extends AbstractGenerator {
     protected compileIndexJs(frontendModules: Map<string, string>, frontendPreloadModules: Map<string, string>): string {
         return `\
 // @ts-check
+${this.ifTauri('(window[\'theia\'] = window[\'theia\'] || {}).target = \'tauri\';')}
 require('reflect-metadata');
 ${this.emitStartupLogger('Frontend', 'frontend page start')}
 ${this.emitStartupLog('loading modules...')}
@@ -116,11 +117,12 @@ ${Array.from(frontendPreloadModules.values(), jsModulePath => `\
 }
 
 module.exports = (async () => {
-    const { messagingFrontendModule } = require('@theia/core/lib/${this.pck.isBrowser() || this.pck.isBrowserOnly()
-                ? 'browser/messaging/messaging-frontend-module'
-                : 'electron-browser/messaging/electron-messaging-frontend-module'}');
+    const { messagingFrontendModule } = require('@theia/core/lib/${this.pck.isElectron()
+                ? 'electron-browser/messaging/electron-messaging-frontend-module'
+                : 'browser/messaging/messaging-frontend-module'}');
     const container = new Container();
     container.load(messagingFrontendModule);
+    ${this.ifTauri('container.load(require(\'@theia/core/lib/tauri-browser/messaging/tauri-messaging-frontend-module\').default);')}
     ${this.ifBrowserOnly(`const { messagingFrontendOnlyModule } = require('@theia/core/lib/browser-only/messaging/messaging-frontend-only-module');
     container.load(messagingFrontendOnlyModule);`)}
 

@@ -93,10 +93,13 @@ export class ApplicationPackage {
     protected _frontendModules: Map<string, string> | undefined;
     protected _frontendPreloadModules: Map<string, string> | undefined;
     protected _frontendElectronModules: Map<string, string> | undefined;
+    protected _frontendTauriModules: Map<string, string> | undefined;
     protected _secondaryWindowModules: Map<string, string> | undefined;
     protected _backendModules: Map<string, string> | undefined;
     protected _backendElectronModules: Map<string, string> | undefined;
+    protected _backendTauriModules: Map<string, string> | undefined;
     protected _electronMainModules: Map<string, string> | undefined;
+    protected _tauriMainModules: Map<string, string> | undefined;
     protected _preloadModules: Map<string, string> | undefined;
     protected _extensionPackages: ReadonlyArray<ExtensionPackage> | undefined;
 
@@ -162,6 +165,10 @@ export class ApplicationPackage {
         return this._frontendElectronModules ??= this.computeModules('frontendElectron', 'frontend');
     }
 
+    get frontendTauriModules(): Map<string, string> {
+        return this._frontendTauriModules ??= this.computeModules('frontendTauri', 'frontend');
+    }
+
     get secondaryWindowModules(): Map<string, string> {
         return this._secondaryWindowModules ??= this.computeModules('secondaryWindow');
     }
@@ -174,8 +181,16 @@ export class ApplicationPackage {
         return this._backendElectronModules ??= this.computeModules('backendElectron', 'backend');
     }
 
+    get backendTauriModules(): Map<string, string> {
+        return this._backendTauriModules ??= this.computeModules('backendTauri', 'backend');
+    }
+
     get electronMainModules(): Map<string, string> {
         return this._electronMainModules ??= this.computeModules('electronMain');
+    }
+
+    get tauriMainModules(): Map<string, string> {
+        return this._tauriMainModules ??= this.computeModules('tauriMain');
     }
 
     get preloadModules(): Map<string, string> {
@@ -241,6 +256,10 @@ export class ApplicationPackage {
         return this.target === ApplicationProps.ApplicationTarget.electron;
     }
 
+    isTauri(): boolean {
+        return this.target === ApplicationProps.ApplicationTarget.tauri;
+    }
+
     isBrowserOnly(): boolean {
         return this.target === ApplicationProps.ApplicationTarget.browserOnly;
     }
@@ -257,6 +276,12 @@ export class ApplicationPackage {
         return this.isElectron() ? value : defaultValue;
     }
 
+    ifTauri<T>(value: T): T | undefined;
+    ifTauri<T>(value: T, defaultValue: T): T;
+    ifTauri<T>(value: T, defaultValue?: T): T | undefined {
+        return this.isTauri() ? value : defaultValue;
+    }
+
     ifBrowserOnly<T>(value: T): T | undefined;
     ifBrowserOnly<T>(value: T, defaultValue: T): T;
     ifBrowserOnly<T>(value: T, defaultValue?: T): T | undefined {
@@ -267,14 +292,26 @@ export class ApplicationPackage {
         if (this.isBrowserOnly()) {
             return new Map();
         }
-        return this.ifBrowser(this.backendModules, this.backendElectronModules);
+        if (this.isElectron()) {
+            return this.backendElectronModules;
+        }
+        if (this.isTauri()) {
+            return this.backendTauriModules;
+        }
+        return this.backendModules;
     }
 
     get targetFrontendModules(): Map<string, string> {
         if (this.isBrowserOnly()) {
             return this.frontendOnlyModules;
         }
-        return this.ifBrowser(this.frontendModules, this.frontendElectronModules);
+        if (this.isElectron()) {
+            return this.frontendElectronModules;
+        }
+        if (this.isTauri()) {
+            return this.frontendTauriModules;
+        }
+        return this.frontendModules;
     }
 
     get targetFrontendPreloadModules(): Map<string, string> {
@@ -286,6 +323,29 @@ export class ApplicationPackage {
 
     get targetElectronMainModules(): Map<string, string> {
         return this.ifElectron(this.electronMainModules, new Map());
+    }
+
+    get targetTauriMainModules(): Map<string, string> {
+        return this.ifTauri(this.tauriMainModules, new Map());
+    }
+
+    /** Electron replacements that do not yet have a Tauri replacement. */
+    get missingTauriContributions(): string[] {
+        const missing: string[] = [];
+        for (const pck of this.extensionPackages) {
+            for (const entry of pck.theiaExtensions) {
+                for (const [electronKey, tauriKey] of [
+                    ['frontendElectron', 'frontendTauri'],
+                    ['backendElectron', 'backendTauri'],
+                    ['electronMain', 'tauriMain']
+                ] as const) {
+                    if (entry[electronKey] && !entry[tauriKey]) {
+                        missing.push(`${pck.name}: ${electronKey}=${entry[electronKey]}`);
+                    }
+                }
+            }
+        }
+        return missing;
     }
 
     setDependency(name: string, version: string | undefined): boolean {

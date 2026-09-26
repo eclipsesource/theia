@@ -220,6 +220,7 @@ export const nodeOptions = {
         'main': './src-gen/backend/main',
         'ipc-bootstrap': '@theia/core/lib/node/messaging/ipc-bootstrap',
         ${this.ifElectron("'electron-main': './src-gen/backend/electron-main',")}
+        ${this.ifTauri("'tauri-main': './src-gen/backend/tauri-main',")}
         ${this.ifPackage('@theia/plugin-ext', () => `// VS Code extension support:
         'plugin-host': '@theia/plugin-ext/lib/hosted/node/plugin-host',`)}
         ${this.ifPackage('@theia/plugin-ext-headless', () => `// Theia Headless Plugin support:
@@ -240,7 +241,7 @@ export const nodeOptions = {
     outdir: 'lib/backend',
     platform: 'node',
     mainFields: ['node', 'module', 'main'],
-    external: ['electron'],
+    external: ${this.ifElectron('[\'electron\']', '[]')},
     loader,
     minify,
     sourcemap,

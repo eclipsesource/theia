@@ -25,10 +25,13 @@ export interface Extension {
     frontend?: string;
     frontendOnly?: string;
     frontendElectron?: string;
+    frontendTauri?: string;
     secondaryWindow?: string;
     backend?: string;
     backendElectron?: string;
+    backendTauri?: string;
     electronMain?: string;
+    tauriMain?: string;
     preload?: string;
 }
 

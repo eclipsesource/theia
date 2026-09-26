@@ -95,6 +95,11 @@ export class ApplicationPackageManager {
     }
 
     async generate(options: GeneratorOptions = {}): Promise<void> {
+        if (this.pck.isTauri()) {
+            for (const missing of this.pck.missingTauriContributions) {
+                console.warn(`Tauri target omits Electron contribution: ${missing}`);
+            }
+        }
         try {
             await this.prepare();
         } catch (error) {
@@ -136,10 +141,21 @@ export class ApplicationPackageManager {
     start(args: string[] = []): cp.ChildProcess {
         if (this.pck.isElectron()) {
             return this.startElectron(args);
+        } else if (this.pck.isTauri()) {
+            return this.startTauri(args);
         } else if (this.pck.isBrowserOnly()) {
             return this.startBrowserOnly(args);
         }
         return this.startBrowser(args);
+    }
+
+    startTauri(args: string[]): cp.ChildProcess {
+        const host = path.resolve(require.resolve('@theia/tauri/package.json', { paths: [this.pck.projectPath] }), '..', 'src-tauri', 'target', 'debug', 'theia-tauri-host');
+        if (!fs.existsSync(host)) {
+            throw new Error(`Tauri host is missing: ${host}. Run npm run build:host in the Tauri example.`);
+        }
+        const { mainArgs, options } = this.adjustArgs(args);
+        return this.__process.spawn(host, [this.pck.lib('backend', 'tauri-main.js'), process.execPath, ...mainArgs], options);
     }
 
     startBrowserOnly(args: string[]): cp.ChildProcess {

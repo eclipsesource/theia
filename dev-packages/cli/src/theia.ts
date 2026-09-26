@@ -95,12 +95,12 @@ function rebuildCommand(command: string, target: ApplicationProps.Target): yargs
 }
 
 function defineCommonOptions<T>(cli: yargs.Argv<T>): yargs.Argv<T & {
-    appTarget?: 'browser' | 'electron' | 'browser-only'
+    appTarget?: 'browser' | 'electron' | 'tauri' | 'browser-only'
 }> {
     return cli
         .option('app-target', {
             description: 'The target application type. Overrides `theia.target` in the application\'s package.json',
-            choices: ['browser', 'electron', 'browser-only'] as const,
+            choices: ['browser', 'electron', 'tauri', 'browser-only'] as const,
         });
 }
 
@@ -183,6 +183,7 @@ async function theiaCli(): Promise<void> {
         .command(rebuildCommand('rebuild', target))
         .command(rebuildCommand('rebuild:browser', 'browser'))
         .command(rebuildCommand('rebuild:electron', 'electron'))
+        .command(rebuildCommand('rebuild:tauri', 'tauri'))
         .command<{
             suppress: boolean
         }>({

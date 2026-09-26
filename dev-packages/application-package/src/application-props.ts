@@ -319,6 +319,7 @@ export namespace ApplicationProps {
     export enum ApplicationTarget {
         browser = 'browser',
         electron = 'electron',
+        tauri = 'tauri',
         browserOnly = 'browser-only'
     };
     export const DEFAULT: ApplicationProps = {
