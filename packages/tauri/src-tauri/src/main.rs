@@ -490,9 +490,16 @@ fn handle_native_request(
                 Ok(())
             }
             Some("focus-window") => {
+                #[cfg(target_os = "linux")]
+                let was_minimized = window.is_minimized().map_err(|error| error.to_string())?;
                 window.unminimize().map_err(|error| error.to_string())?;
                 window.show().map_err(|error| error.to_string())?;
-                window.set_focus().map_err(|error| error.to_string())
+                window.set_focus().map_err(|error| error.to_string())?;
+                #[cfg(target_os = "linux")]
+                if was_minimized {
+                    activate_minimized_x11_window(&window)?;
+                }
+                Ok(())
             }
             Some("close-window") => window.close().map_err(|error| error.to_string()),
             Some("minimize-window") => window.minimize().map_err(|error| error.to_string()),
@@ -532,6 +539,61 @@ fn handle_native_request(
             serde_json::json!({"version": 1, "type": "native-response", "id": id, "ok": false, "error": error})
         }
     }
+}
+
+#[cfg(target_os = "linux")]
+fn activate_minimized_x11_window(window: &tauri::WebviewWindow) -> Result<(), String> {
+    use gdkx11::glib::Cast;
+    use gtk::prelude::WidgetExt;
+    use x11rb::connection::Connection;
+    use x11rb::protocol::xproto::{ClientMessageEvent, ConnectionExt, EventMask};
+
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    let window_for_main = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let result = (|| -> Result<Option<u32>, String> {
+                let native = window_for_main
+                    .gtk_window()
+                    .map_err(|error| error.to_string())?;
+                let gdk_window = native.window().ok_or("Window is not realized")?;
+                let x11_window = match gdk_window.downcast::<gdkx11::X11Window>() {
+                    Ok(window) => window,
+                    // Wayland has no X11 window ID; Tauri's normal focus request is used there.
+                    Err(_) => return Ok(None),
+                };
+                Ok(Some(
+                    u32::try_from(x11_window.xid()).map_err(|error| error.to_string())?,
+                ))
+            })();
+            let _ = sender.send(result);
+        })
+        .map_err(|error| error.to_string())?;
+    let xid = match receiver
+        .recv_timeout(Duration::from_secs(2))
+        .map_err(|error| error.to_string())??
+    {
+        Some(xid) => xid,
+        None => return Ok(()),
+    };
+    let (connection, screen_number) = x11rb::connect(None).map_err(|error| error.to_string())?;
+    let atom = connection
+        .intern_atom(false, b"_NET_ACTIVE_WINDOW")
+        .map_err(|error| error.to_string())?
+        .reply()
+        .map_err(|error| error.to_string())?
+        .atom;
+    let root = connection.setup().roots[screen_number].root;
+    let event = ClientMessageEvent::new(32, xid, atom, [2, 0, 0, 0, 0]);
+    connection
+        .send_event(
+            false,
+            root,
+            EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY,
+            event,
+        )
+        .map_err(|error| error.to_string())?;
+    connection.flush().map_err(|error| error.to_string())
 }
 
 fn build_menu_item(
