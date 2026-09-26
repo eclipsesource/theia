@@ -483,7 +483,8 @@ export class PluginContributionHandler {
         if (contributions.notebookRenderer) {
             for (const renderer of contributions.notebookRenderer) {
                 pushContribution(`notebookRenderer.${renderer.id}`,
-                    () => this.notebookRendererRegistry.registerNotebookRenderer(renderer, PluginPackage.toPluginUrl(plugin.metadata.model, ''))
+                    () => this.notebookRendererRegistry.registerNotebookRenderer(renderer,
+                        PluginPackage.toPluginUrl(plugin.metadata.model, ''), plugin.metadata.model.packageUri)
                 );
             }
         }
@@ -491,7 +492,8 @@ export class PluginContributionHandler {
         if (contributions.notebookPreload) {
             for (const preload of contributions.notebookPreload) {
                 pushContribution(`notebookPreloads.${preload.type}:${preload.entrypoint}`,
-                    () => this.notebookRendererRegistry.registerStaticNotebookPreload(preload.type, preload.entrypoint, PluginPackage.toPluginUrl(plugin.metadata.model, ''))
+                    () => this.notebookRendererRegistry.registerStaticNotebookPreload(preload.type, preload.entrypoint,
+                        PluginPackage.toPluginUrl(plugin.metadata.model, ''), plugin.metadata.model.packageUri)
                 );
             }
         }

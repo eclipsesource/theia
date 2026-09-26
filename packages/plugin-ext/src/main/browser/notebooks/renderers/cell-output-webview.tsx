@@ -36,7 +36,8 @@ import {
     CellOutputChange, CellsChangedMessage, CellsMoved, CellsSpliced,
     ChangePreferredMimetypeMessage, FromWebviewMessage, Output, OutputChangedMessage
 } from './webview-communication';
-import { Disposable, DisposableCollection, Emitter, ILogger, QuickPickService, nls } from '@theia/core';
+import { Disposable, DisposableCollection, Emitter, ILogger, QuickPickService, environment, nls } from '@theia/core';
+import URI from '@theia/core/lib/common/uri';
 import { NotebookModel } from '@theia/notebook/lib/browser/view-model/notebook-model';
 import { NotebookOptionsService, NotebookOutputOptions } from '@theia/notebook/lib/browser/service/notebook-options';
 import { NotebookCellModel } from '@theia/notebook/lib/browser/view-model/notebook-cell-model';
@@ -273,6 +274,13 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
         // this.webviewWidget.parent = this.editor ?? null;
         this.webviewWidget.setContentOptions({
             allowScripts: true,
+            // The isolated Tauri origin reads renderer scripts through the webview resource channel.
+            localResourceRoots: environment.tauri.is()
+                ? [...new Set([
+                    ...this.notebookRendererRegistry.notebookRenderers.flatMap(renderer => renderer.packageUri ? [renderer.packageUri] : []),
+                    ...this.notebookRendererRegistry.staticNotebookPreloads.flatMap(preload => preload.packageUri ? [preload.packageUri] : [])
+                ])]
+                : undefined,
             // eslint-disable-next-line max-len
             // list taken from https://github.com/microsoft/vscode/blob/a27099233b956dddc2536d4a0d714ab36266d897/src/vs/workbench/contrib/notebook/browser/view/renderers/backLayerWebView.ts#L762-L774
             enableCommandUris: [
@@ -559,7 +567,8 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
 
         const staticPreloads = this.notebookRendererRegistry.staticNotebookPreloads
             .filter(preload => preload.type === this.notebook.viewType)
-            .map(preload => preload.entrypoint);
+            .map(preload => environment.tauri.is() && preload.resourceUri
+                ? this.toTauriNotebookResourcePath(preload.resourceUri) : preload.entrypoint);
         return kernelPreloads.concat(staticPreloads);
     }
 
@@ -602,7 +611,16 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
     private preloadsScriptString(isWorkspaceTrusted: boolean): string {
         const ctx: PreloadContext = {
             isWorkspaceTrusted,
-            rendererData: this.notebookRendererRegistry.notebookRenderers,
+            rendererData: this.notebookRendererRegistry.notebookRenderers.map(renderer => ({
+                id: renderer.id,
+                mimeTypes: renderer.mimeTypes,
+                requiresMessaging: renderer.requiresMessaging,
+                entrypoint: {
+                    extends: renderer.entrypoint.extends,
+                    uri: environment.tauri.is() && renderer.entrypoint.resourceUri
+                        ? this.toTauriNotebookResourcePath(renderer.entrypoint.resourceUri) : renderer.entrypoint.uri
+                }
+            })),
             renderOptions: {
                 lineLimit: this.options.outputLineLimit,
                 outputScrolling: this.options.outputScrolling,
@@ -615,6 +633,12 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
         return `
             const __import = (x) => import(x);
                 (${outputWebviewPreload})(JSON.parse(decodeURIComponent("${encodeURIComponent(JSON.stringify(ctx))}")))`;
+    }
+
+    private toTauriNotebookResourcePath(resourceUri: string): string {
+        const uri = new URI(resourceUri);
+        const path = uri.path.toString().replace(/^\//, '').split('/').map(encodeURIComponent).join('/');
+        return `webview/theia-resource/${uri.scheme}//${uri.authority}/${path}`;
     }
 
     dispose(): void {

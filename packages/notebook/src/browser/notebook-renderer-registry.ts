@@ -18,7 +18,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Disposable, Path } from '@theia/core';
+import { Disposable, Path, URI } from '@theia/core';
 import { injectable } from '@theia/core/shared/inversify';
 import { NotebookRendererDescriptor } from '../common/notebook-protocol';
 
@@ -26,13 +26,16 @@ export interface NotebookRendererInfo {
     readonly id: string;
     readonly displayName: string;
     readonly mimeTypes: string[];
-    readonly entrypoint: { readonly extends?: string; readonly uri: string };
+    readonly entrypoint: { readonly extends?: string; readonly uri: string; readonly resourceUri?: string };
+    readonly packageUri?: string;
     readonly requiresMessaging: boolean;
 }
 
 export interface NotebookPreloadInfo {
     readonly type: string;
     readonly entrypoint: string;
+    readonly resourceUri?: string;
+    readonly packageUri?: string;
 }
 
 @injectable()
@@ -50,16 +53,18 @@ export class NotebookRendererRegistry {
         return this._staticNotebookPreloads;
     }
 
-    registerNotebookRenderer(type: NotebookRendererDescriptor, basePath: string): Disposable {
+    registerNotebookRenderer(type: NotebookRendererDescriptor, basePath: string, packageUri?: string): Disposable {
         let entrypoint;
         if (typeof type.entrypoint === 'string') {
             entrypoint = {
-                uri: new Path(basePath).join(type.entrypoint).toString()
+                uri: new Path(basePath).join(type.entrypoint).toString(),
+                resourceUri: packageUri && new URI(packageUri).resolve(type.entrypoint).toString()
             };
         } else {
             entrypoint = {
                 uri: new Path(basePath).join(type.entrypoint.path).toString(),
-                extends: type.entrypoint.extends
+                extends: type.entrypoint.extends,
+                resourceUri: packageUri && new URI(packageUri).resolve(type.entrypoint.path).toString()
             };
         }
 
@@ -67,6 +72,7 @@ export class NotebookRendererRegistry {
             ...type,
             mimeTypes: type.mimeTypes || [],
             requiresMessaging: type.requiresMessaging === 'always' || type.requiresMessaging === 'optional',
+            packageUri,
             entrypoint
         });
         return Disposable.create(() => {
@@ -74,12 +80,16 @@ export class NotebookRendererRegistry {
         });
     }
 
-    registerStaticNotebookPreload(type: string, entrypoint: string, basePath: string): Disposable {
-        const staticPreload = { type, entrypoint: new Path(basePath).join(entrypoint).toString() };
+    registerStaticNotebookPreload(type: string, entrypoint: string, basePath: string, packageUri?: string): Disposable {
+        const staticPreload = {
+            type,
+            entrypoint: new Path(basePath).join(entrypoint).toString(),
+            resourceUri: packageUri && new URI(packageUri).resolve(entrypoint).toString(),
+            packageUri
+        };
         this._staticNotebookPreloads.push(staticPreload);
         return Disposable.create(() => {
             this._staticNotebookPreloads.splice(this._staticNotebookPreloads.indexOf(staticPreload), 1);
         });
     }
 }
-

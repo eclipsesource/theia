@@ -1,0 +1,48 @@
+{
+  "name": "theia-tauri-notebook-probe",
+  "displayName": "Theia Tauri Notebook Probe",
+  "version": "0.0.1",
+  "publisher": "theia",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./main.js",
+  "activationEvents": [
+    "*"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "tauriProbe.openNotebook",
+        "title": "Tauri Probe: Open Notebook"
+      }
+    ],
+    "notebooks": [
+      {
+        "type": "tauri-probe-notebook",
+        "displayName": "Tauri Probe Notebook",
+        "selector": [
+          {
+            "filenamePattern": "*.tauri-nb"
+          }
+        ]
+      }
+    ],
+    "notebookRenderer": [
+      {
+        "id": "tauri-probe-notebook-renderer",
+        "displayName": "Tauri Probe Output Renderer",
+        "entrypoint": "./renderer.js",
+        "mimeTypes": [
+          "application/x-tauri-probe"
+        ]
+      }
+    ],
+    "notebookPreload": [
+      {
+        "type": "tauri-probe-notebook",
+        "entrypoint": "./preload.js"
+      }
+    ]
+  }
+}

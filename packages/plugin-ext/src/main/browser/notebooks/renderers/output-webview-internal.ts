@@ -526,7 +526,8 @@ export async function outputWebviewPreload(ctx: PreloadContext): Promise<void> {
                 if (e instanceof Error && e.name === renderFallbackErrorName) {
                     return { continue: true };
                 } else {
-                    throw e; // Bail and let callers handle unknown errors
+                    this.showRenderError(item, element, `Renderer failed: ${e instanceof Error ? e.message : String(e)}`);
+                    return { continue: false };
                 }
             }
         }
