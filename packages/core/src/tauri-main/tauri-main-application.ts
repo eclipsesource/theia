@@ -283,16 +283,23 @@ export class TauriMainApplication {
             const backend = fork(this.options.backendPath, this.backendArgs(args, port), {
                 execPath: process.execPath,
                 cwd,
-                stdio: ['inherit', 'pipe', 'inherit', 'ipc'],
+                stdio: ['inherit', 'pipe', 'pipe', 'ipc'],
                 env: { ...process.env, THEIA_PARENT_PID: String(process.pid), THEIA_TARGET: 'tauri', THEIA_TAURI_TOKEN: token,
                     THEIA_TAURI_COOKIE_NAME: cookieName, THEIA_TAURI_WINDOW_ID: label,
                     THEIA_MINI_BROWSER_HOST_PATTERN: `{{uuid}}.mini-browser.localhost:${port}`,
                     THEIA_WEBVIEW_EXTERNAL_ENDPOINT: `{{uuid}}.webview.localhost:${port}` }
             });
             const session: WindowSession = { label, backend, token, cookieName, port };
-            backend.stdout?.on('data', chunk => process.stderr.write(chunk));
-            backend.on('message', message => this.handleBackendMessage(session, message));
             let settled = false;
+            backend.stdout?.on('data', chunk => process.stderr.write(chunk));
+            let startupStderr = '';
+            backend.stderr?.on('data', chunk => {
+                process.stderr.write(chunk);
+                if (!settled) {
+                    startupStderr = (startupStderr + chunk.toString()).slice(-4096);
+                }
+            });
+            backend.on('message', message => this.handleBackendMessage(session, message));
             const fail = (error: Error): void => {
                 if (!settled) {
                     settled = true;
@@ -318,7 +325,11 @@ export class TauriMainApplication {
             backend.once('exit', (code, signal) => {
                 clearTimeout(timer);
                 if (!this.windows.has(label)) {
-                    fail(new Error(`Backend exited before readiness: ${code ?? signal}`));
+                    const error = new Error(`Backend exited before readiness: ${code ?? signal}`) as NodeJS.ErrnoException;
+                    if (/EADDRINUSE/.test(startupStderr)) {
+                        error.code = 'EADDRINUSE';
+                    }
+                    fail(error);
                 } else if (this.state === 'ready') {
                     this.windows.delete(label);
                     this.cancelSessionRequests(session);
@@ -426,8 +437,21 @@ export class TauriMainApplication {
 
     protected async openWindow(fragment: string, args: string[] = this.options.args, search = '', cwd = process.cwd()): Promise<void> {
         const label = `workspace-${randomBytes(8).toString('hex')}`;
-        const port = await this.availablePort();
-        const session = await this.startBackend(label, args, port, cwd);
+        let session: WindowSession | undefined;
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const port = await this.availablePort();
+            try {
+                session = await this.startBackend(label, args, port, cwd);
+                break;
+            } catch (error) {
+                if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE' || attempt === 4) {
+                    throw error;
+                }
+            }
+        }
+        if (!session) {
+            throw new Error('Could not allocate a backend port');
+        }
         try {
             await new Promise<void>((resolve, reject) => {
                 const timer = setTimeout(() => {
