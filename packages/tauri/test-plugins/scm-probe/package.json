@@ -1,0 +1,21 @@
+{
+  "name": "theia-tauri-scm-probe",
+  "displayName": "Theia Tauri SCM Probe",
+  "version": "0.0.1",
+  "publisher": "theia",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./main.js",
+  "activationEvents": [
+    "*"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "tauriProbe.populateScm",
+        "title": "Tauri Probe: Populate SCM"
+      }
+    ]
+  }
+}
