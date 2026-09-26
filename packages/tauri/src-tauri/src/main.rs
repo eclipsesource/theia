@@ -7,6 +7,7 @@ use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
@@ -329,6 +330,18 @@ fn create_window(
                         || host.ends_with(".mini-browser.localhost")
                 }))
     })
+    .on_menu_event(|native_window, event| {
+        if let Some(webview) = native_window
+            .app_handle()
+            .get_webview_window(native_window.label())
+        {
+            if let Ok(id) = serde_json::to_string(&event.id().0) {
+                let _ = webview.eval(&format!(
+                    "window.dispatchEvent(new CustomEvent('theia-tauri-menu', {{ detail: {id} }}))"
+                ));
+            }
+        }
+    })
     .build()?;
     let cookie = tauri::webview::Cookie::build((cookie_name.to_owned(), token.to_owned()))
         .domain("127.0.0.1")
@@ -465,6 +478,17 @@ fn handle_native_request(
                 }
                 window.set_title(title).map_err(|error| error.to_string())
             }
+            Some("set-menu") => {
+                let items = request["items"].as_array().ok_or("Missing menu items")?;
+                let mut count = 0;
+                let menu = Menu::new(app).map_err(|error| error.to_string())?;
+                for item in items {
+                    let child = build_menu_item(app, item, 0, &mut count)?;
+                    menu.append(&child).map_err(|error| error.to_string())?;
+                }
+                window.set_menu(menu).map_err(|error| error.to_string())?;
+                Ok(())
+            }
             Some("focus-window") => {
                 window.unminimize().map_err(|error| error.to_string())?;
                 window.show().map_err(|error| error.to_string())?;
@@ -507,6 +531,71 @@ fn handle_native_request(
         Err(error) => {
             serde_json::json!({"version": 1, "type": "native-response", "id": id, "ok": false, "error": error})
         }
+    }
+}
+
+fn build_menu_item(
+    app: &tauri::AppHandle,
+    item: &serde_json::Value,
+    depth: usize,
+    count: &mut usize,
+) -> Result<MenuItemKind<tauri::Wry>, String> {
+    // The controller checks the same bounds before forwarding. Keep the native host
+    // defensive because its input is a separate process protocol.
+    *count += 1;
+    if *count > 500 || depth > 5 {
+        return Err("Menu is too large".into());
+    }
+    if item["type"] == "separator" {
+        return PredefinedMenuItem::separator(app)
+            .map(MenuItemKind::Predefined)
+            .map_err(|error| error.to_string());
+    }
+    let label = item["label"].as_str().ok_or("Missing menu label")?;
+    if label.is_empty()
+        || label.len() > 120
+        || label.chars().any(|ch| matches!(ch, '\r' | '\n' | '\0'))
+    {
+        return Err("Invalid menu label".into());
+    }
+    // Theia labels contain literal ampersands; GTK would otherwise treat them as mnemonics.
+    let label = label.replace('&', "&&");
+    let enabled = item["enabled"].as_bool().unwrap_or(true);
+    if let Some(children) = item["submenu"].as_array() {
+        if children.len() > 100 {
+            return Err("Menu has too many children".into());
+        }
+        let submenu = Submenu::new(app, &label, enabled).map_err(|error| error.to_string())?;
+        for child in children {
+            let child = build_menu_item(app, child, depth + 1, count)?;
+            submenu.append(&child).map_err(|error| error.to_string())?;
+        }
+        return Ok(MenuItemKind::Submenu(submenu));
+    }
+    let id = item["id"].as_str().ok_or("Missing menu item ID")?;
+    if id.is_empty()
+        || id.len() > 80
+        || !id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+    {
+        return Err("Invalid menu item ID".into());
+    }
+    if item["type"] == "checkbox" {
+        CheckMenuItem::with_id(
+            app,
+            id,
+            &label,
+            enabled,
+            item["checked"] == true,
+            None::<&str>,
+        )
+        .map(MenuItemKind::Check)
+        .map_err(|error| error.to_string())
+    } else {
+        MenuItem::with_id(app, id, &label, enabled, None::<&str>)
+            .map(MenuItemKind::MenuItem)
+            .map_err(|error| error.to_string())
     }
 }
 

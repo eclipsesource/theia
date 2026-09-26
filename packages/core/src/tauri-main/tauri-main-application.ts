@@ -415,8 +415,11 @@ export class TauriMainApplication {
             && !/[\r\n\0]/.test(message.fragment)
             && (!('search' in message) || typeof message.search === 'string' && message.search.length <= 4096
                 && !/[\r\n\0#]/.test(message.search));
+        const validMenu = 'operation' in message && message.operation === 'set-menu'
+            && 'items' in message && this.isValidMenu(message.items);
         if (!('version' in message) || message.version !== 1 || !('window' in message) || message.window !== session.label
-            || (!validTitle && !validOpenFile && !validDialog && !validWindowAction && !validZoom && !validClipboardRead && !validClipboardWrite && !validNewWindow)) {
+            || (!validTitle && !validOpenFile && !validDialog && !validWindowAction && !validZoom
+                && !validClipboardRead && !validClipboardWrite && !validNewWindow && !validMenu)) {
             respond('Invalid native request');
             return;
         }
@@ -433,6 +436,31 @@ export class TauriMainApplication {
         }, validOpenFile || validDialog ? 120000 : 9000);
         this.nativeRequests.set(id, { session, backendId, timer });
         this.send({ ...message, id });
+    }
+
+    protected isValidMenu(items: unknown, depth = 0, budget = { remaining: 500 }): boolean {
+        if (!Array.isArray(items) || depth > 5 || items.length > 100) {
+            return false;
+        }
+        return items.every(item => {
+            if (--budget.remaining < 0 || typeof item !== 'object' || !item) {
+                return false;
+            }
+            if (item.type === 'separator') {
+                return item.id === undefined && item.label === undefined && item.submenu === undefined;
+            }
+            if (typeof item.label !== 'string' || !item.label || item.label.length > 120 || /[\r\n\0]/.test(item.label)
+                || item.enabled !== undefined && typeof item.enabled !== 'boolean') {
+                return false;
+            }
+            if (item.submenu !== undefined) {
+                return item.id === undefined && item.type === undefined && item.checked === undefined
+                    && this.isValidMenu(item.submenu, depth + 1, budget);
+            }
+            return typeof item.id === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(item.id)
+                && (item.type === undefined || item.type === 'checkbox')
+                && (item.checked === undefined || typeof item.checked === 'boolean');
+        });
     }
 
     protected async openWindow(fragment: string, args: string[] = this.options.args, search = '', cwd = process.cwd()): Promise<void> {

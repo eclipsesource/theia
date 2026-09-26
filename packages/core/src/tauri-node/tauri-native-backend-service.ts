@@ -5,7 +5,7 @@
 // *****************************************************************************
 
 import { injectable } from 'inversify';
-import { TauriFileDialogOptions, TauriNativeService } from '../tauri-common/tauri-native-service';
+import { TauriFileDialogOptions, TauriMenuItem, TauriNativeService } from '../tauri-common/tauri-native-service';
 
 interface PendingRequest {
     resolve: (value: unknown) => void;
@@ -61,6 +61,10 @@ export class TauriNativeBackendService implements TauriNativeService {
         return this.request<void>('open-window', { fragment, search }, 50000);
     }
 
+    setMenu(items: TauriMenuItem[]): Promise<void> {
+        return this.request<void>('set-menu', { items }, 10000);
+    }
+
     focusWindow(): Promise<void> {
         return this.request<void>('focus-window', {}, 10000);
     }
@@ -113,7 +117,7 @@ export class TauriNativeBackendService implements TauriNativeService {
 
     protected request<T>(operation: 'set-window-title' | 'focus-window' | 'minimize-window' | 'toggle-maximize' | 'toggle-fullscreen' | 'set-window-zoom' | 'close-window'
         | 'read-clipboard-text' | 'write-clipboard-text'
-        | 'open-file' | 'show-open-dialog' | 'show-save-dialog' | 'open-window', payload: object, timeout: number): Promise<T> {
+        | 'open-file' | 'show-open-dialog' | 'show-save-dialog' | 'open-window' | 'set-menu', payload: object, timeout: number): Promise<T> {
         if (!process.connected || !process.send) {
             return Promise.reject(new Error('Desktop controller is unavailable'));
         }

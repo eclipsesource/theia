@@ -20,10 +20,20 @@ export interface TauriFileDialogOptions {
     multiple?: boolean;
 }
 
+export interface TauriMenuItem {
+    id?: string;
+    label?: string;
+    enabled?: boolean;
+    checked?: boolean;
+    type?: 'separator' | 'checkbox';
+    submenu?: TauriMenuItem[];
+}
+
 /** Operations that the trusted frontend can request through the authenticated backend connection. */
 export interface TauriNativeService {
     /** Open another workbench in an independent native window. The fragment is a workspace URI or !empty. */
     openWindow(fragment: string, search?: string): Promise<void>;
+    setMenu(items: TauriMenuItem[]): Promise<void>;
     setWindowTitle(title: string): Promise<void>;
     focusWindow(): Promise<void>;
     minimizeWindow(): Promise<void>;
