@@ -23,7 +23,8 @@ import { TauriCloseClient, tauriCloseServicePath } from '../../tauri-common/taur
 import { TauriCloseBackendCoordinator } from '../tauri-close-backend-coordinator';
 import { TauriUntrustedContentServer } from '../tauri-untrusted-content-server';
 
-const TauriSecurityToken = Symbol('TauriSecurityToken');
+export const TauriSecurityToken = Symbol('TauriSecurityToken');
+export const TauriCookieName = Symbol('TauriCookieName');
 const securityToken = process.env.THEIA_TAURI_TOKEN;
 delete process.env.THEIA_TAURI_TOKEN;
 const cookieName = process.env.THEIA_TAURI_COOKIE_NAME || 'THEIA_TAURI_TOKEN';
@@ -156,6 +157,7 @@ class TauriMessagingService extends DefaultMessagingService {
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(TauriSecurityToken).toConstantValue(securityToken);
+    bind(TauriCookieName).toConstantValue(cookieName);
     bind(TauriTokenValidator).toSelf().inSingletonScope();
     bind(WsRequestValidatorContribution).toService(TauriTokenValidator);
     bind(TauriHttpAuthContribution).toSelf().inSingletonScope();
