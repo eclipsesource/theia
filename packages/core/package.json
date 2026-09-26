@@ -185,7 +185,8 @@
     },
     {
       "frontend": "lib/browser/request/browser-request-module",
-      "frontendElectron": "lib/electron-browser/request/electron-browser-request-module"
+      "frontendElectron": "lib/electron-browser/request/electron-browser-request-module",
+      "frontendTauri": "lib/tauri-browser/request/tauri-browser-request-module"
     },
     {
       "backend": "lib/node/request/backend-request-module",
