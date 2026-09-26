@@ -23,6 +23,19 @@
       {
         "command": "tauriProbe.persistSecret",
         "title": "Tauri Probe: Store Secret For Relaunch"
+      },
+      {
+        "command": "tauriProbe.openCustomEditor",
+        "title": "Tauri Probe: Open Custom Editor"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "tauriProbe.customEditor",
+        "displayName": "Tauri Probe Custom Editor",
+        "selector": [
+          { "filenamePattern": "*.tauri-probe" }
+        ]
       }
     ]
   }

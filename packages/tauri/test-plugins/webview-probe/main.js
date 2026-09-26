@@ -85,6 +85,18 @@ exports.activate = context => {
         await context.secrets.store(persistedSecretKey, 'TAURI_PERSISTED_SECRET_VALUE');
         console.log('TAURI_PROBE_SECRET_STORED');
     }));
+    context.subscriptions.push(vscode.window.registerCustomEditorProvider('tauriProbe.customEditor', {
+        resolveCustomTextEditor(document, panel) {
+            console.log(`TAURI_PROBE_CUSTOM_EDITOR_OPEN ${document.uri.toString()}`);
+            configurePanel(panel, 5);
+        }
+    }, { webviewOptions: { retainContextWhenHidden: true } }));
+    context.subscriptions.push(vscode.commands.registerCommand('tauriProbe.openCustomEditor', async () => {
+        await vscode.workspace.fs.createDirectory(context.globalStorageUri);
+        const resource = vscode.Uri.joinPath(context.globalStorageUri, 'preview.tauri-probe');
+        await vscode.workspace.fs.writeFile(resource, Buffer.from('Tauri custom editor probe\n'));
+        await vscode.commands.executeCommand('vscode.openWith', resource, 'tauriProbe.customEditor');
+    }));
 };
 
 exports.deactivate = () => console.log('TAURI_PROBE_DEACTIVATED');
