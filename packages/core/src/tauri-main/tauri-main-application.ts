@@ -37,6 +37,8 @@ interface WindowSession {
     token: string;
     cookieName: string;
     port: number;
+    hostedOwner?: string;
+    stopping?: boolean;
 }
 
 interface PendingRequest {
@@ -307,20 +309,24 @@ export class TauriMainApplication {
         });
     }
 
-    protected startBackend(label: string, args: string[], port: number, cwd = process.cwd()): Promise<WindowSession> {
+    protected startBackend(label: string, args: string[], port: number, cwd = process.cwd(),
+        hosted?: { pluginPath: string; owner: string }): Promise<WindowSession> {
         const token = randomBytes(32).toString('hex');
         const cookieName = label === 'main' ? 'THEIA_TAURI_TOKEN' : `THEIA_TAURI_TOKEN_${label.replace(/-/g, '')}`;
         return new Promise((resolve, reject) => {
+            const profile = process.env.THEIA_CONFIG_DIR;
             const backend = fork(this.options.backendPath, this.backendArgs(args, port), {
                 execPath: process.execPath,
                 cwd,
                 stdio: ['inherit', 'pipe', 'pipe', 'ipc'],
                 env: { ...process.env, THEIA_PARENT_PID: String(process.pid), THEIA_TARGET: 'tauri', THEIA_TAURI_TOKEN: token,
                     THEIA_TAURI_COOKIE_NAME: cookieName, THEIA_TAURI_WINDOW_ID: label,
+                    ...(hosted && { HOSTED_PLUGIN: hosted.pluginPath,
+                        THEIA_CONFIG_DIR: join(profile || join(homedir(), '.theia'), 'hosted-instance', label) }),
                     THEIA_MINI_BROWSER_HOST_PATTERN: `{{uuid}}.mini-browser.localhost:${port}`,
                     THEIA_WEBVIEW_EXTERNAL_ENDPOINT: `{{uuid}}.webview.localhost:${port}` }
             });
-            const session: WindowSession = { label, backend, token, cookieName, port };
+            const session: WindowSession = { label, backend, token, cookieName, port, hostedOwner: hosted?.owner };
             let settled = false;
             backend.stdout?.on('data', chunk => process.stderr.write(chunk));
             let startupStderr = '';
@@ -364,8 +370,11 @@ export class TauriMainApplication {
                 } else if (this.state === 'ready') {
                     this.windows.delete(label);
                     this.cancelSessionRequests(session);
+                    this.notifyHostedPluginExit(session);
                     this.send({ version: 1, type: 'window-backend-exited', window: label });
-                    this.reportError(`Backend for ${label} exited`, code ?? signal);
+                    if (!session.stopping) {
+                        this.reportError(`Backend for ${label} exited`, code ?? signal);
+                    }
                     if (this.windows.size === 0) {
                         this.stop().catch(error => this.reportError('Could not stop after final backend exit', error));
                     }
@@ -446,11 +455,20 @@ export class TauriMainApplication {
             && !/[\r\n\0]/.test(message.fragment)
             && (!('search' in message) || typeof message.search === 'string' && message.search.length <= 4096
                 && !/[\r\n\0#]/.test(message.search));
+        const validHostedOpen = 'operation' in message && message.operation === 'open-hosted-plugin'
+            && 'pluginPath' in message && typeof message.pluginPath === 'string' && isAbsolute(message.pluginPath)
+            && message.pluginPath.length <= 4096 && !/[\r\n\0]/.test(message.pluginPath)
+            && 'debugArgs' in message && Array.isArray(message.debugArgs) && message.debugArgs.length <= 8
+            && message.debugArgs.every((arg: unknown) => typeof arg === 'string'
+                && /^--[a-z][a-z0-9-]{0,40}-(?:inspect|inspect-brk)=127\.0\.0\.1(?::[0-9]{1,5})?$/.test(arg));
+        const validHostedStop = 'operation' in message && message.operation === 'stop-hosted-plugin'
+            && 'label' in message && typeof message.label === 'string' && /^workspace-[0-9a-f]{16}$/.test(message.label);
         const validMenu = 'operation' in message && message.operation === 'set-menu'
             && 'items' in message && this.isValidMenu(message.items);
         if (!('version' in message) || message.version !== 1 || !('window' in message) || message.window !== session.label
             || (!validTitle && !validOpenFile && !validDialog && !validWindowAction && !validZoom
-                && !validClipboardRead && !validClipboardWrite && !validNewWindow && !validMenu)) {
+                && !validClipboardRead && !validClipboardWrite && !validNewWindow && !validMenu
+                && !validHostedOpen && !validHostedStop)) {
             respond('Invalid native request');
             return;
         }
@@ -458,6 +476,35 @@ export class TauriMainApplication {
             this.openWindow(message.fragment as string, this.options.args, 'search' in message ? message.search as string : '')
                 .then(() => session.backend.send({ version: 1, type: 'native-response', id: backendId, ok: true }),
                 error => respond(String(error)));
+            return;
+        }
+        if (validHostedOpen) {
+            (async () => {
+                const pluginPath = await realpath(message.pluginPath as string);
+                if (!(await stat(pluginPath)).isDirectory() || !existsSync(join(pluginPath, 'package.json'))) {
+                    throw new Error('Hosted plugin must be a directory with package.json');
+                }
+                const hosted = await this.openWindow('!empty', [...this.options.args, ...(message.debugArgs as string[])], '', process.cwd(),
+                    { pluginPath, owner: session.label });
+                if (this.state !== 'ready' || this.windows.get(session.label) !== session || !session.backend.connected) {
+                    hosted.stopping = true;
+                    hosted.backend.kill('SIGTERM');
+                    return;
+                }
+                session.backend.send({ version: 1, type: 'native-response', id: backendId, ok: true,
+                    result: { label: hosted.label, url: this.windowUrl(hosted, '!empty') } });
+            })().catch(error => respond(String(error)));
+            return;
+        }
+        if (validHostedStop) {
+            const hosted = this.windows.get(message.label as string);
+            if (!hosted || hosted.hostedOwner !== session.label) {
+                respond('Hosted plugin is unavailable');
+            } else {
+                hosted.stopping = true;
+                hosted.backend.kill('SIGTERM');
+                session.backend.send({ version: 1, type: 'native-response', id: backendId, ok: true });
+            }
             return;
         }
         const id = ++this.nextNativeId;
@@ -494,13 +541,14 @@ export class TauriMainApplication {
         });
     }
 
-    protected async openWindow(fragment: string, args: string[] = this.options.args, search = '', cwd = process.cwd()): Promise<void> {
+    protected async openWindow(fragment: string, args: string[] = this.options.args, search = '', cwd = process.cwd(),
+        hosted?: { pluginPath: string; owner: string }): Promise<WindowSession> {
         const label = `workspace-${randomBytes(8).toString('hex')}`;
         let session: WindowSession | undefined;
         for (let attempt = 0; attempt < 5; attempt++) {
             const port = await this.availablePort();
             try {
-                session = await this.startBackend(label, args, port, cwd);
+                session = await this.startBackend(label, args, port, cwd, hosted);
                 break;
             } catch (error) {
                 if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE' || attempt === 4) {
@@ -526,6 +574,7 @@ export class TauriMainApplication {
             session.backend.kill('SIGTERM');
             throw error;
         }
+        return session;
     }
 
     protected handleWindowCreated(message: unknown): void {
@@ -625,7 +674,20 @@ export class TauriMainApplication {
         }
         this.windows.delete(session.label);
         this.cancelSessionRequests(session);
+        this.notifyHostedPluginExit(session);
+        for (const child of this.windows.values()) {
+            if (child.hostedOwner === session.label) {
+                child.backend.kill('SIGTERM');
+            }
+        }
         session.backend.kill('SIGTERM');
+    }
+
+    protected notifyHostedPluginExit(session: WindowSession): void {
+        const owner = session.hostedOwner ? this.windows.get(session.hostedOwner) : undefined;
+        if (owner?.backend.connected) {
+            owner.backend.send({ version: 1, type: 'hosted-plugin-exited', window: session.label });
+        }
     }
 
     protected cancelSessionRequests(session: WindowSession): void {

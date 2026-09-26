@@ -19,6 +19,7 @@ import URI from '@theia/core/lib/common/uri';
 import { Path } from '@theia/core/lib/common/path';
 import { MessageService, Command, Emitter, Event } from '@theia/core/lib/common';
 import { LabelProvider, isNative, AbstractDialog } from '@theia/core/lib/browser';
+import { environment } from '@theia/core';
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { FileDialogService } from '@theia/filesystem/lib/browser';
@@ -356,7 +357,10 @@ export class HostedPluginManagerClient {
      */
     protected async openPluginWindow(): Promise<void> {
         if (this.pluginInstanceURL) {
-            if (isNative) {
+            if (environment.tauri.is()) {
+                // The Tauri controller created the hosted backend and its native window together.
+                return;
+            } else if (isNative) {
                 // In Electron, the hosted backend is a headless Node.js server process.
                 // Open a new default window (file:// URL) pointing to the hosted backend's
                 // port, just like normal Electron windows. This ensures the origin is

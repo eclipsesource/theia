@@ -20,6 +20,7 @@
     {
       "backend": "lib/node/plugin-dev-backend-module",
       "backendElectron": "lib/node-electron/plugin-dev-electron-backend-module",
+      "backendTauri": "lib/tauri-node/plugin-dev-tauri-backend-module",
       "frontend": "lib/browser/plugin-dev-frontend-module"
     }
   ],

@@ -67,7 +67,7 @@ export interface HostedInstanceManager {
      * Terminates hosted plugin instance.
      * Throws error if instance is not running.
      */
-    terminate(): void;
+    terminate(): void | Promise<void>;
 
     /**
      * Returns uri where hosted instance is run.

@@ -41,7 +41,7 @@ export class PluginDevServerImpl implements PluginDevServer {
     dispose(): void {
         // Terminate the hosted instance if it is currently running.
         if (this.hostedInstanceManager.isRunning()) {
-            this.hostedInstanceManager.terminate();
+            Promise.resolve(this.hostedInstanceManager.terminate()).catch(() => undefined);
         }
     }
     setClient(client: PluginDevClient): void {
@@ -68,9 +68,8 @@ export class PluginDevServerImpl implements PluginDevServer {
         return this.uriToStrPromise(this.hostedInstanceManager.debug(new URI(uri), debugConfig));
     }
 
-    terminateHostedPluginInstance(): Promise<void> {
-        this.hostedInstanceManager.terminate();
-        return Promise.resolve();
+    async terminateHostedPluginInstance(): Promise<void> {
+        await this.hostedInstanceManager.terminate();
     }
 
     isHostedPluginInstanceRunning(): Promise<boolean> {

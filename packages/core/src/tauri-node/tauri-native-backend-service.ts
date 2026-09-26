@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 import { injectable } from 'inversify';
+import { Emitter } from '../common/event';
 import { TauriFileDialogOptions, TauriMenuItem, TauriNativeService } from '../tauri-common/tauri-native-service';
 
 interface PendingRequest {
@@ -18,9 +19,16 @@ export class TauriNativeBackendService implements TauriNativeService {
     protected nextId = 0;
     protected readonly pending = new Map<number, PendingRequest>();
     protected readonly windowId = process.env.THEIA_TAURI_WINDOW_ID || 'main';
+    protected readonly hostedPluginExitedEmitter = new Emitter<string>();
+    readonly onDidHostedPluginExit = this.hostedPluginExitedEmitter.event;
 
     constructor() {
         process.on('message', message => {
+            if (typeof message === 'object' && message && 'type' in message && message.type === 'hosted-plugin-exited'
+                && 'window' in message && typeof message.window === 'string') {
+                this.hostedPluginExitedEmitter.fire(message.window);
+                return;
+            }
             if (typeof message !== 'object' || !message || !('type' in message) || message.type !== 'native-response'
                 || !('id' in message) || typeof message.id !== 'number') {
                 return;
@@ -59,6 +67,21 @@ export class TauriNativeBackendService implements TauriNativeService {
             return Promise.reject(new Error('Invalid window URL'));
         }
         return this.request<void>('open-window', { fragment, search }, 50000);
+    }
+
+    openHostedPlugin(pluginPath: string, debugArgs: string[] = []): Promise<{ label: string; url: string }> {
+        if (typeof pluginPath !== 'string' || pluginPath.length > 4096 || !pluginPath.startsWith('/') || /[\r\n\0]/.test(pluginPath)
+            || !Array.isArray(debugArgs) || debugArgs.length > 8 || !debugArgs.every(arg => typeof arg === 'string' && arg.length <= 120)) {
+            return Promise.reject(new Error('Invalid hosted plugin request'));
+        }
+        return this.request('open-hosted-plugin', { pluginPath, debugArgs }, 50000);
+    }
+
+    stopHostedPlugin(label: string): Promise<void> {
+        if (!/^workspace-[0-9a-f]{16}$/.test(label)) {
+            return Promise.reject(new Error('Invalid hosted plugin window'));
+        }
+        return this.request<void>('stop-hosted-plugin', { label }, 10000);
     }
 
     setMenu(items: TauriMenuItem[]): Promise<void> {
@@ -117,7 +140,8 @@ export class TauriNativeBackendService implements TauriNativeService {
 
     protected request<T>(operation: 'set-window-title' | 'focus-window' | 'minimize-window' | 'toggle-maximize' | 'toggle-fullscreen' | 'set-window-zoom' | 'close-window'
         | 'read-clipboard-text' | 'write-clipboard-text'
-        | 'open-file' | 'show-open-dialog' | 'show-save-dialog' | 'open-window' | 'set-menu', payload: object, timeout: number): Promise<T> {
+        | 'open-file' | 'show-open-dialog' | 'show-save-dialog' | 'open-window' | 'set-menu'
+        | 'open-hosted-plugin' | 'stop-hosted-plugin', payload: object, timeout: number): Promise<T> {
         if (!process.connected || !process.send) {
             return Promise.reject(new Error('Desktop controller is unavailable'));
         }
