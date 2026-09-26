@@ -31,6 +31,10 @@
       {
         "command": "tauriProbe.saveDialog",
         "title": "Tauri Probe: Test Save Dialog"
+      },
+      {
+        "command": "tauriProbe.openView",
+        "title": "Tauri Probe: Open View"
       }
     ],
     "customEditors": [
@@ -38,9 +42,20 @@
         "viewType": "tauriProbe.customEditor",
         "displayName": "Tauri Probe Custom Editor",
         "selector": [
-          { "filenamePattern": "*.tauri-probe" }
+          {
+            "filenamePattern": "*.tauri-probe"
+          }
         ]
       }
-    ]
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "tauriProbe.sidebar",
+          "name": "Tauri Probe View",
+          "type": "webview"
+        }
+      ]
+    }
   }
 }

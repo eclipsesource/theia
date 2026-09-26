@@ -17,6 +17,8 @@ Use a disposable profile while evaluating: set `THEIA_CONFIG_DIR`, `XDG_CONFIG_H
 
 The small VS Code plugin at `packages/tauri/test-plugins/webview-probe` can be copied into a disposable profile's `plugins` directory. It activates at startup and exposes `Tauri Probe: Open Webview` to check webview script, local resource, HTML update, dispose/recreate, reload and relaunch restoration, service worker readiness, and service-channel isolation. Accept workspace trust in the disposable profile before testing plugin activation.
 
+`Tauri Probe: Open View` focuses the probe's webview view in Explorer. Its log reports `view-ready`, `view-resource`, and `view-authority` results for script execution, a local extension resource, and denial of the trusted service WebSocket.
+
 The same probe exposes `Tauri Probe: Test Secret Storage` for a store/read/delete check and `Tauri Probe: Store Secret For Relaunch` for a same-profile persistence check. The latter reports its result in the plugin log on next activation and deletes the fixed test value.
 
 `Tauri Probe: Open Custom Editor` creates a disposable file in the plugin's global storage and opens it with a custom text editor. The editor checks script execution, a local webview resource, service-worker readiness and denial of the trusted service WebSocket. Under Xvfb, all four results appeared in the plugin log; the custom editor also rendered in the workbench.

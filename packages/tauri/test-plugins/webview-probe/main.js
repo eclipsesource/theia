@@ -6,6 +6,26 @@ const path = require('path');
 
 exports.activate = context => {
     console.log('TAURI_PROBE_ACTIVATED');
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider('tauriProbe.sidebar', {
+        resolveWebviewView(view) {
+            console.log('TAURI_WEBVIEW_VIEW_RESOLVED');
+            view.webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.file(__dirname)] };
+            view.webview.onDidReceiveMessage(message => console.log(`TAURI_WEBVIEW_VIEW_MESSAGE ${JSON.stringify(message)}`));
+            const resource = view.webview.asWebviewUri(vscode.Uri.file(path.join(__dirname, 'resource.txt')));
+            view.webview.html = `<!doctype html><html><body><h2>Tauri Probe View</h2><script>
+                const api = acquireVsCodeApi();
+                api.postMessage({ kind: 'view-ready' });
+                const socket = new WebSocket('ws://127.0.0.1:' + location.port + '/tauri-services');
+                socket.onopen = () => { api.postMessage({ kind: 'view-authority', result: 'unexpected-open' }); socket.close(); };
+                socket.onclose = event => api.postMessage({ kind: 'view-authority', result: 'closed', code: event.code });
+                fetch(${JSON.stringify(resource.toString())}).then(response => response.text())
+                    .then(text => api.postMessage({ kind: 'view-resource', text }))
+                    .catch(error => api.postMessage({ kind: 'view-error', error: String(error) }));
+            </script></body></html>`;
+        }
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('tauriProbe.openView', () =>
+        vscode.commands.executeCommand('tauriProbe.sidebar.focus')));
     const persistedSecretKey = 'theia-tauri-probe-persisted-secret';
     context.secrets.get(persistedSecretKey).then(async value => {
         if (value !== undefined) {
