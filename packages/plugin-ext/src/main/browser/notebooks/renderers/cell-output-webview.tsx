@@ -272,13 +272,15 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
         this.webviewWidgetInitialized.resolve();
 
         // this.webviewWidget.parent = this.editor ?? null;
+        const kernel = this.notebookKernelService.getSelectedOrSuggestedKernel(this.notebook);
         this.webviewWidget.setContentOptions({
             allowScripts: true,
             // The isolated Tauri origin reads renderer scripts through the webview resource channel.
             localResourceRoots: environment.tauri.is()
                 ? [...new Set([
                     ...this.notebookRendererRegistry.notebookRenderers.flatMap(renderer => renderer.packageUri ? [renderer.packageUri] : []),
-                    ...this.notebookRendererRegistry.staticNotebookPreloads.flatMap(preload => preload.packageUri ? [preload.packageUri] : [])
+                    ...this.notebookRendererRegistry.staticNotebookPreloads.flatMap(preload => preload.packageUri ? [preload.packageUri] : []),
+                    ...(kernel?.preloadUris.length ? [kernel.localResourceRoot.toString()] : [])
                 ])]
                 : undefined,
             // eslint-disable-next-line max-len
@@ -563,7 +565,8 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
 
     getPreloads(): string[] {
         const kernel = this.notebookKernelService.getSelectedOrSuggestedKernel(this.notebook);
-        const kernelPreloads = kernel?.preloadUris.map(uri => uri.toString()) ?? [];
+        const kernelPreloads = kernel?.preloadUris.map(uri => environment.tauri.is()
+            ? this.toTauriNotebookResourcePath(uri.toString()) : uri.toString()) ?? [];
 
         const staticPreloads = this.notebookRendererRegistry.staticNotebookPreloads
             .filter(preload => preload.type === this.notebook.viewType)

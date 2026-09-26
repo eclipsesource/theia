@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 
 const vscode = require('vscode');
+const path = require('path');
 
 exports.activate = context => {
     console.log('TAURI_NOTEBOOK_PROBE_ACTIVATED');
@@ -19,7 +20,8 @@ exports.activate = context => {
             return Buffer.from(JSON.stringify({ cells: data.cells.length }));
         }
     }));
-    const kernel = vscode.notebooks.createNotebookController('tauri-probe-kernel', 'tauri-probe-notebook', 'Tauri Probe Kernel');
+    const kernelScript = new vscode.NotebookRendererScript(vscode.Uri.file(path.join(__dirname, 'kernel-preload.js')));
+    const kernel = vscode.notebooks.createNotebookController('tauri-probe-kernel', 'tauri-probe-notebook', 'Tauri Probe Kernel', undefined, [kernelScript]);
     kernel.supportedLanguages = ['javascript'];
     kernel.executeHandler = async cells => {
         for (const cell of cells) {

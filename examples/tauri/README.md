@@ -29,7 +29,7 @@ For plugin development, run **Hosted Plugin: Select Path** and choose a local ex
 
 The `native-module-probe` and `headless-probe` under `packages/tauri/test-plugins` exercise native addon loading and Theia headless-plugin start/stop respectively. A disposable copy of `native-module-probe` also loaded its own `node-pty` and `native-keymap` binaries from the extension's `node_modules`. A local VSIX built from `webview-probe` installed through **Extensions: Install from VSIX...**, activated without reload, and reactivated after a same-profile relaunch. Uninstalling it from the Extensions view removed the deployed directory; it stayed absent after relaunch. These checks used disposable profiles under Xvfb; marketplace installation and updates remain untested.
 
-The `notebook-probe` fixture can be deployed from `packages/tauri/test-plugins/notebook-probe`. Run **Tauri Probe: Open Notebook**, then **Run All**. Its output should read `TAURI_RENDERER_2_PRELOAD_OK_OUTSIDE_BLOCKED`: the custom renderer loaded, its static preload ran, and a request outside the extension directory was denied. The probe checks one local notebook workflow; kernel-provided scripts and other renderers still need coverage.
+The `notebook-probe` fixture can be deployed from `packages/tauri/test-plugins/notebook-probe`. Run **Tauri Probe: Open Notebook**, then **Run All**. Its output should read `TAURI_RENDERER_2_PRELOAD_OK_KERNEL_OK_OUTSIDE_BLOCKED`: the custom renderer loaded, its static and kernel preloads ran, and a request outside the extension directory was denied. The probe checks one local notebook workflow; other renderers and kernel-switching behavior still need coverage.
 
 ## Current limitations
 
