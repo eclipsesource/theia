@@ -618,12 +618,14 @@ export class TauriMainApplication {
         if (!session) {
             return;
         }
+        if (this.windows.size === 1) {
+            // Keep the final backend in the map so stop() waits for its cleanup.
+            this.stop().catch(error => this.reportError('Could not stop after final window closed', error));
+            return;
+        }
         this.windows.delete(session.label);
         this.cancelSessionRequests(session);
         session.backend.kill('SIGTERM');
-        if (this.windows.size === 0) {
-            this.stop().catch(error => this.reportError('Could not stop after final window closed', error));
-        }
     }
 
     protected cancelSessionRequests(session: WindowSession): void {

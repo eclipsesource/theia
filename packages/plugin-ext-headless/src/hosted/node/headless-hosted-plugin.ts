@@ -72,8 +72,8 @@ export class HeadlessHostedPluginSupport extends AbstractHostedPluginSupport<Hea
         super(generateUuid());
     }
 
-    shutDown(): void {
-        this.pluginProcess.terminatePluginServer();
+    shutDown(): Promise<void> {
+        return this.pluginProcess.terminatePluginServer();
     }
 
     protected createTheiaReadyPromise(): Promise<unknown> {
@@ -131,7 +131,7 @@ export class HeadlessHostedPluginSupport extends AbstractHostedPluginSupport<Hea
 
             const activationEvents = this.supportedActivationEventsContributions.getContributions().flatMap(array => array);
             const shell = await this.shellTerminalServer.getDefaultShell();
-            const isElectron = environment.electron.is();
+            const isDesktop = environment.electron.is() || environment.tauri.is();
 
             await manager.$init({
                 activationEvents,
@@ -140,7 +140,7 @@ export class HeadlessHostedPluginSupport extends AbstractHostedPluginSupport<Hea
                     language: nls.locale || nls.defaultLocale,
                     shell,
                     appName: BackendApplicationConfigProvider.get().applicationName,
-                    appHost: isElectron ? 'desktop' : 'web' // TODO: 'web' could be the embedder's name, e.g. 'github.dev'
+                    appHost: isDesktop ? 'desktop' : 'web' // TODO: 'web' could be the embedder's name, e.g. 'github.dev'
                 },
                 extApi
             });

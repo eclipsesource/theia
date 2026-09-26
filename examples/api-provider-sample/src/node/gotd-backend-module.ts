@@ -18,11 +18,8 @@ import { ExtPluginApiProvider } from '@theia/plugin-ext';
 import { ExtPluginGotdApiProvider } from './ext-plugin-gotd-api-provider';
 import { MainPluginApiProvider } from '@theia/plugin-ext/lib/common/plugin-ext-api-contribution';
 import { GotdMainPluginApiProvider } from './gotd-main-plugin-provider';
-import { GreetingMain } from '../common/plugin-api-rpc';
-import { GreetingMainImpl } from './greeting-main-impl';
 
 export default new ContainerModule(bind => {
     bind(Symbol.for(ExtPluginApiProvider)).to(ExtPluginGotdApiProvider).inSingletonScope();
     bind(MainPluginApiProvider).to(GotdMainPluginApiProvider).inSingletonScope();
-    bind(GreetingMain).to(GreetingMainImpl).inSingletonScope();
 });

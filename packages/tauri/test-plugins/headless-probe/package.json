@@ -1,0 +1,14 @@
+{
+  "name": "theia-tauri-headless-probe",
+  "version": "0.0.1",
+  "publisher": "theia",
+  "engines": {
+    "theiaHeadlessPlugin": "*"
+  },
+  "main": "./main.js",
+  "headless": {
+    "activationEvents": [
+      "*"
+    ]
+  }
+}

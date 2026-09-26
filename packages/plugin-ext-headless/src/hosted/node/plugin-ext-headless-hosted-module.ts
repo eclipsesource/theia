@@ -67,8 +67,8 @@ export function bindHeadlessHosted(bind: interfaces.Bind): void {
                 hostedPluginSupport = headlessPluginsContainer.get(HeadlessHostedPluginSupport);
                 hostedPluginSupport.onStart(headlessPluginsContainer);
             }
-            onStop(): void {
-                hostedPluginSupport?.shutDown();
+            onStop(): Promise<void> | undefined {
+                return hostedPluginSupport?.shutDown();
             }
         }();
     });

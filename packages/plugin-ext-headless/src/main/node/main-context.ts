@@ -18,12 +18,15 @@ import { RPCProtocol } from '@theia/plugin-ext/lib/common/rpc-protocol';
 import { EnvMainImpl } from '@theia/plugin-ext/lib/main/common/env-main';
 import { BasicMessageRegistryMainImpl } from '@theia/plugin-ext/lib/main/common/basic-message-registry-main';
 import { BasicNotificationMainImpl } from '@theia/plugin-ext/lib/main/common/basic-notification-main';
+import { LoggerMain, LogLevel, PLUGIN_RPC_CONTEXT } from '@theia/plugin-ext/lib/common/plugin-api-rpc';
+import { ILogger } from '@theia/core';
 
 import { HEADLESSMAIN_RPC_CONTEXT, HEADLESSPLUGIN_RPC_CONTEXT } from '../../common/headless-plugin-rpc';
 
 // This sets up only the minimal plugin API required by the plugin manager to report
 // messages and notifications to the main side and to initialize plugins.
 export function setUpPluginApi(rpc: RPCProtocol, container: interfaces.Container): void {
+    rpc.set(PLUGIN_RPC_CONTEXT.LOGGER_MAIN, new HeadlessLoggerMain(container));
     const envMain = new EnvMainImpl(rpc, container);
     rpc.set(HEADLESSPLUGIN_RPC_CONTEXT.ENV_MAIN, envMain);
 
@@ -32,4 +35,19 @@ export function setUpPluginApi(rpc: RPCProtocol, container: interfaces.Container
 
     const notificationMain = new BasicNotificationMainImpl(rpc, container, HEADLESSMAIN_RPC_CONTEXT.NOTIFICATION_EXT);
     rpc.set(HEADLESSPLUGIN_RPC_CONTEXT.NOTIFICATION_MAIN, notificationMain);
+}
+
+class HeadlessLoggerMain implements LoggerMain {
+    constructor(protected readonly container: interfaces.Container) { }
+
+    $log(level: LogLevel, name: string | undefined, message: string, params: unknown[]): void {
+        const logger = name ? this.container.getNamed<ILogger>(ILogger, name) : this.container.get<ILogger>(ILogger);
+        switch (level) {
+            case LogLevel.Trace: logger.trace(message, ...params); break;
+            case LogLevel.Debug: logger.debug(message, ...params); break;
+            case LogLevel.Info: logger.info(message, ...params); break;
+            case LogLevel.Warn: logger.warn(message, ...params); break;
+            case LogLevel.Error: logger.error(message, ...params); break;
+        }
+    }
 }

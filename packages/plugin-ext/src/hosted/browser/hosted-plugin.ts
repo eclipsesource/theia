@@ -336,7 +336,7 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
                 return undefined;
             }
 
-            const isElectron = environment.electron.is();
+            const isDesktop = environment.electron.is() || environment.tauri.is();
 
             const supportedActivationEvents = [...HostedPluginSupport.BUILTIN_ACTIVATION_EVENTS];
             const [additionalActivationEvents, appRoot] = await Promise.all([
@@ -355,9 +355,9 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
                     queryParams: getQueryParameters(),
                     language: nls.locale || nls.defaultLocale,
                     shell: defaultShell,
-                    uiKind: isElectron ? UIKind.Desktop : UIKind.Web,
+                    uiKind: isDesktop ? UIKind.Desktop : UIKind.Web,
                     appName: FrontendApplicationConfigProvider.get().applicationName,
-                    appHost: isElectron ? 'desktop' : 'web', // TODO: 'web' could be the embedder's name, e.g. 'github.dev'
+                    appHost: isDesktop ? 'desktop' : 'web', // TODO: 'web' could be the embedder's name, e.g. 'github.dev'
                     appRoot,
                     appUriScheme: FrontendApplicationConfigProvider.get().electron.uriScheme
                 },

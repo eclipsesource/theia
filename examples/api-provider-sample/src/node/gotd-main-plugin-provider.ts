@@ -15,15 +15,14 @@
 // *****************************************************************************
 import { MainPluginApiProvider } from '@theia/plugin-ext/lib/common/plugin-ext-api-contribution';
 import { RPCProtocol } from '@theia/plugin-ext/lib/common/rpc-protocol';
-import { inject, injectable } from '@theia/core/shared/inversify';
-import { GreetingMain, PLUGIN_RPC_CONTEXT } from '../common/plugin-api-rpc';
+import { injectable } from '@theia/core/shared/inversify';
+import { PLUGIN_RPC_CONTEXT } from '../common/plugin-api-rpc';
+import { GreetingMainImpl } from './greeting-main-impl';
 
 @injectable()
 export class GotdMainPluginApiProvider implements MainPluginApiProvider {
-    @inject(GreetingMain)
-    protected readonly greetingMain: GreetingMain;
-
     initialize(rpc: RPCProtocol): void {
-        rpc.set(PLUGIN_RPC_CONTEXT.GREETING_MAIN, this.greetingMain);
+        // Each plugin host has its own RPC connection and greeter state.
+        rpc.set(PLUGIN_RPC_CONTEXT.GREETING_MAIN, new GreetingMainImpl(rpc));
     }
 }
