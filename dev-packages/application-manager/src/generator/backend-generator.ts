@@ -31,6 +31,8 @@ export class BackendGenerator extends AbstractGenerator {
             await this.write(this.pck.backend('electron-main.js'), this.compileElectronMain(this.pck.targetElectronMainModules));
         } else if (this.pck.isTauri()) {
             await this.write(this.pck.backend('tauri-main.js'), this.compileTauriMain(this.pck.targetTauriMainModules));
+            await this.write(this.pck.backend('remote-server.js'), this.compileServer(this.pck.backendTauriRemoteModules, true));
+            await this.write(this.pck.backend('remote-main.js'), this.compileMain(this.pck.backendTauriRemoteModules, './remote-server'));
         }
     }
 
@@ -143,7 +145,7 @@ ${Array.from(electronMainModules?.values() ?? [], jsModulePath => `\
 `;
     }
 
-    protected compileServer(backendModules: Map<string, string>): string {
+    protected compileServer(backendModules: Map<string, string>, remote = false): string {
         return `// @ts-check
 require('reflect-metadata');
 ${this.emitStartupLogger('Backend server', 'backend process start', { requirePerformance: true })}
@@ -172,7 +174,9 @@ const container = new Container();
 container.load(backendApplicationModule);
 container.load(messagingBackendModule);
 container.load(loggerBackendModule);
-${this.ifTauri('container.load(require(\'@theia/core/lib/tauri-node/messaging/tauri-messaging-backend-module\').default);')}
+${this.ifTauri(remote
+        ? 'container.load(require(\'@theia/core/lib/tauri-node/messaging/tauri-remote-messaging-backend-module\').default);'
+        : 'container.load(require(\'@theia/core/lib/tauri-node/messaging/tauri-messaging-backend-module\').default);')}
 ${this.emitStartupLog('container created')}
 
 function defaultServeStatic(app) {
@@ -225,7 +229,7 @@ ${Array.from(backendModules.values(), jsModulePath => `\
 `;
     }
 
-    protected compileMain(backendModules: Map<string, string>): string {
+    protected compileMain(backendModules: Map<string, string>, serverPath = './server'): string {
         return `// @ts-check
 ${this.emitStartupLogger('Backend main', 'backend process start', { requirePerformance: true })}
 ${this.emitStartupLog('entry point loaded')}
@@ -236,7 +240,7 @@ BackendApplicationConfigProvider.set(${this.prettyStringify(this.pck.props.backe
 
 globalThis.extensionInfo = ${this.prettyStringify(this.pck.extensionPackages.map(({ name, version }) => ({ name, version })))};
 
-const serverModule = require('./server');
+const serverModule = require('${serverPath}');
 const serverAddress = main.start(serverModule());
 
 serverAddress.then((addressInfo) => {

@@ -98,6 +98,7 @@ export class ApplicationPackage {
     protected _backendModules: Map<string, string> | undefined;
     protected _backendElectronModules: Map<string, string> | undefined;
     protected _backendTauriModules: Map<string, string> | undefined;
+    protected _backendTauriRemoteModules: Map<string, string> | undefined;
     protected _electronMainModules: Map<string, string> | undefined;
     protected _tauriMainModules: Map<string, string> | undefined;
     protected _preloadModules: Map<string, string> | undefined;
@@ -183,6 +184,10 @@ export class ApplicationPackage {
 
     get backendTauriModules(): Map<string, string> {
         return this._backendTauriModules ??= this.computeModules('backendTauri', 'backend');
+    }
+
+    get backendTauriRemoteModules(): Map<string, string> {
+        return this._backendTauriRemoteModules ??= this.computeModules('backendTauriRemote', 'backend');
     }
 
     get electronMainModules(): Map<string, string> {

@@ -181,7 +181,8 @@
     },
     {
       "backend": "lib/node/hosting/backend-hosting-module",
-      "backendElectron": "lib/electron-node/hosting/electron-backend-hosting-module"
+      "backendElectron": "lib/electron-node/hosting/electron-backend-hosting-module",
+      "backendTauriRemote": "lib/tauri-node/hosting/tauri-remote-backend-hosting-module"
     },
     {
       "frontend": "lib/browser/request/browser-request-module",

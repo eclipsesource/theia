@@ -15,6 +15,8 @@ Use a disposable profile while evaluating: set `THEIA_CONFIG_DIR`, `XDG_CONFIG_H
 
 `npm run watch:tauri` watches TypeScript and application bundles. Rust edits require `npm --prefix examples/tauri run build:host` and restarting the application. Rebuilds that switch between Electron and standalone Node native modules must be run serially with the other target stopped.
 
+The build also emits a separate `lib/backend/remote-main.js` entrypoint. It requires a per-session `THEIA_TAURI_REMOTE_TOKEN` and serves authenticated HTTP and WebSocket requests without native-window bindings. Run `npm --prefix examples/tauri run test:remote-backend-auth` after bundling to check its startup and authentication. Remote connection setup, the local session gateway, and dev-container routing are not connected to this entrypoint yet.
+
 The small VS Code plugin at `packages/tauri/test-plugins/webview-probe` can be copied into a disposable profile's `plugins` directory. It activates at startup and exposes `Tauri Probe: Open Webview` to check webview script, local resource, HTML update, dispose/recreate, reload and relaunch restoration, service worker readiness, and service-channel isolation. Accept workspace trust in the disposable profile before testing plugin activation.
 
 `Tauri Probe: Open View` focuses the probe's webview view in Explorer. Its log reports `view-ready`, `view-resource`, and `view-authority` results for script execution, a local extension resource, and denial of the trusted service WebSocket.

@@ -221,6 +221,7 @@ export const nodeOptions = {
         'ipc-bootstrap': '@theia/core/lib/node/messaging/ipc-bootstrap',
         ${this.ifElectron("'electron-main': './src-gen/backend/electron-main',")}
         ${this.ifTauri("'tauri-main': './src-gen/backend/tauri-main',")}
+        ${this.ifTauri("'remote-main': './src-gen/backend/remote-main',")}
         ${this.ifPackage('@theia/plugin-ext', () => `// VS Code extension support:
         'plugin-host': '@theia/plugin-ext/lib/hosted/node/plugin-host',`)}
         ${this.ifPackage('@theia/plugin-ext-headless', () => `// Theia Headless Plugin support:

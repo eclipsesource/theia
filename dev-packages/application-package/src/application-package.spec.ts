@@ -76,6 +76,25 @@ describe('application-package', function (): void {
         ]);
     });
 
+    it('selects Tauri remote backend modules without local native bindings', function (): void {
+        const pck = new ApplicationPackage({ projectPath: createProjectWithTarget('tauri') });
+        (pck as unknown as { _extensionPackages: ExtensionPackage[] })._extensionPackages = [{
+            name: '@fixture/remote',
+            theiaExtensions: [
+                { backend: 'generic/a', backendTauri: 'local/a', backendTauriRemote: 'remote/a' },
+                { backend: 'generic/b', backendTauri: 'local/b' },
+                { backendTauri: 'local/only' },
+                { backendTauriRemote: 'remote/only' }
+            ]
+        } as ExtensionPackage];
+        assert.deepStrictEqual([...pck.backendTauriRemoteModules.values()], [
+            '@fixture/remote/remote/a', '@fixture/remote/generic/b', '@fixture/remote/remote/only'
+        ]);
+        assert.deepStrictEqual([...pck.targetBackendModules.values()], [
+            '@fixture/remote/local/a', '@fixture/remote/local/b', '@fixture/remote/local/only'
+        ]);
+    });
+
     it('keeps browser, browser-only, and Electron contribution selection distinct', function (): void {
         for (const [target, frontend, backend, main] of [
             ['browser', ['fixture/generic'], ['fixture/backend'], []],

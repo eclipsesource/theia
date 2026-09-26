@@ -30,6 +30,7 @@ export interface Extension {
     backend?: string;
     backendElectron?: string;
     backendTauri?: string;
+    backendTauriRemote?: string;
     electronMain?: string;
     tauriMain?: string;
     preload?: string;
