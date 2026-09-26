@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Eclipse Theia contributors.
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -59,7 +60,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
     let app_handle: Arc<Mutex<Option<tauri::AppHandle>>> = Arc::new(Mutex::new(None));
     let controller_ended = Arc::new(AtomicBool::new(false));
-    let close_pending: Arc<Mutex<Option<u64>>> = Arc::new(Mutex::new(None));
+    let close_pending: Arc<Mutex<HashMap<String, u64>>> = Arc::new(Mutex::new(HashMap::new()));
     let close_next_id = Arc::new(AtomicU64::new(0));
     let response_input = input.clone();
     let response_handle = app_handle.clone();
@@ -109,6 +110,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             );
                             None
                         }
+                        Ok(request) if request["type"] == "create-window" => {
+                            handle_create_window(&response_handle, &response_input, &request);
+                            None
+                        }
+                        Ok(request) if request["type"] == "window-backend-exited" => {
+                            if let Some(label) = request["window"].as_str() {
+                                if let Ok(app) = response_handle.lock() {
+                                    if let Some(window) =
+                                        app.as_ref().and_then(|app| app.get_webview_window(label))
+                                    {
+                                        let _ = window.destroy();
+                                    }
+                                }
+                            }
+                            None
+                        }
                         Ok(response)
                             if response["type"] == "stopped" || response["type"] == "error" =>
                         {
@@ -142,26 +159,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     });
-    let ready = receiver.recv_timeout(Duration::from_secs(35))??;
+    let ready = receiver.recv_timeout(Duration::from_secs(60))??;
     let message: serde_json::Value = serde_json::from_str(&ready)?;
+    if message["version"] == 1 && message["type"] == "forwarded" {
+        drop(child);
+        return Ok(());
+    }
     if message["version"] != 1 || message["type"] != "ready" {
         return Err(format!("Controller did not become ready: {message}").into());
     }
-    let url: url::Url = message["url"]
-        .as_str()
-        .ok_or("Missing backend URL")?
-        .parse()?;
-    let token = message["token"].as_str().ok_or("Missing security token")?;
-    if token.len() != 64 || !token.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err("Controller returned an invalid security token".into());
-    }
-    if url.scheme() != "http" || url.host_str() != Some("127.0.0.1") {
-        return Err("Controller returned an invalid backend address".into());
-    }
-    let target_url = url.clone();
-    let allowed_backend_origin = url.origin();
-    let allowed_port = url.port_or_known_default();
-    let security_token = token.to_owned();
+    validate_window_descriptor(&message)?;
     let setup_handle = app_handle.clone();
     let setup_controller_ended = controller_ended.clone();
     let event_input = input.clone();
@@ -172,73 +179,48 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             if setup_controller_ended.load(Ordering::Acquire) {
                 return Err("Desktop controller stopped before window startup".into());
             }
-            let data_directory = match std::env::var_os("THEIA_CONFIG_DIR") {
-                Some(config_directory) => std::path::PathBuf::from(config_directory).join("tauri-webview"),
-                None => app.path().app_data_dir()?.join("webview"),
-            };
-            std::fs::create_dir_all(&data_directory)?;
-            let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::External("about:blank".parse()?))
-                .title("Theia Tauri Example")
-                .inner_size(1200.0, 800.0)
-                .data_directory(data_directory)
-                .on_navigation(move |url| {
-                    url.as_str() == "about:blank"
-                        || url.origin() == allowed_backend_origin
-                        || (url.scheme() == "http"
-                            && url.port_or_known_default() == allowed_port
-                            && url
-                                .host_str()
-                                .is_some_and(|host| host.ends_with(".webview.localhost")))
-                })
-                .build()?;
-            let cookie = tauri::webview::Cookie::build(("THEIA_TAURI_TOKEN", security_token.clone()))
-                .domain("127.0.0.1")
-                .path("/")
-                .http_only(true)
-                .same_site(tauri::webview::cookie::SameSite::Lax)
-                .build();
-            window.set_cookie(cookie)?;
-            if !window.cookies_for_url(target_url.clone())?.iter().any(|cookie|
-                cookie.name() == "THEIA_TAURI_TOKEN" && cookie.value() == security_token
-            ) {
-                return Err("Could not initialize the webview security cookie".into());
-            }
             *setup_handle.lock().map_err(|_| "Native host state is unavailable")? = Some(app.handle().clone());
+            create_window(&app.handle(), &message)?;
             if setup_controller_ended.load(Ordering::Acquire) {
                 return Err("Desktop controller stopped during window startup".into());
             }
-            window.navigate(target_url)?;
             Ok(())
         })
         .on_window_event(move |window, event| {
-            if window.label() != "main" {
-                return;
-            }
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            if let tauri::WindowEvent::Destroyed = event {
+                if let Ok(mut pending) = event_close_pending.lock() {
+                    pending.remove(window.label());
+                }
+                if let Ok(mut input) = event_input.lock() {
+                    let _ = writeln!(input, "{}", serde_json::json!({"version": 1, "type": "window-destroyed", "window": window.label()}));
+                    let _ = input.flush();
+                }
+            } else if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let mut pending = match event_close_pending.lock() {
                     Ok(pending) => pending,
                     Err(_) => return,
                 };
-                if pending.is_some() {
+                if pending.contains_key(window.label()) {
                     return;
                 }
                 let id = close_next_id.fetch_add(1, Ordering::Relaxed) + 1;
-                *pending = Some(id);
+                pending.insert(window.label().to_owned(), id);
                 let sent = event_input.lock().map(|mut input| {
-                    writeln!(input, "{}", serde_json::json!({"version": 1, "type": "close-request", "id": id, "window": "main"}))
+                    writeln!(input, "{}", serde_json::json!({"version": 1, "type": "close-request", "id": id, "window": window.label()}))
                         .and_then(|_| input.flush())
                 });
                 if !matches!(sent, Ok(Ok(()))) {
-                    *pending = None;
+                    pending.remove(window.label());
                     return;
                 }
                 let timeout_pending = event_close_pending.clone();
+                let label = window.label().to_owned();
                 std::thread::spawn(move || {
                     std::thread::sleep(Duration::from_secs(17));
                     if let Ok(mut pending) = timeout_pending.lock() {
-                        if *pending == Some(id) {
-                            *pending = None;
+                        if pending.get(&label) == Some(&id) {
+                            pending.remove(&label);
                         }
                     }
                 });
@@ -250,9 +232,181 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn validate_window_descriptor(
+    descriptor: &serde_json::Value,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if descriptor["version"] != 1 {
+        return Err("Invalid window protocol version".into());
+    }
+    let label = descriptor["window"]
+        .as_str()
+        .ok_or("Missing window label")?;
+    if label != "main"
+        && (!label.starts_with("workspace-")
+            || label.len() != 26
+            || !label[10..].bytes().all(|byte| byte.is_ascii_hexdigit()))
+    {
+        return Err("Invalid window label".into());
+    }
+    let url: url::Url = descriptor["url"]
+        .as_str()
+        .ok_or("Missing backend URL")?
+        .parse()?;
+    if url.scheme() != "http"
+        || url.host_str() != Some("127.0.0.1")
+        || url.port().is_none()
+        || url.path() != "/"
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return Err("Invalid backend address".into());
+    }
+    let token = descriptor["token"]
+        .as_str()
+        .ok_or("Missing security token")?;
+    if token.len() != 64 || !token.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("Invalid security token".into());
+    }
+    let cookie_name = descriptor["cookieName"]
+        .as_str()
+        .ok_or("Missing cookie name")?;
+    let expected_cookie = if label == "main" {
+        "THEIA_TAURI_TOKEN".to_owned()
+    } else {
+        format!("THEIA_TAURI_TOKEN_{}", label.replace('-', ""))
+    };
+    if cookie_name != expected_cookie {
+        return Err("Invalid security cookie name".into());
+    }
+    Ok(())
+}
+
+fn create_window(
+    app: &tauri::AppHandle,
+    descriptor: &serde_json::Value,
+) -> Result<(), Box<dyn std::error::Error>> {
+    validate_window_descriptor(descriptor)?;
+    let label = descriptor["window"]
+        .as_str()
+        .ok_or("Missing window label")?;
+    let target_url: url::Url = descriptor["url"]
+        .as_str()
+        .ok_or("Missing backend URL")?
+        .parse()?;
+    let token = descriptor["token"]
+        .as_str()
+        .ok_or("Missing security token")?;
+    let cookie_name = descriptor["cookieName"]
+        .as_str()
+        .ok_or("Missing cookie name")?;
+    let allowed_backend_origin = target_url.origin();
+    let allowed_port = target_url.port_or_known_default();
+    let data_directory = match std::env::var_os("THEIA_CONFIG_DIR") {
+        Some(config_directory) => std::path::PathBuf::from(config_directory).join("tauri-webview"),
+        None => app.path().app_data_dir()?.join("webview"),
+    };
+    let data_directory = if label == "main" {
+        data_directory
+    } else {
+        data_directory.join(label)
+    };
+    std::fs::create_dir_all(&data_directory)?;
+    let window = tauri::WebviewWindowBuilder::new(
+        app,
+        label,
+        tauri::WebviewUrl::External("about:blank".parse()?),
+    )
+    .title("Theia Tauri Example")
+    .inner_size(1200.0, 800.0)
+    .data_directory(data_directory)
+    .on_navigation(move |url| {
+        url.as_str() == "about:blank"
+            || url.origin() == allowed_backend_origin
+            || (url.scheme() == "http"
+                && url.port_or_known_default() == allowed_port
+                && url.host_str().is_some_and(|host| {
+                    host.ends_with(".webview.localhost")
+                        || host.ends_with(".mini-browser.localhost")
+                }))
+    })
+    .build()?;
+    let cookie = tauri::webview::Cookie::build((cookie_name.to_owned(), token.to_owned()))
+        .domain("127.0.0.1")
+        .path("/")
+        .http_only(true)
+        .same_site(tauri::webview::cookie::SameSite::Lax)
+        .build();
+    let launch_result = (|| -> Result<(), Box<dyn std::error::Error>> {
+        window.set_cookie(cookie)?;
+        if !window
+            .cookies_for_url(target_url.clone())?
+            .iter()
+            .any(|cookie| cookie.name() == cookie_name && cookie.value() == token)
+        {
+            return Err("Could not initialize the webview security cookie".into());
+        }
+        window.navigate(target_url)?;
+        Ok(())
+    })();
+    if launch_result.is_err() {
+        let _ = window.destroy();
+    }
+    launch_result
+}
+
+fn handle_create_window(
+    handle: &Arc<Mutex<Option<tauri::AppHandle>>>,
+    input: &Arc<Mutex<ChildStdin>>,
+    request: &serde_json::Value,
+) {
+    let mut app = handle.lock().ok().and_then(|handle| handle.clone());
+    for _ in 0..200 {
+        if app.is_some() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+        app = handle.lock().ok().and_then(|handle| handle.clone());
+    }
+    let Some(app) = app else {
+        if let Ok(mut input) = input.lock() {
+            let _ = writeln!(
+                input,
+                "{}",
+                serde_json::json!({"version": 1, "type": "window-created", "window": request["window"], "ok": false, "error": "Native host is unavailable"})
+            );
+            let _ = input.flush();
+        }
+        return;
+    };
+    let descriptor = request.clone();
+    let label = request["window"].as_str().unwrap_or_default().to_owned();
+    let response_input = input.clone();
+    let result = app.clone().run_on_main_thread(move || {
+        let result = create_window(&app, &descriptor);
+        if let Ok(mut input) = response_input.lock() {
+            let response = match result {
+                Ok(()) => serde_json::json!({"version": 1, "type": "window-created", "window": label, "ok": true}),
+                Err(error) => serde_json::json!({"version": 1, "type": "window-created", "window": label, "ok": false, "error": error.to_string()}),
+            };
+            let _ = writeln!(input, "{response}");
+            let _ = input.flush();
+        }
+    });
+    if let Err(error) = result {
+        if let Ok(mut input) = input.lock() {
+            let _ = writeln!(
+                input,
+                "{}",
+                serde_json::json!({"version": 1, "type": "window-created", "window": request["window"], "ok": false, "error": error.to_string()})
+            );
+            let _ = input.flush();
+        }
+    }
+}
+
 fn handle_close_response(
     handle: &Arc<Mutex<Option<tauri::AppHandle>>>,
-    pending: &Arc<Mutex<Option<u64>>>,
+    pending: &Arc<Mutex<HashMap<String, u64>>>,
     response: &serde_json::Value,
 ) {
     if response["version"] != 1 {
@@ -262,17 +416,21 @@ fn handle_close_response(
         Some(id) => id,
         None => return,
     };
+    let label = match response["window"].as_str() {
+        Some(label) => label,
+        None => return,
+    };
     let mut pending = match pending.lock() {
         Ok(pending) => pending,
         Err(_) => return,
     };
-    if *pending != Some(id) {
+    if pending.get(label) != Some(&id) {
         return;
     }
-    *pending = None;
+    pending.remove(label);
     if response["allow"] == true {
         if let Ok(app) = handle.lock() {
-            if let Some(window) = app.as_ref().and_then(|app| app.get_webview_window("main")) {
+            if let Some(window) = app.as_ref().and_then(|app| app.get_webview_window(label)) {
                 let _ = window.destroy();
             }
         }
@@ -285,15 +443,16 @@ fn handle_native_request(
 ) -> serde_json::Value {
     let id = request["id"].as_u64();
     let result = (|| -> Result<(), String> {
-        if request["version"] != 1 || request["window"] != "main" {
+        if request["version"] != 1 {
             return Err("Unsupported native operation".into());
         }
         let app = handle
             .lock()
             .map_err(|_| "Native host state is unavailable")?;
         let app = app.as_ref().ok_or("Native host is not ready")?;
+        let label = request["window"].as_str().ok_or("Missing window label")?;
         let window = app
-            .get_webview_window("main")
+            .get_webview_window(label)
             .ok_or("Window is unavailable")?;
         match request["operation"].as_str() {
             Some("set-window-title") => {
@@ -357,11 +516,14 @@ fn handle_file_dialog_request(
     request: &serde_json::Value,
 ) {
     let id = request["id"].as_u64();
-    let window = if request["version"] == 1 && request["window"] == "main" && id.is_some() {
-        handle
-            .lock()
-            .ok()
-            .and_then(|app| app.as_ref().and_then(|app| app.get_webview_window("main")))
+    let window = if request["version"] == 1 && id.is_some() {
+        handle.lock().ok().and_then(|app| {
+            app.as_ref().and_then(|app| {
+                request["window"]
+                    .as_str()
+                    .and_then(|label| app.get_webview_window(label))
+            })
+        })
     } else {
         None
     };
@@ -449,7 +611,7 @@ fn handle_clipboard_request(
     request: &serde_json::Value,
 ) {
     let id = request["id"].as_u64();
-    if request["version"] != 1 || request["window"] != "main" || id.is_none() {
+    if request["version"] != 1 || request["window"].as_str().is_none() || id.is_none() {
         send_dialog_response::<String>(input, id, Err("Invalid clipboard request".into()));
         return;
     }

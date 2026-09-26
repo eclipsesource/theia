@@ -21,10 +21,16 @@ import { tauriNativeServicePath } from '../../tauri-common/tauri-native-service'
 import { TauriNativeBackendService } from '../tauri-native-backend-service';
 import { TauriCloseClient, tauriCloseServicePath } from '../../tauri-common/tauri-close-service';
 import { TauriCloseBackendCoordinator } from '../tauri-close-backend-coordinator';
+import { TauriUntrustedContentServer } from '../tauri-untrusted-content-server';
 
 const TauriSecurityToken = Symbol('TauriSecurityToken');
 const securityToken = process.env.THEIA_TAURI_TOKEN;
 delete process.env.THEIA_TAURI_TOKEN;
+const cookieName = process.env.THEIA_TAURI_COOKIE_NAME || 'THEIA_TAURI_TOKEN';
+delete process.env.THEIA_TAURI_COOKIE_NAME;
+if (!/^THEIA_TAURI_TOKEN(?:_[a-z0-9]+)?$/.test(cookieName)) {
+    throw new Error('Invalid Tauri security cookie name');
+}
 if (!securityToken || !/^[0-9a-f]{64}$/.test(securityToken)) {
     throw new Error('Tauri backend requires a per-launch security token');
 }
@@ -57,7 +63,7 @@ class TauriTokenValidator implements WsRequestValidatorContribution {
         if (typeof header !== 'string') {
             return false;
         }
-        const received = cookie.parse(header).THEIA_TAURI_TOKEN;
+        const received = cookie.parse(header)[cookieName];
         if (!received || !/^[0-9a-f]{64}$/.test(received)) {
             return false;
         }
@@ -165,5 +171,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
             return {};
         })
     ).inSingletonScope();
+    bind(TauriUntrustedContentServer).toSelf().inSingletonScope();
+    bind(BackendApplicationContribution).toService(TauriUntrustedContentServer);
     rebind(DefaultMessagingService).to(TauriMessagingService).inSingletonScope();
 });

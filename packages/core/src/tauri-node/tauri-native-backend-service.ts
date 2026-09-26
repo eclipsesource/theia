@@ -17,6 +17,7 @@ interface PendingRequest {
 export class TauriNativeBackendService implements TauriNativeService {
     protected nextId = 0;
     protected readonly pending = new Map<number, PendingRequest>();
+    protected readonly windowId = process.env.THEIA_TAURI_WINDOW_ID || 'main';
 
     constructor() {
         process.on('message', message => {
@@ -50,6 +51,14 @@ export class TauriNativeBackendService implements TauriNativeService {
             return Promise.reject(new Error('Invalid window title'));
         }
         return this.request<void>('set-window-title', { title }, 10000);
+    }
+
+    openWindow(fragment: string, search = ''): Promise<void> {
+        if (typeof fragment !== 'string' || fragment.length > 8192 || /[\r\n\0]/.test(fragment)
+            || typeof search !== 'string' || search.length > 4096 || /[\r\n\0#]/.test(search)) {
+            return Promise.reject(new Error('Invalid window URL'));
+        }
+        return this.request<void>('open-window', { fragment, search }, 50000);
     }
 
     focusWindow(): Promise<void> {
@@ -104,7 +113,7 @@ export class TauriNativeBackendService implements TauriNativeService {
 
     protected request<T>(operation: 'set-window-title' | 'focus-window' | 'minimize-window' | 'toggle-maximize' | 'toggle-fullscreen' | 'set-window-zoom' | 'close-window'
         | 'read-clipboard-text' | 'write-clipboard-text'
-        | 'open-file' | 'show-open-dialog' | 'show-save-dialog', payload: object, timeout: number): Promise<T> {
+        | 'open-file' | 'show-open-dialog' | 'show-save-dialog' | 'open-window', payload: object, timeout: number): Promise<T> {
         if (!process.connected || !process.send) {
             return Promise.reject(new Error('Desktop controller is unavailable'));
         }
@@ -115,7 +124,7 @@ export class TauriNativeBackendService implements TauriNativeService {
                 reject(new Error('Native request timed out'));
             }, timeout);
             this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
-            process.send!({ version: 1, type: 'native-request', id, operation, window: 'main', ...payload }, error => {
+            process.send!({ version: 1, type: 'native-request', id, operation, window: this.windowId, ...payload }, error => {
                 if (error) {
                     const request = this.pending.get(id);
                     if (request) {

@@ -11,6 +11,8 @@ import { DefaultWindowService } from '../../browser/window/default-window-servic
 import { FrontendApplication } from '../../browser/frontend-application';
 import { PREF_WINDOW_ZOOM_LEVEL, ZoomLevel } from '../../electron-common/electron-window-preferences';
 import { TauriNativeService } from '../../tauri-common/tauri-native-service';
+import { NewWindowOptions, DEFAULT_WINDOW_HASH } from '../../common/window';
+import { WindowReloadOptions } from '../../browser/window/window-service';
 
 @injectable()
 export class TauriWindowService extends DefaultWindowService {
@@ -31,6 +33,22 @@ export class TauriWindowService extends DefaultWindowService {
     override focus(): void {
         super.focus();
         this.nativeService.focusWindow().catch(error => this.tauriLogger.warn('Could not focus native window:', error));
+    }
+
+    override openNewWindow(url: string, options: NewWindowOptions = {}): undefined {
+        const target = new URL(url, window.location.href);
+        if (options.external || target.origin !== window.location.origin || target.pathname !== window.location.pathname) {
+            return super.openNewWindow(url);
+        }
+        this.nativeService.openWindow(decodeURI(target.hash.slice(1)), target.search)
+            .catch(error => this.tauriLogger.error('Could not open native window:', error));
+        return undefined;
+    }
+
+    override async openNewDefaultWindow(params?: WindowReloadOptions): Promise<number> {
+        const search = params?.search ? new URLSearchParams(params.search).toString() : '';
+        await this.nativeService.openWindow(params?.hash || DEFAULT_WINDOW_HASH, search);
+        return -1;
     }
 
     /** The native host destroys the webview without dispatching `pagehide`. */

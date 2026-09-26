@@ -20,8 +20,13 @@
       "frontend": "lib/browser/mini-browser-frontend-module"
     },
     {
+      "frontendTauri": "lib/tauri-browser/tauri-mini-browser-frontend-module",
+      "backendTauri": "lib/tauri-node/tauri-mini-browser-backend-module"
+    },
+    {
       "frontend": "lib/browser/environment/mini-browser-environment-module",
-      "frontendElectron": "lib/electron-browser/environment/electron-mini-browser-environment-module"
+      "frontendElectron": "lib/electron-browser/environment/electron-mini-browser-environment-module",
+      "frontendTauri": "lib/browser/environment/mini-browser-environment-module"
     }
   ],
   "keywords": [
