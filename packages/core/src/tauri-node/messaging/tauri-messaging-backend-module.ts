@@ -167,6 +167,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
         new RpcConnectionHandler(tauriNativeServicePath, () => context.container.get(TauriNativeBackendService))
     ).inSingletonScope();
     bind(TauriCloseBackendCoordinator).toSelf().inSingletonScope();
+    bind(BackendApplicationContribution).toService(TauriCloseBackendCoordinator);
     bind(ConnectionHandler).toDynamicValue(context =>
         new RpcConnectionHandler<TauriCloseClient>(tauriCloseServicePath, client => {
             context.container.get(TauriCloseBackendCoordinator).register(client);
