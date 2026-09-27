@@ -520,6 +520,7 @@ export class TaskService implements TaskConfigurationClient {
             return;
         }
         if (!this.lastTask.resolvedTask.runOptions?.reevaluateOnRerun) {
+            await this.removeProblemMarkers(this.lastTask.option);
             return this.runResolvedTask(this.lastTask.resolvedTask, this.lastTask.option);
         }
         const { _source, label, _scope } = this.lastTask.resolvedTask;
