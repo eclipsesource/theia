@@ -80,9 +80,15 @@ export class WebviewEnvironment {
     }
 
     protected async getHostPattern(): Promise<string> {
-        return environment.electron.is()
-            ? WebviewExternalEndpoint.defaultPattern
-            : this.environments.getValue(WebviewExternalEndpoint.pattern)
-                .then(variable => variable?.value || WebviewExternalEndpoint.defaultPattern);
+        if (environment.electron.is()) {
+            return WebviewExternalEndpoint.defaultPattern;
+        }
+        if (environment.tauri.is()) {
+            // Remote workbench services come from the remote backend, but webview
+            // frames are served by the local backend that owns this window.
+            return `{{uuid}}.webview.localhost:${window.location.port}`;
+        }
+        return this.environments.getValue(WebviewExternalEndpoint.pattern)
+            .then(variable => variable?.value || WebviewExternalEndpoint.defaultPattern);
     }
 }
