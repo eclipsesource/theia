@@ -31,6 +31,8 @@ For a real SCM and Node debugging check, a disposable profile loaded the Open VS
 
 A disposable local workspace task printed a synthetic compiler error, parsed it with a configured problem matcher, and displayed one Problems entry. Opening the entry focused the source file at line 2, column 3. The same fixture produced the same result in Electron. This checks one shell task matcher in the native Tauri window; background matchers and remote task diagnostics remain untested.
 
+Dragging a local file from the Explorer root onto a child directory moved it on disk in both Tauri and Electron, with matching contents. External desktop-to-workbench drag and drop, copy modifiers and editor text dragging remain untested.
+
 If an active remote backend exits unexpectedly, the gateway discards its session and the workbench returns to its local backend after a failed reconnect. Native SSH and dev-container checks killed `remote-main.js` while connected; each window returned to local `ready`, and later connections to the same target worked. An unsaved editor may veto the return so its contents can be recovered.
 
 The small VS Code plugin at `packages/tauri/test-plugins/webview-probe` can be copied into a disposable profile's `plugins` directory. It activates at startup and exposes `Tauri Probe: Open Webview` to check webview script, local resource, HTML update, dispose/recreate, reload and relaunch restoration, service worker readiness, and service-channel isolation. Accept workspace trust in the disposable profile before testing plugin activation.
