@@ -21,8 +21,8 @@ import { ILogger } from '@theia/core';
 import * as Docker from 'dockerode';
 
 class TestableDockerContainerConnection extends RemoteDockerContainerConnection {
-    public testGetRemoteEnv(): string[] | undefined {
-        return this.getRemoteEnv();
+    public testGetRemoteEnv(overrides?: NodeJS.ProcessEnv): string[] | undefined {
+        return this.getRemoteEnv(overrides);
     }
     public testBuildShellCommand(cmd: string, args?: string[]): string {
         return this.buildShellCommand(cmd, args);
@@ -149,6 +149,17 @@ describe('RemoteDockerContainerConnection', () => {
             expect(env).to.include('PATH_EXTRA=/usr/local/bin:/custom/path');
             expect(env).to.include('QUOTED=hello "world"');
             expect(env).to.include('SPACED=hello world');
+        });
+
+        it('should pass a session credential only to the requested execution', () => {
+            const connection = createConnection({
+                image: 'test',
+                remoteEnv: { KEEP: 'value', THEIA_TAURI_REMOTE_TOKEN: 'old' }
+            } as DevContainerConfiguration);
+
+            expect(connection.testGetRemoteEnv({ THEIA_TAURI_REMOTE_TOKEN: 'session' }))
+                .to.have.members(['KEEP=value', 'THEIA_TAURI_REMOTE_TOKEN=session']);
+            expect(connection.testGetRemoteEnv()).to.include('THEIA_TAURI_REMOTE_TOKEN=old');
         });
     });
 

@@ -77,12 +77,12 @@ export class RemoteDockerContainerConnection implements RemoteConnection {
         });
     }
 
-    protected getRemoteEnv(): string[] | undefined {
+    protected getRemoteEnv(overrides?: NodeJS.ProcessEnv): string[] | undefined {
         const remoteEnv = this.config.remoteEnv;
-        if (!remoteEnv || Object.keys(remoteEnv).length === 0) {
+        if ((!remoteEnv || Object.keys(remoteEnv).length === 0) && !overrides) {
             return undefined;
         }
-        const entries = Object.entries(remoteEnv)
+        const entries = Object.entries({ ...remoteEnv, ...overrides })
             .filter(([, value]) => value !== undefined)
             .map(([key, value]) => `${key}=${value}`);
         return entries.length > 0 ? entries : undefined;
@@ -127,7 +127,7 @@ export class RemoteDockerContainerConnection implements RemoteConnection {
         try {
             // TODO add windows container support
             const execution = await this.container.exec({
-                Cmd: ['sh', '-c', this.buildShellCommand(cmd, args)], Env: this.getRemoteEnv(), AttachStdout: true, AttachStderr: true
+                Cmd: ['sh', '-c', this.buildShellCommand(cmd, args)], Env: this.getRemoteEnv(options?.env), AttachStdout: true, AttachStderr: true
             });
             let stdoutBuffer = '';
             let stderrBuffer = '';
@@ -153,7 +153,7 @@ export class RemoteDockerContainerConnection implements RemoteConnection {
         try {
             // TODO add windows container support
             const execution = await this.container.exec({
-                Cmd: ['sh', '-c', this.buildShellCommand(cmd, args)], Env: this.getRemoteEnv(), AttachStdout: true, AttachStderr: true
+                Cmd: ['sh', '-c', this.buildShellCommand(cmd, args)], Env: this.getRemoteEnv(options?.env), AttachStdout: true, AttachStderr: true
             });
             let stdoutBuffer = '';
             let stderrBuffer = '';

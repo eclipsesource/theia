@@ -29,7 +29,11 @@
     {
       "frontendElectron": "lib/electron-browser/remote-frontend-module",
       "backendElectron": "lib/electron-node/remote-backend-module",
+      "backendTauri": "lib/electron-node/remote-backend-module",
       "backendTauriRemote": "lib/electron-node/remote-backend-module"
+    },
+    {
+      "backendTauri": "lib/tauri-node/tauri-remote-backend-local-module"
     }
   ],
   "keywords": [

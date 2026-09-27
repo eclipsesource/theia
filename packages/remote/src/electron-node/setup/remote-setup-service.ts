@@ -34,11 +34,14 @@ export interface RemoteSetupOptions {
      * `--session-preference`) that the shared local backend cannot provide.
      */
     additionalArgs?: string[];
+    /** Internal credential for a Tauri remote backend started through the local gateway. */
+    gatewayToken?: string;
 }
 
 export interface RemoteSetupResult {
     applicationDirectory: string;
     nodeDirectory: string;
+    gatewayToken?: string;
 }
 
 @injectable()
@@ -67,7 +70,8 @@ export class RemoteSetupService {
             connection,
             report,
             nodeDownloadTemplate,
-            additionalArgs
+            additionalArgs,
+            gatewayToken
         } = options;
         report('Identifying remote system...');
         // 1. Identify remote platform
@@ -100,20 +104,25 @@ export class RemoteSetupService {
         }
         // 5. start remote backend
         report('Starting application on remote...');
-        const port = await this.startApplication(connection, platform, applicationDirectory, remoteNodeDirectory, additionalArgs);
+        const port = await this.startApplication(connection, platform, applicationDirectory, remoteNodeDirectory, additionalArgs, gatewayToken);
         connection.remotePort = port;
         return {
             applicationDirectory: libDir,
-            nodeDirectory: remoteNodeDirectory
+            nodeDirectory: remoteNodeDirectory,
+            ...(gatewayToken && { gatewayToken })
         };
     }
 
     protected async startApplication(
-        connection: RemoteConnection, platform: RemotePlatform, remotePath: string, nodeDir: string, additionalArgs: string[] = []
+        connection: RemoteConnection, platform: RemotePlatform, remotePath: string, nodeDir: string, additionalArgs: string[] = [], gatewayToken?: string
     ): Promise<number> {
+        if (gatewayToken !== undefined && !/^[0-9a-f]{64}$/.test(gatewayToken)) {
+            throw new Error('Invalid Tauri remote gateway token');
+        }
         const nodeExecutable = this.scriptService.joinPath(platform, nodeDir, ...(platform.os === OS.Type.Windows ? ['node.exe'] : ['bin', 'node']));
-        const mainJsFile = this.scriptService.joinPath(platform, remotePath, 'lib', 'backend', 'main.js');
-        const localAddressRegex = /listening on http:\/\/0.0.0.0:(\d+)/;
+        const mainJsFile = this.scriptService.joinPath(platform, remotePath, 'lib', 'backend', gatewayToken ? 'remote-main.js' : 'main.js');
+        const hostname = gatewayToken ? '127.0.0.1' : '0.0.0.0';
+        const localAddressRegex = gatewayToken ? /listening on http:\/\/127\.0\.0\.1:(\d+)/ : /listening on http:\/\/0\.0\.0\.0:(\d+)/;
         let prefix = '';
         if (platform.os === OS.Type.Windows) {
             // We might to switch to PowerShell beforehand on Windows
@@ -123,7 +132,7 @@ export class RemoteSetupService {
             platform,
             directory: remotePath
         };
-        const args: string[] = ['--hostname=0.0.0.0', `--port=${connection.remotePort ?? 0}`, '--remote'];
+        const args: string[] = [`--hostname=${hostname}`, `--port=${connection.remotePort ?? 0}`, '--remote'];
         for (const cli of this.cliContributions.getContributions()) {
             if (cli.enhanceArgs) {
                 args.push(...await cli.enhanceArgs(remoteContext));
@@ -136,7 +145,8 @@ export class RemoteSetupService {
         // This way, our current working directory is set as expected
         const result = await connection.execPartial(`${prefix}cd "${remotePath}";${nodeExecutable}`,
             stdout => localAddressRegex.test(stdout),
-            [mainJsFile, ...args]);
+            [mainJsFile, ...args],
+            gatewayToken ? { env: { THEIA_TAURI_REMOTE_TOKEN: gatewayToken } } : undefined);
 
         const match = localAddressRegex.exec(result.stdout);
         if (!match) {
