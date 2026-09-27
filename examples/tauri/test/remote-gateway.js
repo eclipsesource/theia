@@ -59,6 +59,9 @@ function requestHttp(port, path, options = {}) {
 async function run() {
     const token = randomBytes(32).toString('hex');
     const id = randomBytes(16).toString('hex');
+    const largeBody = randomBytes(8 * 1024 * 1024);
+    let resolveCancelledDownload;
+    const cancelledDownload = new Promise(resolve => { resolveCancelledDownload = resolve; });
     const upstreamServer = http.createServer((request, response) => {
         assert.equal(request.headers['x-theia-remote-token'], token);
         assert.equal(request.headers.cookie, undefined);
@@ -67,6 +70,12 @@ async function run() {
             response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'remote-file', name: 'proof.txt' }));
         } else if (request.method === 'GET' && request.url === '/files/download/?id=remote-file') {
             response.writeHead(200, { 'Content-Type': 'text/plain', 'Content-Disposition': 'attachment; filename="proof.txt"' }).end('remote-file-content');
+        } else if (request.method === 'GET' && request.url === '/files/download/?id=large-file') {
+            response.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': largeBody.length }).end(largeBody);
+        } else if (request.method === 'GET' && request.url === '/files/download/?id=cancel-file') {
+            response.writeHead(200, { 'Content-Type': 'application/octet-stream' });
+            const timer = setInterval(() => response.write(Buffer.alloc(64 * 1024)), 10);
+            response.on('close', () => { clearInterval(timer); resolveCancelledDownload(); });
         } else if (request.method === 'PUT' && request.url === '/files/') {
             const chunks = [];
             request.on('data', chunk => chunks.push(chunk));
@@ -147,6 +156,22 @@ async function run() {
         assert.equal(downloaded.status, 200);
         assert.equal(downloaded.body.toString(), 'remote-file-content');
         assert.equal(downloaded.headers['content-disposition'], 'attachment; filename="proof.txt"');
+        const largeDownload = await requestHttp(localPort, `${filesPath}/download/?id=large-file`, {
+            headers: { Cookie: 'local=valid' }
+        });
+        assert.equal(largeDownload.status, 200);
+        assert.deepEqual(largeDownload.body, largeBody);
+        await new Promise((resolve, reject) => {
+            const request = http.get({ hostname: '127.0.0.1', port: localPort,
+                path: `${filesPath}/download/?id=cancel-file`, headers: { Cookie: 'local=valid' } }, response => {
+                response.once('data', () => { request.destroy(); resolve(); });
+            });
+            request.once('error', reject);
+        });
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Cancelled download stayed open upstream')), 3000);
+            cancelledDownload.then(() => { clearTimeout(timeout); resolve(); }, reject);
+        });
         const uploaded = await requestHttp(localPort, `${filesPath}/`, {
             method: 'PUT', headers: { Cookie: 'local=valid', 'Content-Type': 'application/json' }, body: '{"uris":[]}'
         });
@@ -163,6 +188,11 @@ async function run() {
         });
         assert.equal(upload.status, 200);
         assert.equal(upload.body.toString(), 'upload-body');
+        const largeUpload = await requestHttp(localPort, uploadPath, {
+            method: 'POST', headers: { Cookie: 'local=valid', 'Content-Type': 'multipart/form-data; boundary=proof' }, body: largeBody
+        });
+        assert.equal(largeUpload.status, 200);
+        assert.deepEqual(largeUpload.body, largeBody);
         assert.equal((await requestHttp(localPort, decorationPath)).status, 403);
         assert.equal((await requestHttp(localPort, pluginPath)).status, 403);
         const decoration = await requestHttp(localPort, decorationPath, { headers: { Cookie: 'local=valid' } });
@@ -206,6 +236,15 @@ async function run() {
         assert.equal(gateway.getSessionPort(failedId), undefined);
         assert.equal(await connect(localPort, failedId, allowed), 404);
         assert.equal(upstreamConnections, 2);
+        const unreachableServer = http.createServer();
+        const unreachablePort = await listen(unreachableServer);
+        await close(unreachableServer);
+        const unreachableId = randomBytes(16).toString('hex');
+        let initialFailures = 0;
+        gateway.register(unreachableId, unreachablePort, token, () => initialFailures++);
+        assert.equal(await connect(localPort, unreachableId, allowed), 502);
+        assert.equal(initialFailures, 1);
+        assert.equal(gateway.getSessionPort(unreachableId), undefined);
         console.log('Tauri remote gateway forwarding passed');
     } finally {
         client?.terminate();
