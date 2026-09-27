@@ -394,17 +394,15 @@ export class MonacoEditorModel implements IResolvedTextEditorModel, TextEditorDo
     }
 
     protected pendingOperation = Promise.resolve();
-    protected async run(operation: () => Promise<void>): Promise<void> {
+    protected async run(operation: () => Promise<void>, propagateError = false): Promise<void> {
         if (this.toDispose.disposed) {
             return;
         }
-        return this.pendingOperation = this.pendingOperation.then(async () => {
-            try {
-                await operation();
-            } catch (e) {
-                console.error(e);
-            }
+        const result = this.pendingOperation.then(operation);
+        this.pendingOperation = result.catch(error => {
+            console.error(error);
         });
+        return propagateError ? result : this.pendingOperation;
     }
 
     protected syncCancellationTokenSource = new CancellationTokenSource();
@@ -490,7 +488,7 @@ export class MonacoEditorModel implements IResolvedTextEditorModel, TextEditorDo
     }
 
     protected scheduleSave(token: CancellationToken = this.cancelSave(), overwriteEncoding?: boolean, options?: SaveOptions): Promise<void> {
-        return this.run(() => this.doSave(token, overwriteEncoding, options));
+        return this.run(() => this.doSave(token, overwriteEncoding, options), options?.saveReason === TextDocumentSaveReason.Manual);
     }
 
     protected ignoreContentChanges = false;

@@ -976,7 +976,11 @@ export class CommonFrontendContribution implements FrontendApplicationContributi
 
     protected async save(options?: SaveOptions): Promise<void> {
         const widget = this.shell.currentWidget;
-        this.saveResourceService.save(widget, options);
+        try {
+            await this.saveResourceService.save(widget, options);
+        } catch (error) {
+            this.messageService.error(error instanceof Error ? error.message : String(error));
+        }
     }
 
     protected async openAbout(): Promise<void> {
