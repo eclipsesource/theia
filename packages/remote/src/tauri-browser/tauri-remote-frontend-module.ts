@@ -40,6 +40,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bindRootContributionProvider(bind, RemoteRegistryContribution);
     bind(TauriRemoteSSHContribution).toSelf().inSingletonScope();
     bind(RemoteRegistryContribution).toService(TauriRemoteSSHContribution);
+    bind(FrontendApplicationContribution).toService(TauriRemoteSSHContribution);
     bindRemotePreferences(bind);
     bind(RemoteService).toSelf().inSingletonScope();
     bind(RemoteCliArgsCollector).toSelf().inSingletonScope();

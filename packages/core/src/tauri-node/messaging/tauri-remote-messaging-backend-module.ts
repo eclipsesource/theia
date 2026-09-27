@@ -19,6 +19,8 @@ delete process.env.THEIA_TAURI_REMOTE_TOKEN;
 if (!token || !/^[0-9a-f]{64}$/.test(token)) {
     throw new Error('Tauri remote backend requires a per-session gateway token');
 }
+// Keep the target marker after removing the credential so backend services can select Tauri behavior.
+process.env.THEIA_TARGET = 'tauri';
 
 @injectable()
 class RemoteGatewayValidator implements WsRequestValidatorContribution {

@@ -167,11 +167,15 @@ export class RemoteSSHContribution extends AbstractRemoteRegistryContribution {
         }
 
         try {
-            const remotePort = await this.sendSSHConnect(host!, user!);
-            this.openRemote(remotePort, newWindow);
+            await this.connectToHost(host!, user!, newWindow);
         } catch (err) {
             this.messageService.error(`${nls.localize('theia/remote/ssh/failure', 'Could not open SSH connection to remote.')} ${err.message ?? String(err)}`);
         }
+    }
+
+    protected async connectToHost(host: string, user: string, newWindow: boolean): Promise<void> {
+        const remotePort = await this.sendSSHConnect(host, user);
+        this.openRemote(remotePort, newWindow);
     }
 
     async sendSSHConnect(host: string, user: string): Promise<string> {
