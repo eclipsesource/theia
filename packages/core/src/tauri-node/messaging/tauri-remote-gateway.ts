@@ -52,22 +52,24 @@ export class TauriRemoteGateway implements BackendApplicationContribution {
 
     configure(app: express.Application): void {
         // The browser must keep using its authenticated local origin. Only file
-        // downloads are forwarded; the remote token never reaches the browser.
-        app.use('/tauri-remote/:id/files', (request, response) => this.forwardFiles(request, response));
+        // transfers are forwarded; the remote token never reaches the browser.
+        app.use('/tauri-remote/:id/files', (request, response) =>
+            this.forwardHttp(request, response, `/files${request.url.startsWith('/') ? request.url : `/${request.url}`}`, ['GET', 'PUT']));
+        app.use('/tauri-remote/:id/file-upload', (request, response) =>
+            this.forwardHttp(request, response, '/file-upload', ['POST']));
     }
 
-    protected forwardFiles(request: express.Request, response: express.Response): void {
+    protected forwardHttp(request: express.Request, response: express.Response, path: string, methods: string[]): void {
         const id = request.params.id;
         const session = /^[0-9a-f]{32}$/.test(id) ? this.sessions.get(id) : undefined;
         if (!session) {
             response.sendStatus(404);
             return;
         }
-        if (request.method !== 'GET' && request.method !== 'PUT') {
+        if (!methods.includes(request.method)) {
             response.sendStatus(405);
             return;
         }
-        const path = `/files${request.url.startsWith('/') ? request.url : `/${request.url}`}`;
         // The generic file endpoint may have parsed JSON before this route was
         // registered, leaving no request stream to pipe for multi-file downloads.
         const body = request.method === 'PUT' && request.body !== undefined

@@ -10,6 +10,7 @@ import { bindViewContribution, FrontendApplicationContribution, isRemote, Widget
 import { ServiceConnectionProvider } from '@theia/core/lib/browser/messaging/service-connection-provider';
 import { FileServiceContribution } from '@theia/filesystem/lib/browser/file-service';
 import { FileDownloadService } from '@theia/filesystem/lib/common/download/file-download';
+import { FileUploadService } from '@theia/filesystem/lib/common/upload/file-upload';
 import { TauriFileDialogService } from '@theia/filesystem/lib/tauri-browser/file-dialog/tauri-file-dialog-service';
 import { RemoteFileSystemProvider, remoteFileSystemPath, RemoteFileSystemProxyFactory, RemoteFileSystemServer } from '@theia/filesystem/lib/common/remote-file-system-provider';
 import { UserStorageContribution } from '@theia/userstorage/lib/browser/user-storage-contribution';
@@ -33,6 +34,7 @@ import { RemotePortForwardingProvider, RemoteRemotePortForwardingProviderPath } 
 import { TauriPortForwardingService } from './tauri-port-forwarding-service';
 import { TauriRemoteFileDialogService } from './tauri-remote-file-dialog-service';
 import { TauriRemoteFileDownloadService } from './tauri-remote-file-download-service';
+import { TauriRemoteFileUploadService } from './tauri-remote-file-upload-service';
 import '../../src/electron-browser/style/port-forwarding-widget.css';
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
@@ -48,6 +50,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(RemoteCliArgsCollector).toSelf().inSingletonScope();
     rebind(TauriFileDialogService).to(TauriRemoteFileDialogService).inSingletonScope();
     rebind(FileDownloadService).to(TauriRemoteFileDownloadService).inSingletonScope();
+    rebind(FileUploadService).to(TauriRemoteFileUploadService).inSingletonScope();
 
     bind(PortForwardingWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(context => ({
