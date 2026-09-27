@@ -9,6 +9,7 @@ import { ContainerModule } from '@theia/core/shared/inversify';
 import { bindViewContribution, FrontendApplicationContribution, isRemote, WidgetFactory } from '@theia/core/lib/browser';
 import { ServiceConnectionProvider } from '@theia/core/lib/browser/messaging/service-connection-provider';
 import { FileServiceContribution } from '@theia/filesystem/lib/browser/file-service';
+import { TauriFileDialogService } from '@theia/filesystem/lib/tauri-browser/file-dialog/tauri-file-dialog-service';
 import { RemoteFileSystemProvider, remoteFileSystemPath, RemoteFileSystemProxyFactory, RemoteFileSystemServer } from '@theia/filesystem/lib/common/remote-file-system-provider';
 import { UserStorageContribution } from '@theia/userstorage/lib/browser/user-storage-contribution';
 import { WorkspaceHandlingContribution, WorkspaceOpenHandlerContribution } from '@theia/workspace/lib/browser';
@@ -29,6 +30,7 @@ import { PortForwardingContribution } from '../electron-browser/port-forwarding/
 import { PortForwardingService } from '../electron-browser/port-forwarding/port-forwarding-service';
 import { RemotePortForwardingProvider, RemoteRemotePortForwardingProviderPath } from '../electron-common/remote-port-forwarding-provider';
 import { TauriPortForwardingService } from './tauri-port-forwarding-service';
+import { TauriRemoteFileDialogService } from './tauri-remote-file-dialog-service';
 import '../../src/electron-browser/style/port-forwarding-widget.css';
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
@@ -41,6 +43,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bindRemotePreferences(bind);
     bind(RemoteService).toSelf().inSingletonScope();
     bind(RemoteCliArgsCollector).toSelf().inSingletonScope();
+    rebind(TauriFileDialogService).to(TauriRemoteFileDialogService).inSingletonScope();
 
     bind(PortForwardingWidget).toSelf();
     bind(WidgetFactory).toDynamicValue(context => ({
