@@ -112,6 +112,7 @@
     "test:remote-service-path": "node test/remote-service-path.js",
     "test:remote-container-provider": "node test/remote-container-provider.js",
     "test:remote-container-tunnel": "node test/remote-container-tunnel.js",
+    "test:remote-port-forwarding": "node test/remote-port-forwarding.js",
     "test:remote-container-integration": "node test/remote-container-integration.js",
     "start": "theia start --plugins=local-dir:../../plugins --ovsx-router-config=../ovsx-router-config.json",
     "watch": "concurrently --kill-others -n tsc,bundle -c red,blue \"tsc -b -w --preserveWatchOutput\" \"npm run -s watch:bundle\"",

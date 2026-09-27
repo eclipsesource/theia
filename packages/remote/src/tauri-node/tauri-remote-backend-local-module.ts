@@ -12,6 +12,8 @@ import { TauriRemoteSetupService } from './tauri-remote-setup-service';
 import { TauriRemoteSSHConnectionProvider } from './tauri-remote-ssh-connection-provider';
 import { RemoteStatusServiceImpl } from '../electron-node/remote-status-service';
 import { TauriRemoteStatusService } from './tauri-remote-status-service';
+import { RemotePortForwardingProviderImpl } from '../electron-node/remote-port-forwarding-provider';
+import { TauriRemotePortForwardingProvider } from './tauri-remote-port-forwarding-provider';
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(TauriRemoteSetupService).toSelf().inSingletonScope();
@@ -21,5 +23,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(ConnectionContainerModule).toConstantValue(ConnectionContainerModule.create(({ bind: bindConnection, rebind: rebindConnection }) => {
         bindConnection(TauriRemoteSSHConnectionProvider).toSelf().inSingletonScope();
         rebindConnection(RemoteSSHConnectionProviderImpl).toService(TauriRemoteSSHConnectionProvider);
+        bindConnection(TauriRemotePortForwardingProvider).toSelf().inSingletonScope();
+        rebindConnection(RemotePortForwardingProviderImpl).toService(TauriRemotePortForwardingProvider);
     }));
 });

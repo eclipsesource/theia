@@ -52,7 +52,8 @@ export class PortForwardingWidget extends ReactWidget {
         if (this.portForwardingService.forwardedPorts.length === 0) {
             return <div>
                 <p style={{ marginLeft: 'calc(var(--theia-ui-padding) * 2)' }}>
-                    {nls.localizeByDefault('No forwarded ports. Forward a port to access your locally running services over the internet.\n[Forward a Port]({0})').split('\n')[0]}
+                    {nls.localize('theia/remote/portForwarding/noForwardedPorts',
+                        'No forwarded ports. Forward a port to access a service running in your remote workspace.')}
                 </p>
                 {this.renderForwardPortButton()}
             </div>;
@@ -133,7 +134,7 @@ function PortEditingInput({ port, service }: { port: ForwardedPort, service: Por
     const [error, setError] = React.useState(false);
     return <input className={`theia-input forward-port-button${error ? ' port-edit-input-error' : ''}`} port-edit-input-error={error}
         autoFocus defaultValue={port.address ? `${port.address}:${port.localPort}` : port.localPort ?? ''}
-        placeholder={nls.localizeByDefault('Port number or address (eg. 3000 or 10.10.10.10:2000).')}
+        placeholder={service.getPortInputPlaceholder()}
         onKeyDown={e => e.key === 'Enter' && !error && service.updatePort(port, e.currentTarget.value)}
         onKeyUp={e => setError(!service.isValidAddress(e.currentTarget.value))}></input>;
 

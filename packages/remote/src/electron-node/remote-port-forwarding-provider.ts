@@ -34,8 +34,8 @@ export class RemotePortForwardingProviderImpl implements RemotePortForwardingPro
 
     protected static forwardedPorts: ForwardInfo[] = [];
 
-    async forwardPort(connectionPort: number, portToForward: ForwardedPort): Promise<void> {
-        const currentConnection = this.connectionService.getConnectionFromPort(connectionPort);
+    async forwardPort(connectionPort: number | string, portToForward: ForwardedPort): Promise<void> {
+        const currentConnection = this.connectionService.getConnectionFromPort(Number(connectionPort));
         if (!currentConnection) {
             throw new Error(`No connection found for port ${connectionPort}`);
         }

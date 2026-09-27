@@ -37,7 +37,7 @@ if (stdin.isTTY) {
 }
 const connection = createConnection(backendPort, '127.0.0.1');
 
-connection.pipe(stdout);
+connection.pipe(stdout, { end: false });
 stdin.pipe(connection);
 
 connection.on('error', error => {
@@ -45,9 +45,11 @@ connection.on('error', error => {
 });
 
 connection.on('close', () => {
-    console.log('connection closed');
-    process.exit(0);
+    stdin.unpipe(connection);
+    stdin.pause();
+    clearInterval(keepAlive);
+    stdout.end();
 });
 
 // keep the process running
-setInterval(() => { }, 1 << 30);
+const keepAlive = setInterval(() => { }, 1 << 30);

@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { Emitter } from '@theia/core';
+import { Emitter, nls } from '@theia/core';
 import { inject, injectable, postConstruct } from '@theia/core/shared/inversify';
 import { RemotePortForwardingProvider } from '../../electron-common/remote-port-forwarding-provider';
 import { getCurrentPort } from '@theia/core/lib/electron-browser/messaging/electron-local-ws-connection-source';
@@ -90,5 +90,9 @@ export class PortForwardingService {
         const port = parseInt(address.includes(':') ? address.split(':')[1] : address);
 
         return !this.forwardedPorts.some(p => p.localPort === port);
+    }
+
+    getPortInputPlaceholder(): string {
+        return nls.localizeByDefault('Port number or address (eg. 3000 or 10.10.10.10:2000).');
     }
 }

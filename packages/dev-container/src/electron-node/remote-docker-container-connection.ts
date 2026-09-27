@@ -106,6 +106,7 @@ export class RemoteDockerContainerConnection implements RemoteConnection {
     }
 
     async forwardOut(socket: Socket, port?: number): Promise<void> {
+        socket.pause();
         const node = `${this.remoteSetupResult.nodeDirectory}/bin/node`;
         const devContainerServer = `${this.remoteSetupResult.applicationDirectory}/backend/dev-container-server.js`;
         try {
@@ -119,8 +120,12 @@ export class RemoteDockerContainerConnection implements RemoteConnection {
 
             socket.pipe(stream);
             ttySession.modem.demuxStream(stream, socket, socket);
+            stream.once('close', () => socket.end());
+            socket.once('close', () => stream.destroy());
+            socket.resume();
         } catch (e) {
             this.logger.error('Failed to forward socket:', e);
+            socket.destroy(e instanceof Error ? e : new Error(String(e)));
         }
     }
 

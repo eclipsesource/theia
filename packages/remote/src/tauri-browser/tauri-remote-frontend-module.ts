@@ -6,7 +6,7 @@
 
 import { bindRootContributionProvider, CommandContribution } from '@theia/core';
 import { ContainerModule } from '@theia/core/shared/inversify';
-import { FrontendApplicationContribution, isRemote } from '@theia/core/lib/browser';
+import { bindViewContribution, FrontendApplicationContribution, isRemote, WidgetFactory } from '@theia/core/lib/browser';
 import { ServiceConnectionProvider } from '@theia/core/lib/browser/messaging/service-connection-provider';
 import { FileServiceContribution } from '@theia/filesystem/lib/browser/file-service';
 import { RemoteFileSystemProvider, remoteFileSystemPath, RemoteFileSystemProxyFactory, RemoteFileSystemServer } from '@theia/filesystem/lib/common/remote-file-system-provider';
@@ -24,6 +24,12 @@ import { TauriRemoteFrontendContribution } from './tauri-remote-frontend-contrib
 import { TauriRemoteSSHContribution } from './tauri-remote-ssh-contribution';
 import { TauriRemoteUserStorageContribution } from './tauri-remote-user-storage-provider';
 import { TauriRemoteLocalWorkspaceContribution } from './tauri-remote-local-workspace-contribution';
+import { PortForwardingWidget, PORT_FORWARDING_WIDGET_ID } from '../electron-browser/port-forwarding/port-forwarding-widget';
+import { PortForwardingContribution } from '../electron-browser/port-forwarding/port-forwading-contribution';
+import { PortForwardingService } from '../electron-browser/port-forwarding/port-forwarding-service';
+import { RemotePortForwardingProvider, RemoteRemotePortForwardingProviderPath } from '../electron-common/remote-port-forwarding-provider';
+import { TauriPortForwardingService } from './tauri-port-forwarding-service';
+import '../../src/electron-browser/style/port-forwarding-widget.css';
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(TauriRemoteFrontendContribution).toSelf().inSingletonScope();
@@ -35,6 +41,16 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bindRemotePreferences(bind);
     bind(RemoteService).toSelf().inSingletonScope();
     bind(RemoteCliArgsCollector).toSelf().inSingletonScope();
+
+    bind(PortForwardingWidget).toSelf();
+    bind(WidgetFactory).toDynamicValue(context => ({
+        id: PORT_FORWARDING_WIDGET_ID,
+        createWidget: () => context.container.get<PortForwardingWidget>(PortForwardingWidget)
+    }));
+    bindViewContribution(bind, PortForwardingContribution);
+    bind(PortForwardingService).to(TauriPortForwardingService).inSingletonScope();
+    bind(RemotePortForwardingProvider).toDynamicValue(context =>
+        ServiceConnectionProvider.createLocalProxy<RemotePortForwardingProvider>(context.container, RemoteRemotePortForwardingProviderPath)).inSingletonScope();
 
     bind(RemoteSSHConnectionProvider).toDynamicValue(context =>
         ServiceConnectionProvider.createLocalProxy<RemoteSSHConnectionProvider>(context.container, RemoteSSHConnectionProviderPath)).inSingletonScope();

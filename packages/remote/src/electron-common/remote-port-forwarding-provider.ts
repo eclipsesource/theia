@@ -27,7 +27,7 @@ export interface ForwardedPort {
 }
 
 export interface RemotePortForwardingProvider {
-    forwardPort(connectionPort: number, portToForward: ForwardedPort): Promise<void>;
+    forwardPort(connectionPort: number | string, portToForward: ForwardedPort): Promise<void>;
     portRemoved(port: ForwardedPort): Promise<void>;
     getForwardedPorts(): Promise<ForwardedPort[]>
 }
