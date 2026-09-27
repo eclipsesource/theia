@@ -58,6 +58,7 @@
 
 .dialogContent .theia-FileNamePanel {
   height: 31px;
+  min-height: 31px;
 }
 
 /*

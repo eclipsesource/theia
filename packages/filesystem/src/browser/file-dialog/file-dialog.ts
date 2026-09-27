@@ -433,8 +433,6 @@ export class SaveFileDialog extends FileDialog<URI | undefined> {
     }
 
     protected override onAfterAttach(msg: Message): void {
-        super.onAfterAttach(msg);
-
         const fileNamePanel = document.createElement('div');
         fileNamePanel.classList.add(FILENAME_PANEL_CLASS);
         this.contentNode.appendChild(fileNamePanel);
@@ -452,6 +450,7 @@ export class SaveFileDialog extends FileDialog<URI | undefined> {
         fileNamePanel.appendChild(this.fileNameField);
 
         this.fileNameField.onkeyup = () => this.validate();
+        super.onAfterAttach(msg);
     }
 
 }
