@@ -20,20 +20,24 @@ exports.activate = context => {
             return Buffer.from(JSON.stringify({ cells: data.cells.length }));
         }
     }));
-    const kernelScript = new vscode.NotebookRendererScript(vscode.Uri.file(path.join(__dirname, 'kernel-preload.js')));
-    const kernel = vscode.notebooks.createNotebookController('tauri-probe-kernel', 'tauri-probe-notebook', 'Tauri Probe Kernel', undefined, [kernelScript]);
-    kernel.supportedLanguages = ['javascript'];
-    kernel.executeHandler = async cells => {
-        for (const cell of cells) {
-            const execution = kernel.createNotebookCellExecution(cell);
-            execution.start(Date.now());
-            const item = new vscode.NotebookCellOutputItem(Buffer.from('2'), 'application/x-tauri-probe');
-            await execution.replaceOutput([new vscode.NotebookCellOutput([item])]);
-            execution.end(true, Date.now());
-            console.log('TAURI_NOTEBOOK_CELL_EXECUTED');
-        }
+    const registerKernel = (id, label, preload, value) => {
+        const script = new vscode.NotebookRendererScript(vscode.Uri.file(path.join(__dirname, preload)));
+        const kernel = vscode.notebooks.createNotebookController(id, 'tauri-probe-notebook', label, undefined, [script]);
+        kernel.supportedLanguages = ['javascript'];
+        kernel.executeHandler = async cells => {
+            for (const cell of cells) {
+                const execution = kernel.createNotebookCellExecution(cell);
+                execution.start(Date.now());
+                const item = new vscode.NotebookCellOutputItem(Buffer.from(value), 'application/x-tauri-probe');
+                await execution.replaceOutput([new vscode.NotebookCellOutput([item])]);
+                execution.end(true, Date.now());
+                console.log(`TAURI_NOTEBOOK_CELL_EXECUTED ${id}`);
+            }
+        };
+        context.subscriptions.push(kernel);
     };
-    context.subscriptions.push(kernel);
+    registerKernel('tauri-probe-kernel', 'Tauri Probe Kernel', 'kernel-preload.js', '2');
+    registerKernel('tauri-probe-kernel-alternate', 'Tauri Probe Alternate Kernel', 'kernel-preload-alternate.js', '3');
     context.subscriptions.push(vscode.commands.registerCommand('tauriProbe.openNotebook', async () => {
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
         const uri = vscode.Uri.joinPath(context.globalStorageUri, 'sample.tauri-nb');

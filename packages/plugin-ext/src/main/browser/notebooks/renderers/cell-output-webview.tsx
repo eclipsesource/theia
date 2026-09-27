@@ -258,6 +258,12 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
 
     protected isDisposed = false;
 
+    protected kernelPreloadUpdate = 0;
+
+    protected readonly seenKernelPreloads = new Map<string, string>();
+
+    protected readonly seenKernelResourceRoots = new Set<string>();
+
     async init(notebook: NotebookModel, editor: NotebookEditorWidget): Promise<void> {
         this.notebook = notebook;
         this.editor = editor;
@@ -272,30 +278,15 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
         this.webviewWidgetInitialized.resolve();
 
         // this.webviewWidget.parent = this.editor ?? null;
-        const kernel = this.notebookKernelService.getSelectedOrSuggestedKernel(this.notebook);
-        this.webviewWidget.setContentOptions({
-            allowScripts: true,
-            // The isolated Tauri origin reads renderer scripts through the webview resource channel.
-            localResourceRoots: environment.tauri.is()
-                ? [...new Set([
-                    ...this.notebookRendererRegistry.notebookRenderers.flatMap(renderer => renderer.packageUri ? [renderer.packageUri] : []),
-                    ...this.notebookRendererRegistry.staticNotebookPreloads.flatMap(preload => preload.packageUri ? [preload.packageUri] : []),
-                    ...(kernel?.preloadUris.length ? [kernel.localResourceRoot.toString()] : [])
-                ])]
-                : undefined,
-            // eslint-disable-next-line max-len
-            // list taken from https://github.com/microsoft/vscode/blob/a27099233b956dddc2536d4a0d714ab36266d897/src/vs/workbench/contrib/notebook/browser/view/renderers/backLayerWebView.ts#L762-L774
-            enableCommandUris: [
-                'github-issues.authNow',
-                'workbench.extensions.search',
-                'workbench.action.openSettings',
-                '_notebook.selectKernel',
-                'jupyter.viewOutput',
-                'workbench.action.openLargeOutput',
-                'cellOutput.enableScrolling',
-            ],
-        });
+        this.updateContentOptions();
         this.webviewWidget.setHTML(await this.createWebviewContent());
+        if (environment.tauri.is()) {
+            this.toDispose.push(this.notebookKernelService.onDidChangeSelectedKernel(event => {
+                if (event.notebook.toString() === this.notebook.uri.toString()) {
+                    this.refreshKernelPreloads();
+                }
+            }));
+        }
 
         this.notebook.onDidAddOrRemoveCell(e => {
             if (e.newCellIds) {
@@ -324,6 +315,60 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
 
         this.webviewWidget.onMessage((message: FromWebviewMessage) => {
             this.handleWebviewMessage(message);
+        });
+    }
+
+    protected refreshKernelPreloads(): void {
+        const update = ++this.kernelPreloadUpdate;
+        this.rememberKernelPreloads();
+        this.createWebviewContent()
+            .then(content => {
+                if (this.isDisposed || update !== this.kernelPreloadUpdate) {
+                    return;
+                }
+                this.updateContentOptions();
+                this.webviewWidget.setHTML(content);
+            })
+            .catch(error => this.logger.error('Failed to update notebook kernel preload.', error));
+    }
+
+    protected rememberKernelPreloads(): void {
+        if (!environment.tauri.is()) {
+            return;
+        }
+        const kernel = this.notebookKernelService.getSelectedOrSuggestedKernel(this.notebook);
+        if (kernel?.preloadUris.length) {
+            // Previous outputs may still need their kernel's preload after a switch.
+            this.seenKernelResourceRoots.add(kernel.localResourceRoot.toString());
+            for (const uri of kernel.preloadUris) {
+                this.seenKernelPreloads.set(uri.toString(), this.toTauriNotebookResourcePath(uri.toString()));
+            }
+        }
+    }
+
+    protected updateContentOptions(): void {
+        this.rememberKernelPreloads();
+        this.webviewWidget.setContentOptions({
+            allowScripts: true,
+            // The isolated Tauri origin reads renderer scripts through the webview resource channel.
+            localResourceRoots: environment.tauri.is()
+                ? [...new Set([
+                    ...this.notebookRendererRegistry.notebookRenderers.flatMap(renderer => renderer.packageUri ? [renderer.packageUri] : []),
+                    ...this.notebookRendererRegistry.staticNotebookPreloads.flatMap(preload => preload.packageUri ? [preload.packageUri] : []),
+                    ...this.seenKernelResourceRoots
+                ])]
+                : undefined,
+            // eslint-disable-next-line max-len
+            // list taken from https://github.com/microsoft/vscode/blob/a27099233b956dddc2536d4a0d714ab36266d897/src/vs/workbench/contrib/notebook/browser/view/renderers/backLayerWebView.ts#L762-L774
+            enableCommandUris: [
+                'github-issues.authNow',
+                'workbench.extensions.search',
+                'workbench.action.openSettings',
+                '_notebook.selectKernel',
+                'jupyter.viewOutput',
+                'workbench.action.openLargeOutput',
+                'cellOutput.enableScrolling',
+            ],
         });
     }
 
@@ -565,8 +610,9 @@ export class CellOutputWebviewImpl implements CellOutputWebview, Disposable {
 
     getPreloads(): string[] {
         const kernel = this.notebookKernelService.getSelectedOrSuggestedKernel(this.notebook);
-        const kernelPreloads = kernel?.preloadUris.map(uri => environment.tauri.is()
-            ? this.toTauriNotebookResourcePath(uri.toString()) : uri.toString()) ?? [];
+        const kernelPreloads = environment.tauri.is()
+            ? [...this.seenKernelPreloads.values()]
+            : kernel?.preloadUris.map(uri => uri.toString()) ?? [];
 
         const staticPreloads = this.notebookRendererRegistry.staticNotebookPreloads
             .filter(preload => preload.type === this.notebook.viewType)
