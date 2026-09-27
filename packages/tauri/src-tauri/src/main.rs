@@ -25,6 +25,9 @@ struct UrlDispatchState {
     pending: HashMap<String, Vec<String>>,
 }
 
+#[derive(Default)]
+struct DownloadReservations(Mutex<HashSet<std::path::PathBuf>>);
+
 impl Drop for ControllerChild {
     fn drop(&mut self) {
         if let Ok(mut input) = self.input.lock() {
@@ -202,6 +205,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
             app.manage(window_state::WindowStateStore::new(&app.handle())?);
             app.manage(url_dispatch.clone());
+            app.manage(DownloadReservations::default());
             *setup_handle.lock().map_err(|_| "Native host state is unavailable")? = Some(app.handle().clone());
             create_window(&app.handle(), &message)?;
             if setup_controller_ended.load(Ordering::Acquire) {
@@ -366,6 +370,71 @@ fn create_window(
         .apply(app, builder);
     let window = builder
         .data_directory(data_directory)
+        .on_download(|webview, event| match event {
+            tauri::webview::DownloadEvent::Requested { destination, .. } => {
+                let downloads = match webview.app_handle().path().download_dir() {
+                    Ok(downloads) => downloads,
+                    Err(error) => {
+                        eprintln!("Could not find Downloads directory: {error}");
+                        return false;
+                    }
+                };
+                if let Err(error) = std::fs::create_dir_all(&downloads) {
+                    eprintln!("Could not create Downloads directory: {error}");
+                    return false;
+                }
+                let filename = destination
+                    .file_name()
+                    .unwrap_or_else(|| std::ffi::OsStr::new("download"))
+                    .to_string_lossy();
+                let name = std::path::Path::new(filename.as_ref());
+                let stem = name
+                    .file_stem()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or("download");
+                let extension = name.extension().and_then(|value| value.to_str());
+                let reservations = webview.app_handle().state::<DownloadReservations>();
+                let mut reservations = match reservations.0.lock() {
+                    Ok(reservations) => reservations,
+                    Err(_) => return false,
+                };
+                for attempt in 0..1000 {
+                    let name = if attempt == 0 {
+                        filename.to_string()
+                    } else if let Some(extension) = extension {
+                        format!("{stem} ({attempt}).{extension}")
+                    } else {
+                        format!("{stem} ({attempt})")
+                    };
+                    let path = downloads.join(name);
+                    if matches!(
+                        std::fs::symlink_metadata(&path),
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound
+                    ) && !reservations.contains(&path)
+                    {
+                        reservations.insert(path.clone());
+                        *destination = path;
+                        return true;
+                    }
+                }
+                eprintln!("Could not reserve a unique download filename");
+                false
+            }
+            tauri::webview::DownloadEvent::Finished { path, .. } => {
+                if let Some(path) = path {
+                    if let Ok(mut reservations) = webview
+                        .app_handle()
+                        .state::<DownloadReservations>()
+                        .0
+                        .lock()
+                    {
+                        reservations.remove(&path);
+                    }
+                }
+                true
+            }
+            _ => true,
+        })
         .on_page_load(move |window, payload| {
             if payload.url().host_str() != Some("127.0.0.1")
                 || payload.url().port_or_known_default() != page_load_port
