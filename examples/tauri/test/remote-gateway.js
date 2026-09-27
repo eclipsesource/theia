@@ -49,12 +49,14 @@ async function run() {
     const upstreamServer = http.createServer();
     const upstreamWebSockets = new WebSocket.Server({ noServer: true });
     let upstreamConnections = 0;
+    let upstreamClient;
     upstreamServer.on('upgrade', (request, socket, head) => {
         assert.equal(request.url, '/tauri-services');
         assert.equal(request.headers['x-theia-remote-token'], token);
         assert.equal(request.headers.origin, undefined);
         upstreamConnections++;
         upstreamWebSockets.handleUpgrade(request, socket, head, ws => {
+            upstreamClient = ws;
             ws.on('message', (data, binary) => ws.send(data, { binary }));
         });
     });
@@ -87,6 +89,18 @@ async function run() {
         client = undefined;
         assert.equal(await connect(localPort, id, allowed), 404);
         assert.equal(upstreamConnections, 1);
+        const failedId = randomBytes(16).toString('hex');
+        let failures = 0;
+        gateway.register(failedId, upstreamPort, token, () => failures++);
+        client = await connect(localPort, failedId, allowed);
+        const failedClose = nextClose(client);
+        upstreamClient.close();
+        await failedClose;
+        client = undefined;
+        assert.equal(failures, 1);
+        assert.equal(gateway.getSessionPort(failedId), undefined);
+        assert.equal(await connect(localPort, failedId, allowed), 404);
+        assert.equal(upstreamConnections, 2);
         console.log('Tauri remote gateway forwarding passed');
     } finally {
         client?.terminate();

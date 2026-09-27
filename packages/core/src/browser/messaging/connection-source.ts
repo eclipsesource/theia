@@ -24,4 +24,6 @@ export const ConnectionSource = Symbol('ConnectionSource');
  */
 export interface ConnectionSource {
     onConnectionDidOpen: Event<Channel>;
+    onSocketDidOpen?: Event<void>;
+    onSocketDidClose?: Event<void>;
 }

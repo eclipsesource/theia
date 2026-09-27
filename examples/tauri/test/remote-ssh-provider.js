@@ -8,6 +8,7 @@ const { TauriRemoteStatusService } = require('@theia/remote/lib/tauri-node/tauri
 function createProvider(gatewayToken) {
     const calls = [];
     let disconnect;
+    let fail;
     const remote = {
         id: 'ssh-connection',
         name: 'example',
@@ -28,10 +29,11 @@ function createProvider(gatewayToken) {
         assert.equal(hostname, '127.0.0.1');
         return { address: () => ({ port: 41234 }), close: () => calls.push('server-close') };
     } };
-    provider.gateway = { register: (id, port, token) => {
+    provider.gateway = { register: (id, port, token, onDidFail) => {
         assert.match(id, /^[0-9a-f]{32}$/);
         assert.equal(port, 41234);
         assert.equal(token, gatewayToken);
+        fail = onDidFail;
         calls.push('gateway-register');
         return { dispose: () => calls.push('gateway-dispose') };
     } };
@@ -40,7 +42,7 @@ function createProvider(gatewayToken) {
         calls.push('connection-register');
         return { dispose: () => calls.push('connection-dispose') };
     } };
-    return { provider, remote, calls };
+    return { provider, remote, calls, fail: () => fail?.() };
 }
 
 async function run() {
@@ -56,6 +58,11 @@ async function run() {
     assert.deepEqual(await status.getStatus('unknown'), { alive: false });
     await status.connectionClosed(id);
     assert.deepEqual(valid.calls.slice(3), ['remote-dispose', 'gateway-dispose', 'server-close', 'connection-dispose']);
+
+    const unexpected = createProvider('b'.repeat(64));
+    await unexpected.provider.establishConnection({ host: 'example', user: 'test' });
+    unexpected.fail();
+    assert.deepEqual(unexpected.calls.slice(3), ['gateway-dispose', 'server-close', 'connection-dispose', 'remote-dispose']);
 
     const missing = createProvider(undefined);
     await assert.rejects(missing.provider.establishConnection({ host: 'example', user: 'test' }), /gateway token/);

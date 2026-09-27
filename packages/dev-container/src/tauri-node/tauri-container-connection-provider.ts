@@ -25,7 +25,9 @@ export class TauriContainerConnectionProvider extends DevContainerConnectionProv
             throw new Error('Tauri container setup did not return a gateway token');
         }
         const id = crypto.randomBytes(16).toString('hex');
-        const registration = this.gateway.register(id, port, result.gatewayToken);
+        const registration = this.gateway.register(id, port, result.gatewayToken, () => {
+            remote.dispose().catch(error => this.logger.error('Could not dispose failed remote container session:', error));
+        });
         remote.onDidDisconnect(() => registration.dispose());
         return id;
     }

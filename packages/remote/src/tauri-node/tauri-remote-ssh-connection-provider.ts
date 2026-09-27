@@ -25,6 +25,16 @@ export class TauriRemoteSSHConnectionProvider extends RemoteSSHConnectionProvide
         let server: net.Server | undefined;
         let registration: { dispose(): void } | undefined;
         let gatewayRegistration: { dispose(): void } | undefined;
+        let cleaned = false;
+        const cleanup = (): void => {
+            if (cleaned) {
+                return;
+            }
+            cleaned = true;
+            gatewayRegistration?.dispose();
+            server?.close();
+            registration?.dispose();
+        };
         try {
             const connection = await this.establishSSHConnection(options.host, options.user, options.customConfigFile);
             remote = connection;
@@ -39,19 +49,16 @@ export class TauriRemoteSSHConnectionProvider extends RemoteSSHConnectionProvide
             server = await this.serverProvider.getProxyServer(socket => connection.forwardOut(socket), '127.0.0.1');
             const localPort = (server.address() as net.AddressInfo).port;
             const sessionId = crypto.randomBytes(16).toString('hex');
-            gatewayRegistration = this.gateway.register(sessionId, localPort, result.gatewayToken);
+            gatewayRegistration = this.gateway.register(sessionId, localPort, result.gatewayToken, () => {
+                cleanup();
+                connection.dispose();
+            });
             registration = this.remoteConnectionService.register(connection);
             connection.localPort = localPort;
-            connection.onDidDisconnect(() => {
-                gatewayRegistration?.dispose();
-                server?.close();
-                registration?.dispose();
-            });
+            connection.onDidDisconnect(cleanup);
             return sessionId;
         } catch (error) {
-            gatewayRegistration?.dispose();
-            server?.close();
-            registration?.dispose();
+            cleanup();
             remote?.dispose();
             throw error;
         } finally {

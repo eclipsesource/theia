@@ -17,6 +17,7 @@
 import { inject, injectable, interfaces, postConstruct } from 'inversify';
 import { Channel, ChannelMultiplexer } from '../../common/message-rpc/channel';
 import { Deferred } from '../../common/promise-util';
+import { Emitter } from '../../common/event';
 import { ConnectionSource } from './connection-source';
 import { RpcProxy, RpcProxyFactory } from '../../common/messaging/proxy-factory';
 
@@ -46,6 +47,11 @@ export namespace ServiceConnectionProvider {
  */
 @injectable()
 export class ServiceConnectionProvider {
+
+    protected readonly onDidSocketOpenEmitter = new Emitter<void>();
+    readonly onDidSocketOpen = this.onDidSocketOpenEmitter.event;
+    protected readonly onDidSocketCloseEmitter = new Emitter<void>();
+    readonly onDidSocketClose = this.onDidSocketCloseEmitter.event;
 
     static createProxy<T extends object>(container: interfaces.Container, path: string, arg?: object): RpcProxy<T> {
         return container.get<ServiceConnectionProvider>(RemoteConnectionProvider).createProxy(path, arg);
@@ -95,6 +101,8 @@ export class ServiceConnectionProvider {
     @postConstruct()
     init(): void {
         this.connectionSource.onConnectionDidOpen(channel => this.handleChannelCreated(channel));
+        this.connectionSource.onSocketDidOpen?.(() => this.onDidSocketOpenEmitter.fire());
+        this.connectionSource.onSocketDidClose?.(() => this.onDidSocketCloseEmitter.fire());
     }
 
     @inject(ConnectionSource)

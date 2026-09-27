@@ -7,16 +7,18 @@
 import * as http from 'http';
 import * as https from 'https';
 import { Duplex } from 'stream';
-import { inject, injectable } from 'inversify';
+import { inject, injectable, named } from 'inversify';
 import WebSocket = require('ws');
 import { Disposable } from '../../common/disposable';
 import { BackendApplicationContribution } from '../../node/backend-application';
 import { WsRequestValidator } from '../../node/ws-request-validators';
+import { ILogger } from '../../common/logger';
 
 interface RemoteSession {
     port: number;
     token: string;
     sockets: Set<WebSocket>;
+    onDidFail?: () => void;
 }
 
 /** Forwards one trusted Tauri window's remote service channel through its local backend. */
@@ -24,6 +26,8 @@ interface RemoteSession {
 export class TauriRemoteGateway implements BackendApplicationContribution {
     @inject(WsRequestValidator)
     protected readonly validator: WsRequestValidator;
+    @inject(ILogger) @named('core:TauriRemoteGateway')
+    protected readonly logger: ILogger;
 
     protected readonly sessions = new Map<string, RemoteSession>();
     protected readonly webSocketServer = new WebSocket.Server({ noServer: true, maxPayload: 1e8 });
@@ -32,24 +36,16 @@ export class TauriRemoteGateway implements BackendApplicationContribution {
         return this.sessions.get(id)?.port;
     }
 
-    register(id: string, port: number, token: string): Disposable {
+    register(id: string, port: number, token: string, onDidFail?: () => void): Disposable {
         if (!/^[0-9a-f]{32}$/.test(id) || !Number.isInteger(port) || port < 1 || port > 65535 || !/^[0-9a-f]{64}$/.test(token)) {
             throw new Error('Invalid Tauri remote session');
         }
         if (this.sessions.has(id)) {
             throw new Error('Tauri remote session already exists');
         }
-        const session: RemoteSession = { port, token, sockets: new Set() };
+        const session: RemoteSession = { port, token, sockets: new Set(), onDidFail };
         this.sessions.set(id, session);
-        return Disposable.create(() => {
-            if (this.sessions.get(id) === session) {
-                this.sessions.delete(id);
-                for (const socket of session.sockets) {
-                    socket.terminate();
-                }
-                session.sockets.clear();
-            }
-        });
+        return Disposable.create(() => this.disposeSession(id, session));
     }
 
     onStart(server: http.Server | https.Server): void {
@@ -99,7 +95,10 @@ export class TauriRemoteGateway implements BackendApplicationContribution {
                 settled = true;
                 clearTimeout(timer);
                 upstream.terminate();
-                this.reject(socket, 502);
+                if (!socket.destroyed) {
+                    this.reject(socket, 502);
+                    this.failSession(id, session);
+                }
             }
         };
         const timer = setTimeout(fail, 10000);
@@ -115,7 +114,7 @@ export class TauriRemoteGateway implements BackendApplicationContribution {
             settled = true;
             clearTimeout(timer);
             try {
-                this.webSocketServer.handleUpgrade(request, socket, head, client => this.forward(client, upstream, session));
+                this.webSocketServer.handleUpgrade(request, socket, head, client => this.forward(client, upstream, id, session));
             } catch {
                 upstream.terminate();
                 socket.destroy();
@@ -123,7 +122,7 @@ export class TauriRemoteGateway implements BackendApplicationContribution {
         });
     }
 
-    protected forward(client: WebSocket, upstream: WebSocket, session: RemoteSession): void {
+    protected forward(client: WebSocket, upstream: WebSocket, id: string, session: RemoteSession): void {
         session.sockets.add(client);
         session.sockets.add(upstream);
         client.on('message', (data, isBinary) => {
@@ -141,9 +140,38 @@ export class TauriRemoteGateway implements BackendApplicationContribution {
             peer.terminate();
         };
         client.on('close', () => close(client, upstream));
-        upstream.on('close', () => close(upstream, client));
+        upstream.on('close', () => {
+            const unexpected = client.readyState === WebSocket.OPEN;
+            close(upstream, client);
+            if (unexpected) {
+                this.failSession(id, session);
+            }
+        });
         client.on('error', () => client.terminate());
         upstream.on('error', () => upstream.terminate());
+    }
+
+    protected disposeSession(id: string, session: RemoteSession): void {
+        if (this.sessions.get(id) !== session) {
+            return;
+        }
+        this.sessions.delete(id);
+        for (const socket of session.sockets) {
+            socket.terminate();
+        }
+        session.sockets.clear();
+    }
+
+    protected failSession(id: string, session: RemoteSession): void {
+        if (this.sessions.get(id) !== session) {
+            return;
+        }
+        this.disposeSession(id, session);
+        try {
+            session.onDidFail?.();
+        } catch (error) {
+            this.logger.error('Could not clean up failed Tauri remote session:', error);
+        }
     }
 
     protected reject(socket: Duplex, status: 403 | 404 | 502): void {
