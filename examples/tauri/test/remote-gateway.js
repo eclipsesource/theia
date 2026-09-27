@@ -4,6 +4,7 @@
 const assert = require('assert').strict;
 const { randomBytes } = require('crypto');
 const http = require('http');
+const express = require('express');
 const WebSocket = require('ws');
 const { TauriRemoteGateway } = require('@theia/core/lib/tauri-node/messaging/tauri-remote-gateway');
 
@@ -43,10 +44,37 @@ function nextClose(socket) {
     });
 }
 
+function requestHttp(port, path, options = {}) {
+    return new Promise((resolve, reject) => {
+        const request = http.request({ hostname: '127.0.0.1', port, path, method: options.method || 'GET', headers: options.headers }, response => {
+            const chunks = [];
+            response.on('data', chunk => chunks.push(chunk));
+            response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks) }));
+        });
+        request.on('error', reject);
+        request.end(options.body);
+    });
+}
+
 async function run() {
     const token = randomBytes(32).toString('hex');
     const id = randomBytes(16).toString('hex');
-    const upstreamServer = http.createServer();
+    const upstreamServer = http.createServer((request, response) => {
+        assert.equal(request.headers['x-theia-remote-token'], token);
+        assert.equal(request.headers.cookie, undefined);
+        assert.equal(request.headers.origin, undefined);
+        if (request.method === 'GET' && request.url === '/files/?uri=file:///remote/proof.txt') {
+            response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'remote-file', name: 'proof.txt' }));
+        } else if (request.method === 'GET' && request.url === '/files/download/?id=remote-file') {
+            response.writeHead(200, { 'Content-Type': 'text/plain', 'Content-Disposition': 'attachment; filename="proof.txt"' }).end('remote-file-content');
+        } else if (request.method === 'PUT' && request.url === '/files/') {
+            const chunks = [];
+            request.on('data', chunk => chunks.push(chunk));
+            request.on('end', () => response.writeHead(200, { 'Content-Type': 'application/json' }).end(Buffer.concat(chunks)));
+        } else {
+            response.writeHead(404).end();
+        }
+    });
     const upstreamWebSockets = new WebSocket.Server({ noServer: true });
     let upstreamConnections = 0;
     let upstreamClient;
@@ -61,11 +89,22 @@ async function run() {
         });
     });
     const upstreamPort = await listen(upstreamServer);
-    const localServer = http.createServer((_request, response) => response.writeHead(404).end());
+    const localApp = express();
+    localApp.use((request, response, next) => {
+        if (request.headers.cookie !== 'local=valid' ||
+            (request.headers.origin && request.headers.origin !== `http://127.0.0.1:${request.socket.localPort}`)) {
+            response.sendStatus(403);
+        } else {
+            next();
+        }
+    });
+    localApp.use(express.json());
+    const localServer = http.createServer(localApp);
     const gateway = new TauriRemoteGateway();
     Object.defineProperty(gateway, 'validator', {
         value: { allowWsUpgrade: request => request.headers.origin === `http://127.0.0.1:${request.socket.localPort}` && request.headers.cookie === 'local=valid' }
     });
+    gateway.configure(localApp);
     gateway.onStart(localServer);
     const localPort = await listen(localServer);
     const allowed = { Origin: `http://127.0.0.1:${localPort}`, Cookie: 'local=valid' };
@@ -74,6 +113,33 @@ async function run() {
         assert.throws(() => gateway.register('invalid', upstreamPort, token), /Invalid/);
         const registration = gateway.register(id, upstreamPort, token);
         assert.throws(() => gateway.register(id, upstreamPort, token), /already exists/);
+        const filesPath = `/tauri-remote/${id}/files`;
+        assert.equal((await requestHttp(localPort, `${filesPath}/?uri=file:///remote/proof.txt`)).status, 403);
+        assert.equal((await requestHttp(localPort, `${filesPath}/?uri=file:///remote/proof.txt`, {
+            headers: { Cookie: 'local=valid', Origin: 'http://untrusted.localhost' }
+        })).status, 403);
+        assert.equal((await requestHttp(localPort, `/tauri-remote/${randomBytes(16).toString('hex')}/files/`, {
+            headers: { Cookie: 'local=valid' }
+        })).status, 404);
+        assert.equal((await requestHttp(localPort, `${filesPath}/`, {
+            method: 'POST', headers: { Cookie: 'local=valid' }
+        })).status, 405);
+        const prepared = await requestHttp(localPort, `${filesPath}/?uri=file:///remote/proof.txt`, {
+            headers: { Cookie: 'local=valid' }
+        });
+        assert.equal(prepared.status, 200);
+        assert.deepEqual(JSON.parse(prepared.body.toString()), { id: 'remote-file', name: 'proof.txt' });
+        const downloaded = await requestHttp(localPort, `${filesPath}/download/?id=remote-file`, {
+            headers: { Cookie: 'local=valid' }
+        });
+        assert.equal(downloaded.status, 200);
+        assert.equal(downloaded.body.toString(), 'remote-file-content');
+        assert.equal(downloaded.headers['content-disposition'], 'attachment; filename="proof.txt"');
+        const uploaded = await requestHttp(localPort, `${filesPath}/`, {
+            method: 'PUT', headers: { Cookie: 'local=valid', 'Content-Type': 'application/json' }, body: '{"uris":[]}'
+        });
+        assert.equal(uploaded.status, 200);
+        assert.equal(uploaded.body.toString(), '{"uris":[]}');
         assert.equal(await connect(localPort, id), 403);
         assert.equal(await connect(localPort, id, { Origin: allowed.Origin }), 403);
         assert.equal(await connect(localPort, randomBytes(16).toString('hex'), allowed), 404);
@@ -87,6 +153,9 @@ async function run() {
         registration.dispose();
         await closed;
         client = undefined;
+        assert.equal((await requestHttp(localPort, `${filesPath}/?uri=file:///remote/proof.txt`, {
+            headers: { Cookie: 'local=valid' }
+        })).status, 404);
         assert.equal(await connect(localPort, id, allowed), 404);
         assert.equal(upstreamConnections, 1);
         const failedId = randomBytes(16).toString('hex');
