@@ -18,6 +18,7 @@ import cp = require('child_process');
 import fs = require('fs-extra');
 import path = require('path');
 import os = require('os');
+import { withNativeModuleLock } from './native-module-lock';
 
 export type RebuildTarget = 'electron' | 'browser' | 'browser-only' | 'tauri';
 
@@ -65,15 +66,17 @@ export function rebuild(target: RebuildTarget, options: RebuildOptions = {}): vo
         forceAbi,
     } = options;
     const cache = path.resolve(cacheRoot, '.browser_modules');
-    const cacheExists = folderExists(cache);
     guardExit(async token => {
-        if (target === 'electron' && !cacheExists) {
-            process.exitCode = await rebuildElectronModules(cache, modules, forceAbi, token);
-        } else if ((target === 'browser' || target === 'tauri') && cacheExists) {
-            process.exitCode = await revertBrowserModules(cache, modules);
-        } else {
-            console.log(`native node modules are already rebuilt for ${target}`);
-        }
+        await withNativeModuleLock(cacheRoot, async () => {
+            const cacheExists = folderExists(cache);
+            if (target === 'electron' && !cacheExists) {
+                process.exitCode = await rebuildElectronModules(cache, modules, forceAbi, token);
+            } else if ((target === 'browser' || target === 'tauri') && cacheExists) {
+                process.exitCode = await revertBrowserModules(cache, modules);
+            } else {
+                console.log(`native node modules are already rebuilt for ${target}`);
+            }
+        }, () => throwIfSignal(token));
     }).catch(errorOrSignal => {
         if (typeof errorOrSignal === 'string' && errorOrSignal in os.constants.signals) {
             process.kill(process.pid, errorOrSignal);
