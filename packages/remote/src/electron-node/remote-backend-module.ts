@@ -18,6 +18,7 @@ import { ContainerModule } from '@theia/core/shared/inversify';
 import { BackendApplicationContribution, CliContribution } from '@theia/core/lib/node';
 import { MessagingListenerContribution } from '@theia/core/lib/node/messaging/messaging-listeners';
 import { RemoteAutoShutdownService } from './remote-auto-shutdown-service';
+import { TauriWebSocketListenerContribution } from '@theia/core/lib/tauri-node/messaging/tauri-raw-messaging';
 import { RemoteCliContribution } from '@theia/core/lib/node/remote/remote-cli-contribution';
 import { RemoteConnectionService } from './remote-connection-service';
 import { RemoteProxyServerProvider } from './remote-proxy-server-provider';
@@ -93,6 +94,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(RemoteAutoShutdownService).toSelf().inSingletonScope();
     bind(CliContribution).toService(RemoteAutoShutdownService);
     bind(MessagingListenerContribution).toService(RemoteAutoShutdownService);
+    bind(TauriWebSocketListenerContribution).toService(RemoteAutoShutdownService);
 
     bind(RemoteCliContribution).toConstantValue({
         enhanceArgs: () => ['--remote-auto-shutdown']

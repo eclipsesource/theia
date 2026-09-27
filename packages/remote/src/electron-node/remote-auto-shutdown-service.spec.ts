@@ -21,6 +21,7 @@ import { Arguments } from '@theia/core/shared/yargs';
 import * as http from 'http';
 import { EventEmitter } from 'events';
 import { Socket } from 'socket.io';
+import { TauriWebSocketListenerContribution } from '@theia/core/lib/tauri-node/messaging/tauri-raw-messaging';
 
 class MockSocket extends EventEmitter {
     disconnect(): void {
@@ -87,6 +88,12 @@ function connectSocket(service: TestableAutoShutdownService): MockSocket {
     return socket;
 }
 
+function connectTauriSocket(service: TestableAutoShutdownService): MockSocket {
+    const socket = new MockSocket();
+    service.onDidOpenTauriWebSocket(socket as unknown as Parameters<TauriWebSocketListenerContribution['onDidOpenTauriWebSocket']>[0]);
+    return socket;
+}
+
 describe('RemoteAutoShutdownService', () => {
 
     const services: TestableAutoShutdownService[] = [];
@@ -125,6 +132,19 @@ describe('RemoteAutoShutdownService', () => {
         connectSocket(service);
         expect(service.connections).to.equal(1);
         expect(service.hasScheduledTimer).to.equal(false);
+    });
+
+    it('should count raw Tauri WebSockets until they close', () => {
+        const service = createService();
+        enableAutoShutdown(service);
+
+        const socket = connectTauriSocket(service);
+        expect(service.connections).to.equal(1);
+        expect(service.hasScheduledTimer).to.equal(false);
+
+        socket.emit('close');
+        expect(service.connections).to.equal(0);
+        expect(service.hasScheduledTimer).to.equal(true);
     });
 
     it('should schedule timer when last connection disconnects', () => {

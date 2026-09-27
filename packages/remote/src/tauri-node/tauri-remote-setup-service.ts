@@ -10,6 +10,10 @@ import { RemoteSetupOptions, RemoteSetupResult, RemoteSetupService } from '../el
 
 @injectable()
 export class TauriRemoteSetupService extends RemoteSetupService {
+    protected override getRemoteAppName(): string {
+        return `${super.getRemoteAppName()}-tauri`;
+    }
+
     override setup(options: RemoteSetupOptions): Promise<RemoteSetupResult> {
         return super.setup({ ...options, gatewayToken: crypto.randomBytes(32).toString('hex') });
     }

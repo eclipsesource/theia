@@ -6,8 +6,9 @@
 
 import * as http from 'http';
 import * as https from 'https';
-import { inject, injectable } from 'inversify';
+import { inject, injectable, named } from 'inversify';
 import WebSocket = require('ws');
+import { ContributionProvider } from '../../common/contribution-provider';
 import { DefaultMessagingService } from '../../node/messaging/default-messaging-service';
 import { WsRequestValidator } from '../../node/ws-request-validators';
 import { AbstractChannel } from '../../common/message-rpc/channel';
@@ -45,10 +46,18 @@ class TauriNodeChannel extends AbstractChannel {
     }
 }
 
+export const TauriWebSocketListenerContribution = Symbol('TauriWebSocketListenerContribution');
+export interface TauriWebSocketListenerContribution {
+    onDidOpenTauriWebSocket(socket: WebSocket): void;
+}
+
 @injectable()
 export class TauriMessagingService extends DefaultMessagingService {
     @inject(WsRequestValidator)
     protected readonly wsRequestValidator: WsRequestValidator;
+
+    @inject(ContributionProvider) @named(TauriWebSocketListenerContribution)
+    protected readonly webSocketListeners: ContributionProvider<TauriWebSocketListenerContribution>;
 
     onStart(server: http.Server | https.Server): void {
         const webSocketServer = new WebSocket.Server({ noServer: true, maxPayload: 1e8 });
@@ -63,6 +72,9 @@ export class TauriMessagingService extends DefaultMessagingService {
                     return;
                 }
                 webSocketServer.handleUpgrade(request, socket, head, webSocket => {
+                    for (const listener of this.webSocketListeners.getContributions()) {
+                        listener.onDidOpenTauriWebSocket(webSocket);
+                    }
                     this.handleConnection(new TauriNodeChannel(webSocket));
                 });
             }).catch(error => {

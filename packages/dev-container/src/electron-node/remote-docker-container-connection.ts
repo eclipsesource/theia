@@ -54,6 +54,8 @@ export class RemoteDockerContainerConnection implements RemoteConnection {
     protected config: DevContainerConfiguration;
 
     protected dockerEventStream: NodeJS.ReadableStream | undefined;
+    protected disconnected = false;
+    protected disposed = false;
 
     protected readonly onDidDisconnectEmitter = new Emitter<void>();
     onDidDisconnect: Event<void> = this.onDidDisconnectEmitter.event;
@@ -71,7 +73,7 @@ export class RemoteDockerContainerConnection implements RemoteConnection {
 
         this.docker.getEvents({ filters: { container: [this.container.id], event: ['stop'] } }).then(stream => {
             this.dockerEventStream = stream;
-            stream.on('data', () => this.onDidDisconnectEmitter.fire());
+            stream.on('data', () => this.notifyDisconnect());
         }).catch(e => {
             this.logger.error('Failed to register Docker event listener:', e);
         });
@@ -239,17 +241,40 @@ export class RemoteDockerContainerConnection implements RemoteConnection {
     }
 
     disposeSync(): void {
+        if (this.disposed) {
+            return;
+        }
+        this.disposed = true;
+        this.notifyDisconnect();
         // cant use dockerode here since this needs to happen on one tick
-        this.shutdownContainer(true);
-        this.onDidDisconnectEmitter.dispose();
-        if (this.dockerEventStream) {
-            (this.dockerEventStream as import('stream').Readable).destroy();
-            this.dockerEventStream = undefined;
+        try {
+            this.shutdownContainer(true);
+        } finally {
+            this.cleanupDisconnectListeners();
         }
     }
 
     async dispose(): Promise<void> {
-        await this.shutdownContainer(false);
+        if (this.disposed) {
+            return;
+        }
+        this.disposed = true;
+        this.notifyDisconnect();
+        try {
+            await this.shutdownContainer(false);
+        } finally {
+            this.cleanupDisconnectListeners();
+        }
+    }
+
+    protected notifyDisconnect(): void {
+        if (!this.disconnected) {
+            this.disconnected = true;
+            this.onDidDisconnectEmitter.fire();
+        }
+    }
+
+    protected cleanupDisconnectListeners(): void {
         this.onDidDisconnectEmitter.dispose();
         if (this.dockerEventStream) {
             (this.dockerEventStream as import('stream').Readable).destroy();

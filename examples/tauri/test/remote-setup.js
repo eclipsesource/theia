@@ -12,7 +12,7 @@ function createService(type) {
     service.getRemoteHomeDirectory = async () => '/home/test';
     service.mkdirRemote = async () => {};
     service.dirExistsRemote = async () => true;
-    service.getRemoteAppName = () => 'test-app';
+    service.applicationPackage = { pck: { name: 'test-app', version: '1.0.0' } };
     service.scriptService = { joinPath: (_platform, ...parts) => path.posix.join(...parts) };
     service.nodeSetupService = { getNodeFileName: () => 'node.tar', getNodeDirectoryName: () => 'node' };
     service.cliContributions = { getContributions: () => [] };
@@ -45,6 +45,7 @@ async function run() {
         assert.match(result.gatewayToken, /^[0-9a-f]{64}$/);
         assert.equal(call.options.env.THEIA_TAURI_REMOTE_TOKEN, result.gatewayToken);
         assert.ok(call.args[0].endsWith('/remote-main.js'));
+        assert.ok(call.args[0].includes('.test-app-1.0.0-remote-tauri'));
         assert.ok(call.args.includes('--hostname=127.0.0.1'));
         assert.equal(call.command.includes(result.gatewayToken), false);
         assert.equal(call.args.join(' ').includes(result.gatewayToken), false);
@@ -53,6 +54,7 @@ async function run() {
 
     const electron = await setup(createService(RemoteSetupService));
     assert.ok(electron.call.args[0].endsWith('/main.js'));
+    assert.ok(electron.call.args[0].includes('.test-app-1.0.0-remote/lib'));
     assert.ok(electron.call.args.includes('--hostname=0.0.0.0'));
     assert.equal(electron.call.options, undefined);
     assert.equal(electron.result.gatewayToken, undefined);

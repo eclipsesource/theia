@@ -10,7 +10,8 @@ import { ContainerModule, inject, injectable } from 'inversify';
 import { BackendApplicationContribution, EarlyExpressMiddleware } from '../../node/backend-application';
 import { DefaultMessagingService } from '../../node/messaging/default-messaging-service';
 import { WsRequestValidatorContribution } from '../../node/ws-request-validators';
-import { TauriMessagingService } from './tauri-raw-messaging';
+import { TauriMessagingService, TauriWebSocketListenerContribution } from './tauri-raw-messaging';
+import { bindRootContributionProvider } from '../../common/contribution-provider';
 
 const RemoteGatewayToken = Symbol('RemoteGatewayToken');
 const token = process.env.THEIA_TAURI_REMOTE_TOKEN;
@@ -60,6 +61,7 @@ class RemoteGatewayHttpAuthContribution implements BackendApplicationContributio
 }
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
+    bindRootContributionProvider(bind, TauriWebSocketListenerContribution);
     bind(RemoteGatewayToken).toConstantValue(token);
     bind(RemoteGatewayValidator).toSelf().inSingletonScope();
     bind(WsRequestValidatorContribution).toService(RemoteGatewayValidator);

@@ -9,7 +9,7 @@ import * as crypto from 'crypto';
 import * as cookie from 'cookie';
 import { ContainerModule, inject, injectable } from 'inversify';
 import { DefaultMessagingService } from '../../node/messaging/default-messaging-service';
-import { TauriMessagingService } from './tauri-raw-messaging';
+import { TauriMessagingService, TauriWebSocketListenerContribution } from './tauri-raw-messaging';
 import { WsRequestValidatorContribution } from '../../node/ws-request-validators';
 import { BackendApplicationContribution, EarlyExpressMiddleware } from '../../node/backend-application';
 import { ConnectionHandler, RpcConnectionHandler } from '../../common/messaging';
@@ -19,6 +19,7 @@ import { TauriCloseClient, tauriCloseServicePath } from '../../tauri-common/taur
 import { TauriCloseBackendCoordinator } from '../tauri-close-backend-coordinator';
 import { TauriUntrustedContentServer } from '../tauri-untrusted-content-server';
 import { TauriRemoteGateway } from './tauri-remote-gateway';
+import { bindRootContributionProvider } from '../../common/contribution-provider';
 
 export const TauriSecurityToken = Symbol('TauriSecurityToken');
 export const TauriCookieName = Symbol('TauriCookieName');
@@ -93,6 +94,7 @@ class TauriHttpAuthContribution implements BackendApplicationContribution {
 }
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
+    bindRootContributionProvider(bind, TauriWebSocketListenerContribution);
     bind(TauriSecurityToken).toConstantValue(securityToken);
     bind(TauriCookieName).toConstantValue(cookieName);
     bind(TauriTokenValidator).toSelf().inSingletonScope();

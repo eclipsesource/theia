@@ -12,14 +12,14 @@ const WebSocket = require('ws');
 
 const entrypoint = path.resolve(__dirname, '../lib/backend/remote-main.js');
 
-function startBackend(profile, token) {
+function startBackend(profile, token, args = []) {
     const env = { ...process.env, THEIA_CONFIG_DIR: profile };
     delete env.THEIA_TAURI_TOKEN;
     delete env.THEIA_TAURI_REMOTE_TOKEN;
     if (token) {
         env.THEIA_TAURI_REMOTE_TOKEN = token;
     }
-    const child = fork(entrypoint, ['--hostname=127.0.0.1', '--port=0', '--remote'], {
+    const child = fork(entrypoint, ['--hostname=127.0.0.1', '--port=0', '--remote', ...args], {
         cwd: path.resolve(__dirname, '..'), env, stdio: ['ignore', 'pipe', 'pipe', 'ipc']
     });
     let output = '';
@@ -27,6 +27,17 @@ function startBackend(profile, token) {
         stream.on('data', chunk => { output = (output + chunk).slice(-12000); });
     }
     return { child, output: () => output };
+}
+
+function waitForExit(child, timeout) {
+    return new Promise((resolve, reject) => {
+        if (child.exitCode !== null) {
+            resolve(child.exitCode);
+            return;
+        }
+        const timer = setTimeout(() => reject(new Error('Remote backend did not shut down')), timeout);
+        child.once('exit', code => { clearTimeout(timer); resolve(code); });
+    });
 }
 
 function waitForStart(child, output) {
@@ -111,6 +122,23 @@ async function run() {
         }
         if (port !== undefined) {
             await assert.rejects(request(port, { 'X-Theia-Remote-Token': token }), { code: 'ECONNREFUSED' });
+        }
+
+        const lifecycle = startBackend(profile, token, ['--remote-auto-shutdown', '--remote-auto-shutdown-timeout=3000']);
+        try {
+            const lifecyclePort = await waitForStart(lifecycle.child, lifecycle.output);
+            const socket = new WebSocket(`ws://127.0.0.1:${lifecyclePort}/tauri-services`, {
+                headers: { 'X-Theia-Remote-Token': token }
+            });
+            await new Promise((resolve, reject) => { socket.once('open', resolve); socket.once('error', reject); });
+            await new Promise(resolve => setTimeout(resolve, 3500));
+            assert.equal(lifecycle.child.exitCode, null, 'active Tauri WebSocket must prevent auto-shutdown');
+            socket.close();
+            await new Promise(resolve => socket.once('close', resolve));
+            assert.equal(await waitForExit(lifecycle.child, 6000), 0);
+            console.log('Tauri remote backend raw WebSocket shutdown lifecycle passed');
+        } finally {
+            await stop(lifecycle.child);
         }
     } finally {
         await fs.rm(profile, { recursive: true, force: true });

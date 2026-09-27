@@ -22,6 +22,9 @@ import { CliContribution } from '@theia/core/lib/node';
 import { Arguments, Argv } from '@theia/core/shared/yargs';
 import * as http from 'http';
 import { Socket } from 'socket.io';
+import { TauriWebSocketListenerContribution } from '@theia/core/lib/tauri-node/messaging/tauri-raw-messaging';
+
+type TauriWebSocket = Parameters<TauriWebSocketListenerContribution['onDidOpenTauriWebSocket']>[0];
 
 export const REMOTE_AUTO_SHUTDOWN = 'remote-auto-shutdown';
 export const REMOTE_AUTO_SHUTDOWN_TIMEOUT = 'remote-auto-shutdown-timeout';
@@ -36,7 +39,7 @@ const DEFAULT_SHUTDOWN_TIMEOUT = 5 * 60 * 1000;
  * before the timeout.
  */
 @injectable()
-export class RemoteAutoShutdownService implements MessagingListenerContribution, CliContribution {
+export class RemoteAutoShutdownService implements MessagingListenerContribution, TauriWebSocketListenerContribution, CliContribution {
 
     @inject(ILogger) @named('remote:RemoteAutoShutdownService')
     protected readonly logger: ILogger;
@@ -73,12 +76,20 @@ export class RemoteAutoShutdownService implements MessagingListenerContribution,
     }
 
     onDidWebSocketUpgrade(request: http.IncomingMessage, socket: Socket): MaybePromise<void> {
+        this.trackConnection(socket, 'disconnect');
+    }
+
+    onDidOpenTauriWebSocket(socket: TauriWebSocket): void {
+        this.trackConnection(socket, 'close');
+    }
+
+    protected trackConnection(socket: Socket | TauriWebSocket, closeEvent: 'disconnect' | 'close'): void {
         this.activeConnections++;
         this.logger.debug(`RemoteAutoShutdown: connection opened (active: ${this.activeConnections})`);
 
         this.cancelShutdown();
 
-        socket.on('disconnect', () => {
+        socket.on(closeEvent, () => {
             this.activeConnections = Math.max(0, this.activeConnections - 1);
             this.logger.debug(`RemoteAutoShutdown: connection closed (active: ${this.activeConnections})`);
 

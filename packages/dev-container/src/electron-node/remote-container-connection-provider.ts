@@ -21,7 +21,7 @@ import {
     DevContainerFile, RemoteContainerConnectionProvider, RunningContainerInfo, WorkspaceCandidate
 } from '../electron-common/remote-container-connection-provider';
 import { RemoteConnectionService } from '@theia/remote/lib/electron-node/remote-connection-service';
-import { RemoteSetupService } from '@theia/remote/lib/electron-node/setup/remote-setup-service';
+import { RemoteSetupResult, RemoteSetupService } from '@theia/remote/lib/electron-node/setup/remote-setup-service';
 import { RemoteProxyServerProvider } from '@theia/remote/lib/electron-node/remote-proxy-server-provider';
 import { RemoteStatusReport } from '@theia/remote/lib/electron-node/remote-types';
 import { RpcServer, ILogger, MessageService, generateUuid, URI } from '@theia/core';
@@ -263,7 +263,7 @@ export class DevContainerConnectionProvider implements RemoteContainerConnection
                 return {
                     containerId: container.id,
                     workspacePath: devContainerConfig.workspaceFolder ?? inferWorkspacePath(await container.inspect()),
-                    port: result.localPort.toString(),
+                    port: result.sessionId ?? result.localPort.toString(),
                 };
             } catch (e) {
                 remote?.dispose();
@@ -332,7 +332,7 @@ export class DevContainerConnectionProvider implements RemoteContainerConnection
                 return {
                     containerId: container.id,
                     workspacePath: options.workspacePath,
-                    port: result.localPort.toString(),
+                    port: result.sessionId ?? result.localPort.toString(),
                 };
             } catch (e) {
                 remote?.dispose();
@@ -383,7 +383,7 @@ export class DevContainerConnectionProvider implements RemoteContainerConnection
     protected async setupRemoteConnection(
         container: Docker.Container, docker: Docker, config: DevContainerConfiguration,
         nodeDownloadTemplate: string | undefined, report: RemoteStatusReport, additionalArgs?: string[]
-    ): Promise<{ localPort: number; remote: RemoteDockerContainerConnection }> {
+    ): Promise<{ localPort: number; remote: RemoteDockerContainerConnection; sessionId?: string }> {
         const remote = new RemoteDockerContainerConnection({
             id: generateUuid(),
             name: config.name ?? 'dev-container',
@@ -414,7 +414,7 @@ export class DevContainerConnectionProvider implements RemoteContainerConnection
             registration = this.remoteConnectionService.register(remote);
             server = await this.serverProvider.getProxyServer(socket => {
                 remote.forwardOut(socket);
-            });
+            }, this.getProxyHostname());
         } catch (e) {
             server?.close();
             registration?.dispose();
@@ -428,7 +428,22 @@ export class DevContainerConnectionProvider implements RemoteContainerConnection
 
         const localPort = (server.address() as net.AddressInfo).port;
         remote.localPort = localPort;
-        return { localPort, remote };
+        try {
+            return { localPort, remote, sessionId: this.registerRemoteSession(remote, localPort, result) };
+        } catch (error) {
+            server.close();
+            registration.dispose();
+            remote.dispose();
+            throw error;
+        }
+    }
+
+    protected getProxyHostname(): string | undefined {
+        return undefined;
+    }
+
+    protected registerRemoteSession(_remote: RemoteDockerContainerConnection, _port: number, _result: RemoteSetupResult): string | undefined {
+        return undefined;
     }
 
     dispose(): void {

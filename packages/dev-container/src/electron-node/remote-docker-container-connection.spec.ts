@@ -240,6 +240,15 @@ describe('RemoteDockerContainerConnection', () => {
             expect(stopCalled()).to.equal(false);
         });
 
+        it('should notify listeners once when a connection is disposed', async () => {
+            const { connection } = createConnectionWithConfig({ shutdownAction: 'none' });
+            let disconnects = 0;
+            connection.onDidDisconnect(() => disconnects++);
+            await connection.dispose();
+            await connection.dispose();
+            expect(disconnects).to.equal(1);
+        });
+
         it('should stop container when shutdownAction is stopContainer', async () => {
             const { connection, stopCalled } = createConnectionWithConfig({ shutdownAction: 'stopContainer' });
             await connection.dispose();

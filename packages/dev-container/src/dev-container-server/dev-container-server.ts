@@ -35,7 +35,7 @@ if (!backendPort) {
 if (stdin.isTTY) {
     stdin.setRawMode(true);
 }
-const connection = createConnection(backendPort, '0.0.0.0');
+const connection = createConnection(backendPort, '127.0.0.1');
 
 connection.pipe(stdout);
 stdin.pipe(connection);
