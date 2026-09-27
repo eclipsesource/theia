@@ -26,7 +26,114 @@ struct UrlDispatchState {
 }
 
 #[derive(Default)]
-struct DownloadReservations(Mutex<HashSet<std::path::PathBuf>>);
+struct DownloadReservations(Mutex<DownloadReservationState>);
+
+#[derive(Default)]
+struct DownloadReservationState {
+    active: HashSet<std::path::PathBuf>,
+    by_url: HashMap<String, DownloadReservationGroup>,
+}
+
+#[derive(Default)]
+struct DownloadReservationGroup {
+    pending: usize,
+    paths: HashSet<std::path::PathBuf>,
+}
+
+impl DownloadReservationState {
+    fn begin(&mut self, url: &str) {
+        self.by_url.entry(url.to_owned()).or_default().pending += 1;
+    }
+
+    fn reserve(&mut self, url: &str, path: std::path::PathBuf) {
+        self.active.insert(path.clone());
+        let group = self.by_url.entry(url.to_owned()).or_default();
+        group.paths.insert(path);
+    }
+
+    fn finish(&mut self, url: &str, path: Option<&std::path::Path>) {
+        let mut completed_path = None;
+        let mut all_finished = false;
+        if let Some(group) = self.by_url.get_mut(url) {
+            if group.pending == 0 {
+                return;
+            }
+            group.pending -= 1;
+            if let Some(path) = path {
+                if group.paths.remove(path) {
+                    completed_path = Some(path.to_path_buf());
+                }
+            }
+            all_finished = group.pending == 0;
+        }
+        if let Some(path) = completed_path {
+            self.active.remove(&path);
+        }
+        if all_finished {
+            if let Some(group) = self.by_url.remove(url) {
+                for path in group.paths {
+                    self.active.remove(&path);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod download_reservation_tests {
+    use super::DownloadReservationState;
+    use std::path::PathBuf;
+
+    #[test]
+    fn releases_failed_download_without_a_finished_path() {
+        let mut reservations = DownloadReservationState::default();
+        let first = PathBuf::from("/downloads/proof.txt");
+        let other = PathBuf::from("/downloads/other.txt");
+        reservations.begin("https://example.test/proof");
+        reservations.reserve("https://example.test/proof", first.clone());
+        reservations.begin("https://example.test/other");
+        reservations.reserve("https://example.test/other", other.clone());
+
+        reservations.finish("https://example.test/proof", None);
+
+        assert!(!reservations.active.contains(&first));
+        assert!(reservations.active.contains(&other));
+    }
+
+    #[test]
+    fn keeps_same_url_reservations_until_all_downloads_finish() {
+        let mut reservations = DownloadReservationState::default();
+        let first = PathBuf::from("/downloads/proof.txt");
+        let second = PathBuf::from("/downloads/proof (1).txt");
+        reservations.begin("https://example.test/proof");
+        reservations.reserve("https://example.test/proof", first.clone());
+        reservations.begin("https://example.test/proof");
+        reservations.reserve("https://example.test/proof", second.clone());
+
+        reservations.finish("https://example.test/proof", None);
+        assert!(reservations.active.contains(&first));
+        assert!(reservations.active.contains(&second));
+
+        reservations.finish("https://example.test/proof", Some(&second));
+        assert!(reservations.active.is_empty());
+        assert!(reservations.by_url.is_empty());
+    }
+
+    #[test]
+    fn rejected_request_does_not_release_an_active_same_url_download() {
+        let mut reservations = DownloadReservationState::default();
+        let active = PathBuf::from("/downloads/proof.txt");
+        reservations.begin("https://example.test/proof");
+        reservations.reserve("https://example.test/proof", active.clone());
+        reservations.begin("https://example.test/proof");
+
+        reservations.finish("https://example.test/proof", None);
+        assert!(reservations.active.contains(&active));
+
+        reservations.finish("https://example.test/proof", Some(&active));
+        assert!(reservations.active.is_empty());
+    }
+}
 
 impl Drop for ControllerChild {
     fn drop(&mut self) {
@@ -371,7 +478,13 @@ fn create_window(
     let window = builder
         .data_directory(data_directory)
         .on_download(|webview, event| match event {
-            tauri::webview::DownloadEvent::Requested { destination, .. } => {
+            tauri::webview::DownloadEvent::Requested { url, destination } => {
+                let reservations = webview.app_handle().state::<DownloadReservations>();
+                let mut reservations = match reservations.0.lock() {
+                    Ok(reservations) => reservations,
+                    Err(_) => return false,
+                };
+                reservations.begin(url.as_str());
                 let downloads = match webview.app_handle().path().download_dir() {
                     Ok(downloads) => downloads,
                     Err(error) => {
@@ -393,11 +506,6 @@ fn create_window(
                     .and_then(|value| value.to_str())
                     .unwrap_or("download");
                 let extension = name.extension().and_then(|value| value.to_str());
-                let reservations = webview.app_handle().state::<DownloadReservations>();
-                let mut reservations = match reservations.0.lock() {
-                    Ok(reservations) => reservations,
-                    Err(_) => return false,
-                };
                 for attempt in 0..1000 {
                     let name = if attempt == 0 {
                         filename.to_string()
@@ -410,9 +518,9 @@ fn create_window(
                     if matches!(
                         std::fs::symlink_metadata(&path),
                         Err(error) if error.kind() == std::io::ErrorKind::NotFound
-                    ) && !reservations.contains(&path)
+                    ) && !reservations.active.contains(&path)
                     {
-                        reservations.insert(path.clone());
+                        reservations.reserve(url.as_str(), path.clone());
                         *destination = path;
                         return true;
                     }
@@ -420,16 +528,14 @@ fn create_window(
                 eprintln!("Could not reserve a unique download filename");
                 false
             }
-            tauri::webview::DownloadEvent::Finished { path, .. } => {
-                if let Some(path) = path {
-                    if let Ok(mut reservations) = webview
-                        .app_handle()
-                        .state::<DownloadReservations>()
-                        .0
-                        .lock()
-                    {
-                        reservations.remove(&path);
-                    }
+            tauri::webview::DownloadEvent::Finished { url, path, .. } => {
+                if let Ok(mut reservations) = webview
+                    .app_handle()
+                    .state::<DownloadReservations>()
+                    .0
+                    .lock()
+                {
+                    reservations.finish(url.as_str(), path.as_deref());
                 }
                 true
             }
