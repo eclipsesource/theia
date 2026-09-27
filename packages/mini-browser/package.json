@@ -21,12 +21,13 @@
     },
     {
       "frontendTauri": "lib/tauri-browser/tauri-mini-browser-frontend-module",
-      "backendTauri": "lib/tauri-node/tauri-mini-browser-backend-module"
+      "backendTauri": "lib/tauri-node/tauri-mini-browser-backend-module",
+      "backendTauriRemote": "lib/tauri-node/tauri-remote-mini-browser-backend-module"
     },
     {
       "frontend": "lib/browser/environment/mini-browser-environment-module",
       "frontendElectron": "lib/electron-browser/environment/electron-mini-browser-environment-module",
-      "frontendTauri": "lib/browser/environment/mini-browser-environment-module"
+      "frontendTauri": "lib/tauri-browser/tauri-mini-browser-environment-module"
     }
   ],
   "keywords": [

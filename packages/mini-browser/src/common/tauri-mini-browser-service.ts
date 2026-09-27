@@ -7,7 +7,7 @@
 export const TauriMiniBrowserService = Symbol('TauriMiniBrowserService');
 export const tauriMiniBrowserServicePath = '/services/tauri-mini-browser';
 
-/** Grants a temporary, directory-scoped isolated origin for a local preview. */
+/** Grants a temporary, directory-scoped isolated origin for a preview. */
 export interface TauriMiniBrowserService {
-    authorizeFile(uri: string, uuid: string): Promise<void>;
+    authorizeFile(uri: string, uuid: string, sessionId?: string): Promise<void>;
 }

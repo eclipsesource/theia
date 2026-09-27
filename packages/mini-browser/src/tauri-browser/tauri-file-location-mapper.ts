@@ -7,6 +7,7 @@
 import { inject, injectable } from '@theia/core/shared/inversify';
 import URI from '@theia/core/lib/common/uri';
 import { generateUuid } from '@theia/core/lib/common/uuid';
+import { getTauriRemoteSessionId } from '@theia/core/lib/tauri-common/tauri-remote-session';
 import { FileLocationMapper } from '../browser/location-mapper-service';
 import { TauriMiniBrowserService } from '../common/tauri-mini-browser-service';
 
@@ -25,7 +26,7 @@ export class TauriFileLocationMapper extends FileLocationMapper {
             throw new Error('Only local file URIs can be previewed');
         }
         const uuid = generateUuid();
-        await this.tauriService.authorizeFile(location, uuid);
+        await this.tauriService.authorizeFile(location, uuid, getTauriRemoteSessionId(window.location.href));
         const endpoint = this.miniBrowserEnvironment.getEndpoint(uuid).getRestUrl().toString();
         return `${endpoint}/${encodeURIComponent(uri.path.base)}`;
     }

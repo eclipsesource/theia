@@ -38,6 +38,12 @@ export class TauriRemoteGateway implements BackendApplicationContribution {
         return this.sessions.get(id)?.port;
     }
 
+    /** Connection details for trusted local backend contributions only. */
+    getSessionConnection(id: string): Readonly<{ port: number; token: string }> | undefined {
+        const session = this.sessions.get(id);
+        return session && { port: session.port, token: session.token };
+    }
+
     register(id: string, port: number, token: string, onDidFail?: () => void): Disposable {
         if (!/^[0-9a-f]{32}$/.test(id) || !Number.isInteger(port) || port < 1 || port > 65535 || !/^[0-9a-f]{64}$/.test(token)) {
             throw new Error('Invalid Tauri remote session');
