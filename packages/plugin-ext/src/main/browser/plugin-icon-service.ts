@@ -22,6 +22,7 @@ import { MonacoIconRegistry } from '@theia/monaco/lib/browser/monaco-icon-regist
 import * as path from 'path';
 import { IconContribution, DeployedPlugin, IconDefinition } from '../../common/plugin-protocol';
 import { PLUGINS_BASE_PATH, PLUGINS_SCHEME } from '@theia/plugin-utils/lib/common/constants';
+import { tauriRemoteResourcePath } from './tauri-remote-resource-path';
 import { encodePluginAssetPath } from '@theia/plugin-utils/lib/common/plugin-model';
 
 @injectable()
@@ -82,7 +83,7 @@ export class PluginIconService implements Disposable {
 
     protected toPluginUrl(id: string, relativePath: string): URI {
         return URI.from(new Endpoint({
-            path: `${PLUGINS_BASE_PATH}/${this.formatExtensionId(id)}/${encodePluginAssetPath(relativePath)}`
+            path: tauriRemoteResourcePath(`${PLUGINS_BASE_PATH}/${this.formatExtensionId(id)}/${encodePluginAssetPath(relativePath)}`)
         }).getRestUrl().toComponents());
     }
 

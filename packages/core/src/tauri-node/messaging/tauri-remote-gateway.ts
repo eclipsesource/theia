@@ -63,6 +63,10 @@ export class TauriRemoteGateway implements BackendApplicationContribution {
             this.forwardHttp(request, response, `/files${request.url.startsWith('/') ? request.url : `/${request.url}`}`, ['GET', 'PUT']));
         app.use('/tauri-remote/:id/file-upload', (request, response) =>
             this.forwardHttp(request, response, '/file-upload', ['POST']));
+        app.use('/tauri-remote/:id/file', (request, response) =>
+            this.forwardHttp(request, response, `/file${request.url.startsWith('/') ? request.url : `/${request.url}`}`, ['GET', 'HEAD']));
+        app.use('/tauri-remote/:id/hostedPlugin', (request, response) =>
+            this.forwardHttp(request, response, `/hostedPlugin${request.url.startsWith('/') ? request.url : `/${request.url}`}`, ['GET', 'HEAD']));
     }
 
     protected forwardHttp(request: express.Request, response: express.Response, path: string, methods: string[]): void {

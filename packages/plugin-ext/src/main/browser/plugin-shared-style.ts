@@ -22,6 +22,7 @@ import { IconUrl } from '../../common/plugin-protocol';
 import { Reference, SyncReferenceCollection } from '@theia/core/lib/common/reference';
 import { Endpoint } from '@theia/core/lib/browser/endpoint';
 import { PLUGINS_BASE_PATH } from '@theia/plugin-utils/lib/common/constants';
+import { tauriRemoteResourcePath } from './tauri-remote-resource-path';
 
 export interface PluginIconKey {
     url: IconUrl;
@@ -147,7 +148,7 @@ export class PluginSharedStyle {
 
     static toExternalIconUrl(iconUrl: string): string {
         if (iconUrl.startsWith(`${PLUGINS_BASE_PATH}/`)) {
-            return new Endpoint({ path: iconUrl }).getRestUrl().toString();
+            return new Endpoint({ path: tauriRemoteResourcePath(iconUrl) }).getRestUrl().toString();
         }
         return iconUrl;
     }

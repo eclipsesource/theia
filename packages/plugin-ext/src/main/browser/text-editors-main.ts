@@ -42,6 +42,7 @@ import { toMonacoWorkspaceEdit } from './languages-main';
 import { MonacoBulkEditService } from '@theia/monaco/lib/browser/monaco-bulk-edit-service';
 import { UriComponents } from '../../common/uri-components';
 import { Endpoint } from '@theia/core/lib/browser/endpoint';
+import { tauriRemoteResourcePath } from './tauri-remote-resource-path';
 import * as monaco from '@theia/monaco-editor-core';
 import { ResourceEdit } from '@theia/monaco-editor-core/esm/vs/editor/browser/services/bulkEditService';
 import { IDecorationRenderOptions } from '@theia/monaco-editor-core/esm/vs/editor/common/editorCommon';
@@ -63,7 +64,7 @@ export class TextEditorsMainImpl implements TextEditorsMain, Disposable {
     private readonly proxy: TextEditorsExt;
     private readonly toDispose = new DisposableCollection();
     private readonly editorsToDispose = new Map<string, DisposableCollection>();
-    private readonly fileEndpoint = new Endpoint({ path: 'file' }).getRestUrl();
+    private readonly fileEndpoint = new Endpoint({ path: tauriRemoteResourcePath('file') }).getRestUrl();
 
     private readonly bulkEditService: MonacoBulkEditService;
     private readonly notebookService: NotebookService;

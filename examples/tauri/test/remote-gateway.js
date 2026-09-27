@@ -76,6 +76,10 @@ async function run() {
             const chunks = [];
             request.on('data', chunk => chunks.push(chunk));
             request.on('end', () => response.writeHead(200, { 'Content-Type': 'text/plain' }).end(Buffer.concat(chunks)));
+        } else if (request.method === 'GET' && request.url === '/file/?file:///remote/decoration.svg') {
+            response.writeHead(200, { 'Content-Type': 'image/svg+xml' }).end('<svg>remote-decoration</svg>');
+        } else if (request.method === 'GET' && request.url === '/hostedPlugin/probe/extension/icon.svg') {
+            response.writeHead(200, { 'Content-Type': 'image/svg+xml' }).end('<svg>remote-plugin</svg>');
         } else {
             response.writeHead(404).end();
         }
@@ -120,6 +124,8 @@ async function run() {
         assert.throws(() => gateway.register(id, upstreamPort, token), /already exists/);
         const filesPath = `/tauri-remote/${id}/files`;
         const uploadPath = `/tauri-remote/${id}/file-upload`;
+        const decorationPath = `/tauri-remote/${id}/file/?file:///remote/decoration.svg`;
+        const pluginPath = `/tauri-remote/${id}/hostedPlugin/probe/extension/icon.svg`;
         assert.equal((await requestHttp(localPort, `${filesPath}/?uri=file:///remote/proof.txt`)).status, 403);
         assert.equal((await requestHttp(localPort, `${filesPath}/?uri=file:///remote/proof.txt`, {
             headers: { Cookie: 'local=valid', Origin: 'http://untrusted.localhost' }
@@ -157,6 +163,14 @@ async function run() {
         });
         assert.equal(upload.status, 200);
         assert.equal(upload.body.toString(), 'upload-body');
+        assert.equal((await requestHttp(localPort, decorationPath)).status, 403);
+        assert.equal((await requestHttp(localPort, pluginPath)).status, 403);
+        const decoration = await requestHttp(localPort, decorationPath, { headers: { Cookie: 'local=valid' } });
+        assert.equal(decoration.status, 200);
+        assert.equal(decoration.body.toString(), '<svg>remote-decoration</svg>');
+        const plugin = await requestHttp(localPort, pluginPath, { headers: { Cookie: 'local=valid' } });
+        assert.equal(plugin.status, 200);
+        assert.equal(plugin.body.toString(), '<svg>remote-plugin</svg>');
         assert.equal(await connect(localPort, id), 403);
         assert.equal(await connect(localPort, id, { Origin: allowed.Origin }), 403);
         assert.equal(await connect(localPort, randomBytes(16).toString('hex'), allowed), 404);
@@ -176,6 +190,8 @@ async function run() {
         assert.equal((await requestHttp(localPort, uploadPath, {
             method: 'POST', headers: { Cookie: 'local=valid', 'Content-Type': 'multipart/form-data; boundary=proof' }, body: 'upload-body'
         })).status, 404);
+        assert.equal((await requestHttp(localPort, decorationPath, { headers: { Cookie: 'local=valid' } })).status, 404);
+        assert.equal((await requestHttp(localPort, pluginPath, { headers: { Cookie: 'local=valid' } })).status, 404);
         assert.equal(await connect(localPort, id, allowed), 404);
         assert.equal(upstreamConnections, 1);
         const failedId = randomBytes(16).toString('hex');
