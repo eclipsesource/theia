@@ -21,12 +21,12 @@ import * as net from 'net';
 @injectable()
 export class RemoteProxyServerProvider {
 
-    async getProxyServer(callback?: (socket: net.Socket) => void): Promise<net.Server> {
+    async getProxyServer(callback?: (socket: net.Socket) => void, hostname?: string): Promise<net.Server> {
         const deferred = new Deferred();
 
         const proxy = net.createServer(socket => {
             callback?.(socket);
-        }).listen(0, () => {
+        }).listen(0, hostname, () => {
             deferred.resolve();
         });
 
