@@ -6,7 +6,7 @@
 
 import { injectable } from 'inversify';
 import { constants as fsConstants } from 'fs';
-import { copyFile, stat } from 'fs/promises';
+import { copyFile, lstat, mkdir, readdir, stat } from 'fs/promises';
 import { basename, isAbsolute, join } from 'path';
 import { Emitter } from '../common/event';
 import URI from '../common/uri';
@@ -103,15 +103,45 @@ export class TauriNativeBackendService implements TauriNativeService {
             throw new Error('File drop target is not a directory');
         }
         const copied: string[] = [];
+        const names = new Set<string>();
         for (const source of drop.paths) {
-            if (!(await stat(source)).isFile()) {
-                throw new Error('Only regular files can be dropped into Explorer');
+            const name = basename(source);
+            if (names.has(name)) {
+                throw new Error(`Multiple dropped items are named '${name}'`);
             }
-            const destination = join(directory, basename(source));
-            await copyFile(source, destination, fsConstants.COPYFILE_EXCL);
-            copied.push(URI.fromFilePath(destination).toString());
+            names.add(name);
+            await this.validateDroppedPath(source);
+        }
+        for (const source of drop.paths) {
+            await this.copyDroppedPath(source, join(directory, basename(source)), copied);
         }
         return copied;
+    }
+
+    protected async validateDroppedPath(source: string): Promise<void> {
+        const sourceStat = await lstat(source);
+        if (sourceStat.isDirectory()) {
+            for (const name of await readdir(source)) {
+                await this.validateDroppedPath(join(source, name));
+            }
+        } else if (!sourceStat.isFile()) {
+            throw new Error('Only regular files and directories can be dropped into Explorer');
+        }
+    }
+
+    protected async copyDroppedPath(source: string, destination: string, copied: string[]): Promise<void> {
+        const sourceStat = await lstat(source);
+        if (sourceStat.isDirectory()) {
+            await mkdir(destination);
+            for (const name of await readdir(source)) {
+                await this.copyDroppedPath(join(source, name), join(destination, name), copied);
+            }
+        } else if (sourceStat.isFile()) {
+            await copyFile(source, destination, fsConstants.COPYFILE_EXCL);
+            copied.push(URI.fromFilePath(destination).toString());
+        } else {
+            throw new Error('Only regular files and directories can be dropped into Explorer');
+        }
     }
 
     protected clearFileDrop(id: string): void {
