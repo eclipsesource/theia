@@ -5,7 +5,7 @@
 // *****************************************************************************
 
 import { CommandContribution, MenuContribution } from '@theia/core';
-import { KeybindingContribution, ServiceConnectionProvider } from '@theia/core/lib/browser';
+import { FrontendApplicationContribution, KeybindingContribution, ServiceConnectionProvider } from '@theia/core/lib/browser';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { TauriSystemAppService, tauriSystemAppServicePath } from '../tauri-common/tauri-system-app-service';
 import { TauriNavigatorContribution } from './tauri-navigator-contribution';
@@ -15,6 +15,7 @@ export default new ContainerModule(bind => {
     bind(CommandContribution).toService(TauriNavigatorContribution);
     bind(MenuContribution).toService(TauriNavigatorContribution);
     bind(KeybindingContribution).toService(TauriNavigatorContribution);
+    bind(FrontendApplicationContribution).toService(TauriNavigatorContribution);
     bind(TauriSystemAppService).toDynamicValue(context =>
         ServiceConnectionProvider.createLocalProxy<TauriSystemAppService>(context.container, tauriSystemAppServicePath)
     ).inSingletonScope();

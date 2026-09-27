@@ -46,4 +46,6 @@ export interface TauriNativeService {
     openFile(): Promise<string | undefined>;
     showOpenDialog(options: TauriFileDialogOptions): Promise<string[] | undefined>;
     showSaveDialog(options: TauriFileDialogOptions): Promise<string | undefined>;
+    /** Consume a native file drop once and copy its regular files into a local directory. */
+    copyDroppedFiles(id: string, targetUri: string): Promise<string[]>;
 }

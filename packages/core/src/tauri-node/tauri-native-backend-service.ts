@@ -5,7 +5,11 @@
 // *****************************************************************************
 
 import { injectable } from 'inversify';
+import { constants as fsConstants } from 'fs';
+import { copyFile, stat } from 'fs/promises';
+import { basename, isAbsolute, join } from 'path';
 import { Emitter } from '../common/event';
+import URI from '../common/uri';
 import { TauriFileDialogOptions, TauriMenuItem, TauriNativeService } from '../tauri-common/tauri-native-service';
 
 interface PendingRequest {
@@ -14,16 +18,40 @@ interface PendingRequest {
     timer: NodeJS.Timeout;
 }
 
+interface PendingFileDrop {
+    paths: string[];
+    timer: NodeJS.Timeout;
+}
+
 @injectable()
 export class TauriNativeBackendService implements TauriNativeService {
     protected nextId = 0;
     protected readonly pending = new Map<number, PendingRequest>();
+    protected readonly fileDrops = new Map<string, PendingFileDrop>();
     protected readonly windowId = process.env.THEIA_TAURI_WINDOW_ID || 'main';
     protected readonly hostedPluginExitedEmitter = new Emitter<string>();
     readonly onDidHostedPluginExit = this.hostedPluginExitedEmitter.event;
 
     constructor() {
         process.on('message', message => {
+            if (typeof message === 'object' && message && 'type' in message && message.type === 'native-file-drop'
+                && 'window' in message && message.window === this.windowId
+                && 'id' in message && typeof message.id === 'string' && /^[0-9a-f]{32}$/.test(message.id)
+                && 'paths' in message && Array.isArray(message.paths) && message.paths.length > 0 && message.paths.length <= 32
+                && message.paths.every((path: unknown) => typeof path === 'string' && isAbsolute(path) && path.length <= 4096)) {
+                const id = message.id;
+                if (this.fileDrops.size >= 32) {
+                    const oldest = this.fileDrops.keys().next().value;
+                    if (oldest) {
+                        this.clearFileDrop(oldest);
+                    }
+                }
+                this.clearFileDrop(id);
+                const timer = setTimeout(() => this.clearFileDrop(id), 30000);
+                timer.unref();
+                this.fileDrops.set(id, { paths: message.paths, timer });
+                return;
+            }
             if (typeof message === 'object' && message && 'type' in message && message.type === 'hosted-plugin-exited'
                 && 'window' in message && typeof message.window === 'string') {
                 this.hostedPluginExitedEmitter.fire(message.window);
@@ -51,7 +79,47 @@ export class TauriNativeBackendService implements TauriNativeService {
                 request.reject(new Error('Desktop controller disconnected'));
             }
             this.pending.clear();
+            for (const id of this.fileDrops.keys()) {
+                this.clearFileDrop(id);
+            }
         });
+    }
+
+    async copyDroppedFiles(id: string, targetUri: string): Promise<string[]> {
+        if (!/^[0-9a-f]{32}$/.test(id)) {
+            throw new Error('Invalid file drop');
+        }
+        const drop = this.fileDrops.get(id);
+        if (!drop) {
+            throw new Error('File drop expired');
+        }
+        this.clearFileDrop(id);
+        const uri = new URI(targetUri);
+        if (uri.scheme !== 'file' || !isAbsolute(uri.path.fsPath())) {
+            throw new Error('File drop requires a local directory');
+        }
+        const directory = uri.path.fsPath();
+        if (!(await stat(directory)).isDirectory()) {
+            throw new Error('File drop target is not a directory');
+        }
+        const copied: string[] = [];
+        for (const source of drop.paths) {
+            if (!(await stat(source)).isFile()) {
+                throw new Error('Only regular files can be dropped into Explorer');
+            }
+            const destination = join(directory, basename(source));
+            await copyFile(source, destination, fsConstants.COPYFILE_EXCL);
+            copied.push(URI.fromFilePath(destination).toString());
+        }
+        return copied;
+    }
+
+    protected clearFileDrop(id: string): void {
+        const drop = this.fileDrops.get(id);
+        if (drop) {
+            clearTimeout(drop.timer);
+            this.fileDrops.delete(id);
+        }
     }
 
     setWindowTitle(title: string): Promise<void> {

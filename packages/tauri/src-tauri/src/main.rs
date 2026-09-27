@@ -244,6 +244,36 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             }
                             None
                         }
+                        Ok(request) if request["type"] == "show-file-drop" => {
+                            if request["version"] == 1 {
+                                if let (Some(label), Some(id), Some(x), Some(y)) = (
+                                    request["window"].as_str(),
+                                    request["id"].as_str(),
+                                    request["x"].as_f64(),
+                                    request["y"].as_f64(),
+                                ) {
+                                    if id.len() == 32
+                                        && id.bytes().all(|byte| byte.is_ascii_hexdigit())
+                                        && x.is_finite()
+                                        && y.is_finite()
+                                    {
+                                        if let Ok(app) = response_handle.lock() {
+                                            if let Some(window) = app
+                                                .as_ref()
+                                                .and_then(|app| app.get_webview_window(label))
+                                            {
+                                                let detail =
+                                                    serde_json::json!({ "id": id, "x": x, "y": y });
+                                                let _ = window.eval(&format!(
+                                                    "window.dispatchEvent(new CustomEvent('theia-tauri-file-drop', {{ detail: {detail} }}))"
+                                                ));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            None
+                        }
                         Ok(request) if request["type"] == "window-backend-exited" => {
                             if let Some(label) = request["window"].as_str() {
                                 if let Ok(app) = response_handle.lock() {
@@ -321,6 +351,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         })
         .on_window_event(move |window, event| {
+            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, position }) = event {
+                if let Ok(mut input) = event_input.lock() {
+                    let position = position.to_logical::<f64>(window.scale_factor().unwrap_or(1.0));
+                    let _ = writeln!(input, "{}", serde_json::json!({
+                        "version": 1,
+                        "type": "file-drop",
+                        "window": window.label(),
+                        "paths": paths,
+                        "x": position.x,
+                        "y": position.y
+                    }));
+                    let _ = input.flush();
+                }
+            }
             if let tauri::WindowEvent::Focused(true) = event {
                 if let Ok(mut dispatch) = event_url_dispatch.lock() {
                     dispatch.focused = Some(window.label().to_owned());

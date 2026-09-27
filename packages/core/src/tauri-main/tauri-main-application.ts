@@ -118,6 +118,8 @@ export class TauriMainApplication {
                             this.handleWindowDestroyed(request);
                         } else if (request.type === 'window-created') {
                             this.handleWindowCreated(request);
+                        } else if (request.type === 'file-drop') {
+                            this.handleHostFileDrop(request);
                         } else {
                             throw new Error('Unsupported host request');
                         }
@@ -592,6 +594,26 @@ export class TauriMainApplication {
         } else {
             creation.reject(new Error('error' in message && typeof message.error === 'string' ? message.error : 'Native window creation failed'));
         }
+    }
+
+    protected handleHostFileDrop(message: unknown): void {
+        if (typeof message !== 'object' || !message || !('window' in message) || typeof message.window !== 'string'
+            || !('paths' in message) || !Array.isArray(message.paths) || message.paths.length < 1 || message.paths.length > 32
+            || !message.paths.every((path: unknown) => typeof path === 'string' && isAbsolute(path) && path.length <= 4096)
+            || !('x' in message) || typeof message.x !== 'number' || !Number.isFinite(message.x) || message.x < 0 || message.x > 16384
+            || !('y' in message) || typeof message.y !== 'number' || !Number.isFinite(message.y) || message.y < 0 || message.y > 16384) {
+            throw new Error('Invalid native file drop');
+        }
+        const session = this.windows.get(message.window);
+        if (this.state !== 'ready' || !session?.backend.connected || session.hostedOwner) {
+            return;
+        }
+        const id = randomBytes(16).toString('hex');
+        session.backend.send({ version: 1, type: 'native-file-drop', window: session.label, id, paths: message.paths }, error => {
+            if (!error && this.state === 'ready' && this.windows.get(session.label) === session) {
+                this.send({ version: 1, type: 'show-file-drop', window: session.label, id, x: message.x, y: message.y });
+            }
+        });
     }
 
     protected isValidDialogOptions(value: unknown): boolean {
