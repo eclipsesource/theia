@@ -28,6 +28,7 @@
   "theiaExtensions": [
     {
       "frontendElectron": "lib/electron-browser/remote-frontend-module",
+      "frontendTauri": "lib/tauri-browser/tauri-remote-frontend-module",
       "backendElectron": "lib/electron-node/remote-backend-module",
       "backendTauri": "lib/electron-node/remote-backend-module",
       "backendTauriRemote": "lib/electron-node/remote-backend-module"

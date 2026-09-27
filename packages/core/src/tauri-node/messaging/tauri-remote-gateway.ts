@@ -28,6 +28,10 @@ export class TauriRemoteGateway implements BackendApplicationContribution {
     protected readonly sessions = new Map<string, RemoteSession>();
     protected readonly webSocketServer = new WebSocket.Server({ noServer: true, maxPayload: 1e8 });
 
+    getSessionPort(id: string): number | undefined {
+        return this.sessions.get(id)?.port;
+    }
+
     register(id: string, port: number, token: string): Disposable {
         if (!/^[0-9a-f]{32}$/.test(id) || !Number.isInteger(port) || port < 1 || port > 65535 || !/^[0-9a-f]{64}$/.test(token)) {
             throw new Error('Invalid Tauri remote session');

@@ -5,7 +5,7 @@
 // *****************************************************************************
 
 import { inject, injectable, named, postConstruct } from 'inversify';
-import { ServiceConnectionProvider, RemoteConnectionProvider } from '../../browser/messaging/service-connection-provider';
+import { ServiceConnectionProvider, LocalConnectionProvider } from '../../browser/messaging/service-connection-provider';
 import { Emitter, Event } from '../../common/event';
 import { KeyboardLayoutChangeNotifier, KeyboardLayoutProvider, NativeKeyboardLayout } from '../../common/keyboard/keyboard-layout-provider';
 import { ILogger } from '../../common/logger';
@@ -18,7 +18,7 @@ export class TauriKeyboardLayoutService implements KeyboardLayoutProvider, Keybo
     protected server: RpcProxy<TauriKeyboardServer>;
 
     constructor(
-        @inject(RemoteConnectionProvider) protected readonly connections: ServiceConnectionProvider,
+        @inject(LocalConnectionProvider) protected readonly connections: ServiceConnectionProvider,
         @inject(ILogger) @named('core:TauriKeyboardLayoutService') protected readonly logger: ILogger
     ) { }
 

@@ -41,7 +41,9 @@ export const isNative = environment.electron.is() || environment.tauri.is();
  * Determines whether the backend is running in a remote environment.
  * I.e. we use the browser version or connect to a remote Theia instance in Electron.
  */
-export const isRemote = !(environment.electron.is() || environment.tauri.is()) || new URL(location.href).searchParams.has('localPort');
+export const isRemote = !(environment.electron.is() || environment.tauri.is())
+    || new URL(location.href).searchParams.has('localPort')
+    || (environment.tauri.is() && new URL(location.href).searchParams.has('remoteSession'));
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const isBasicWasmSupported = typeof (window as any).WebAssembly !== 'undefined';
 

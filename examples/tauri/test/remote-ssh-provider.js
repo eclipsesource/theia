@@ -3,12 +3,15 @@
 
 const assert = require('assert').strict;
 const { TauriRemoteSSHConnectionProvider } = require('@theia/remote/lib/tauri-node/tauri-remote-ssh-connection-provider');
+const { TauriRemoteStatusService } = require('@theia/remote/lib/tauri-node/tauri-remote-status-service');
 
 function createProvider(gatewayToken) {
     const calls = [];
     let disconnect;
     const remote = {
         id: 'ssh-connection',
+        name: 'example',
+        type: 'SSH',
         localPort: 0,
         forwardOut: () => calls.push('forward'),
         onDidDisconnect: listener => { disconnect = listener; },
@@ -37,7 +40,7 @@ function createProvider(gatewayToken) {
         calls.push('connection-register');
         return { dispose: () => calls.push('connection-dispose') };
     } };
-    return { provider, remote, calls, disconnect: () => disconnect?.() };
+    return { provider, remote, calls };
 }
 
 async function run() {
@@ -46,8 +49,13 @@ async function run() {
     assert.match(id, /^[0-9a-f]{32}$/);
     assert.equal(valid.remote.localPort, 41234);
     assert.deepEqual(valid.calls.slice(0, 3), ['gateway-register', 'connection-register', 'progress-cancel']);
-    valid.disconnect();
-    assert.deepEqual(valid.calls.slice(3), ['gateway-dispose', 'server-close', 'connection-dispose']);
+    const status = new TauriRemoteStatusService();
+    status.gateway = { getSessionPort: sessionId => sessionId === id ? 41234 : undefined };
+    status.remoteConnectionService = { getConnectionFromPort: port => port === 41234 ? valid.remote : undefined };
+    assert.deepEqual(await status.getStatus(id), { alive: true, name: 'example', type: 'SSH' });
+    assert.deepEqual(await status.getStatus('unknown'), { alive: false });
+    await status.connectionClosed(id);
+    assert.deepEqual(valid.calls.slice(3), ['remote-dispose', 'gateway-dispose', 'server-close', 'connection-dispose']);
 
     const missing = createProvider(undefined);
     await assert.rejects(missing.provider.establishConnection({ host: 'example', user: 'test' }), /gateway token/);

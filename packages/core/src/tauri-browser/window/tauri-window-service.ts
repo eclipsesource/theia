@@ -13,6 +13,7 @@ import { PREF_WINDOW_ZOOM_LEVEL, ZoomLevel } from '../../electron-common/electro
 import { TauriNativeService } from '../../tauri-common/tauri-native-service';
 import { NewWindowOptions, DEFAULT_WINDOW_HASH } from '../../common/window';
 import { WindowReloadOptions } from '../../browser/window/window-service';
+import { StopReason } from '../../common/frontend-application-state';
 
 @injectable()
 export class TauriWindowService extends DefaultWindowService {
@@ -49,6 +50,26 @@ export class TauriWindowService extends DefaultWindowService {
         const search = params?.search ? new URLSearchParams(params.search).toString() : '';
         await this.nativeService.openWindow(params?.hash || DEFAULT_WINDOW_HASH, search);
         return -1;
+    }
+
+    override reload(params?: WindowReloadOptions): void {
+        if (!params) {
+            super.reload();
+            return;
+        }
+        this.isSafeToShutDown(StopReason.Reload).then(isSafe => {
+            if (!isSafe) {
+                return;
+            }
+            const url = new URL(window.location.href);
+            if (params.search) {
+                url.search = new URLSearchParams(params.search).toString();
+            }
+            if (params.hash) {
+                url.hash = params.hash;
+            }
+            window.location.assign(url.toString());
+        }).catch(error => this.tauriLogger.error('Could not reload native window:', error));
     }
 
     /** The native host destroys the webview without dispatching `pagehide`. */

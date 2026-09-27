@@ -9,11 +9,13 @@ import { AbstractChannel } from '../../common/message-rpc/channel';
 import { WriteBuffer } from '../../common/message-rpc';
 import { Uint8ArrayReadBuffer, Uint8ArrayWriteBuffer } from '../../common/message-rpc/uint8-array-message-buffer';
 import { WebSocketConnectionSource } from '../../browser/messaging/ws-connection-source';
-import { ServiceConnectionProvider } from '../../browser/messaging/service-connection-provider';
+import { LocalConnectionProvider, RemoteConnectionProvider, ServiceConnectionProvider } from '../../browser/messaging/service-connection-provider';
+import { ConnectionSource } from '../../browser/messaging/connection-source';
 import { TauriNativeService, tauriNativeServicePath } from '../../tauri-common/tauri-native-service';
 import { FrontendApplicationContribution } from '../../browser/frontend-application-contribution';
 import { TauriCloseFrontendContribution } from '../tauri-close-frontend-contribution';
 import { TauriWindowTitleContribution } from '../tauri-window-title-contribution';
+import { getTauriRemoteServicePath, getTauriRemoteSessionId } from '../../tauri-common/tauri-remote-session';
 
 class TauriBrowserChannel extends AbstractChannel {
     constructor(protected readonly webSocket: WebSocket) {
@@ -44,7 +46,7 @@ class TauriBrowserChannel extends AbstractChannel {
 }
 
 @injectable()
-class TauriRawConnectionSource extends WebSocketConnectionSource {
+export class TauriRawConnectionSource extends WebSocketConnectionSource {
     protected reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
     @postConstruct()
@@ -53,7 +55,7 @@ class TauriRawConnectionSource extends WebSocketConnectionSource {
     }
 
     protected connectRawSocket(): void {
-        const url = new URL('/tauri-services', window.location.href);
+        const url = new URL(this.getSocketPath(), window.location.href);
         url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
         const webSocket = new WebSocket(url);
         webSocket.addEventListener('open', () => {
@@ -73,12 +75,36 @@ class TauriRawConnectionSource extends WebSocketConnectionSource {
         });
         webSocket.addEventListener('message', () => this.onIncomingMessageActivityEmitter.fire());
     }
+
+    protected getSocketPath(): string {
+        return '/tauri-services';
+    }
 }
+
+@injectable()
+export class TauriRemoteRawConnectionSource extends TauriRawConnectionSource {
+    protected override getSocketPath(): string {
+        return getTauriRemoteServicePath(window.location.href);
+    }
+}
+
+const remoteServiceProvider = Symbol('TauriRemoteServiceProvider');
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     rebind(WebSocketConnectionSource).to(TauriRawConnectionSource).inSingletonScope();
+    bind(TauriRemoteRawConnectionSource).toSelf().inSingletonScope();
+    bind(remoteServiceProvider).toDynamicValue(context => {
+        const container = context.container.createChild();
+        container.bind(ServiceConnectionProvider).toSelf().inSingletonScope();
+        container.bind(ConnectionSource).toService(TauriRemoteRawConnectionSource);
+        return container.get(ServiceConnectionProvider);
+    }).inSingletonScope();
+    rebind(RemoteConnectionProvider).toDynamicValue(context => {
+        const sessionId = getTauriRemoteSessionId(window.location.href);
+        return sessionId ? context.container.get<ServiceConnectionProvider>(remoteServiceProvider) : context.container.get<ServiceConnectionProvider>(LocalConnectionProvider);
+    }).inSingletonScope();
     bind(TauriNativeService).toDynamicValue(context =>
-        ServiceConnectionProvider.createProxy<TauriNativeService>(context.container, tauriNativeServicePath)
+        ServiceConnectionProvider.createLocalProxy<TauriNativeService>(context.container, tauriNativeServicePath)
     ).inSingletonScope();
     bind(TauriCloseFrontendContribution).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(TauriCloseFrontendContribution);

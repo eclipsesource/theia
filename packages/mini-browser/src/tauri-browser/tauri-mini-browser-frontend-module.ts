@@ -14,6 +14,6 @@ export default new ContainerModule(bind => {
     bind(TauriFileLocationMapper).toSelf().inSingletonScope();
     bind(LocationMapper).toService(TauriFileLocationMapper);
     bind(TauriMiniBrowserService).toDynamicValue(
-        context => WebSocketConnectionProvider.createProxy(context.container, tauriMiniBrowserServicePath)
+        context => WebSocketConnectionProvider.createLocalProxy(context.container, tauriMiniBrowserServicePath)
     ).inSingletonScope();
 });

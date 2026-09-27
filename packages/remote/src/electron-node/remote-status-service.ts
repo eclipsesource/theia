@@ -24,8 +24,8 @@ export class RemoteStatusServiceImpl implements RemoteStatusService {
     @inject(RemoteConnectionService)
     protected remoteConnectionService: RemoteConnectionService;
 
-    async getStatus(localPort: number): Promise<RemoteStatus> {
-        const connection = this.remoteConnectionService.getConnectionFromPort(localPort);
+    async getStatus(localPort: number | string): Promise<RemoteStatus> {
+        const connection = this.remoteConnectionService.getConnectionFromPort(Number(localPort));
         if (connection) {
             return {
                 alive: true,
@@ -39,8 +39,8 @@ export class RemoteStatusServiceImpl implements RemoteStatusService {
         }
     }
 
-    async connectionClosed(localPort: number): Promise<void> {
-        const connection = this.remoteConnectionService.getConnectionFromPort(localPort);
+    async connectionClosed(localPort: number | string): Promise<void> {
+        const connection = this.remoteConnectionService.getConnectionFromPort(Number(localPort));
         if (connection) {
             connection.dispose();
         }

@@ -10,10 +10,14 @@ import { RemoteSetupService } from '../electron-node/setup/remote-setup-service'
 import { RemoteSSHConnectionProviderImpl } from '../electron-node/ssh/remote-ssh-connection-provider';
 import { TauriRemoteSetupService } from './tauri-remote-setup-service';
 import { TauriRemoteSSHConnectionProvider } from './tauri-remote-ssh-connection-provider';
+import { RemoteStatusServiceImpl } from '../electron-node/remote-status-service';
+import { TauriRemoteStatusService } from './tauri-remote-status-service';
 
 export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     bind(TauriRemoteSetupService).toSelf().inSingletonScope();
     rebind(RemoteSetupService).toService(TauriRemoteSetupService);
+    bind(TauriRemoteStatusService).toSelf().inSingletonScope();
+    rebind(RemoteStatusServiceImpl).toService(TauriRemoteStatusService);
     bind(ConnectionContainerModule).toConstantValue(ConnectionContainerModule.create(({ bind: bindConnection, rebind: rebindConnection }) => {
         bindConnection(TauriRemoteSSHConnectionProvider).toSelf().inSingletonScope();
         rebindConnection(RemoteSSHConnectionProviderImpl).toService(TauriRemoteSSHConnectionProvider);

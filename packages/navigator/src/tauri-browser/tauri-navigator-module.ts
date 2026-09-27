@@ -16,6 +16,6 @@ export default new ContainerModule(bind => {
     bind(MenuContribution).toService(TauriNavigatorContribution);
     bind(KeybindingContribution).toService(TauriNavigatorContribution);
     bind(TauriSystemAppService).toDynamicValue(context =>
-        ServiceConnectionProvider.createProxy<TauriSystemAppService>(context.container, tauriSystemAppServicePath)
+        ServiceConnectionProvider.createLocalProxy<TauriSystemAppService>(context.container, tauriSystemAppServicePath)
     ).inSingletonScope();
 });

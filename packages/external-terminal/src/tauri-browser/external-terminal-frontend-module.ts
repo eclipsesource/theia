@@ -17,6 +17,6 @@ export default new ContainerModule(bind => {
     bind(CommandContribution).toService(ExternalTerminalFrontendContribution);
     bind(KeybindingContribution).toService(ExternalTerminalFrontendContribution);
     bind(ExternalTerminalService).toDynamicValue(context =>
-        ServiceConnectionProvider.createProxy<ExternalTerminalService>(context.container, externalTerminalServicePath)
+        ServiceConnectionProvider.createLocalProxy<ExternalTerminalService>(context.container, externalTerminalServicePath)
     ).inSingletonScope();
 });

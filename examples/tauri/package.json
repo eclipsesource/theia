@@ -109,6 +109,7 @@
     "test:remote-gateway": "node test/remote-gateway.js",
     "test:remote-setup": "node test/remote-setup.js",
     "test:remote-ssh-provider": "node test/remote-ssh-provider.js",
+    "test:remote-service-path": "node test/remote-service-path.js",
     "start": "theia start --plugins=local-dir:../../plugins --ovsx-router-config=../ovsx-router-config.json",
     "watch": "concurrently --kill-others -n tsc,bundle -c red,blue \"tsc -b -w --preserveWatchOutput\" \"npm run -s watch:bundle\"",
     "watch:bundle": "theia build --watch --mode development"

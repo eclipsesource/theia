@@ -6,7 +6,7 @@
 
 import { inject, injectable } from 'inversify';
 import { FrontendApplicationContribution } from '../browser/frontend-application-contribution';
-import { RemoteConnectionProvider, ServiceConnectionProvider } from '../browser/messaging/service-connection-provider';
+import { LocalConnectionProvider, ServiceConnectionProvider } from '../browser/messaging/service-connection-provider';
 import { StopReason } from '../common/frontend-application-state';
 import { TauriCloseClient, tauriCloseServicePath } from '../tauri-common/tauri-close-service';
 import { TauriWindowService } from './window/tauri-window-service';
@@ -14,7 +14,7 @@ import { TauriWindowService } from './window/tauri-window-service';
 @injectable()
 export class TauriCloseFrontendContribution implements FrontendApplicationContribution, TauriCloseClient {
     constructor(
-        @inject(RemoteConnectionProvider) protected readonly connectionProvider: ServiceConnectionProvider,
+        @inject(LocalConnectionProvider) protected readonly connectionProvider: ServiceConnectionProvider,
         @inject(TauriWindowService) protected readonly windowService: TauriWindowService
     ) { }
 
