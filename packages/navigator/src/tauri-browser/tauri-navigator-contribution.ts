@@ -17,6 +17,7 @@ import { inject, injectable } from '@theia/core/shared/inversify';
 import { DirNode } from '@theia/filesystem/lib/browser';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { NavigatorContextMenu, SHELL_TABBAR_CONTEXT_REVEAL } from '../browser/navigator-contribution';
+import { WorkspaceNode } from '../browser/navigator-tree';
 import { FILE_NAVIGATOR_ID, FileNavigatorWidget } from '../browser/navigator-widget';
 import { TauriSystemAppService } from '../tauri-common/tauri-system-app-service';
 
@@ -63,7 +64,7 @@ export class TauriNavigatorContribution implements CommandContribution, MenuCont
         }
         const nodeId = element.closest('[data-node-id]')?.getAttribute('data-node-id');
         const node = nodeId ? navigator.model.getNode(nodeId) : navigator.getContainerTreeNode();
-        const directory = DirNode.getContainingDir(node);
+        const directory = DirNode.getContainingDir(WorkspaceNode.is(node) ? node.children[node.children.length - 1] : node);
         if (!directory) {
             return;
         }
