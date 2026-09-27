@@ -31,7 +31,7 @@ For a real SCM and Node debugging check, a disposable profile loaded the Open VS
 
 A disposable local workspace task printed a synthetic compiler error, parsed it with a configured problem matcher, and displayed one Problems entry. Opening the entry focused the source file at line 2, column 3. The same fixture produced the same result in Electron. This checks one shell task matcher in the native Tauri window; background matchers and remote task diagnostics remain untested.
 
-Dragging a local file from the Explorer root onto a child directory moved it on disk in both Tauri and Electron, with matching contents. External desktop-to-workbench drag and drop, copy modifiers and editor text dragging remain untested.
+Dragging a local file from the Explorer root onto a child directory moved it on disk in both Tauri and Electron, with matching contents. Dragging a file from Nautilus onto the Explorer root copied and opened it in Electron, but did not upload it in Tauri under Xvfb. Use Explorer’s **Upload Files...** action for external files; its native GTK picker and upload path have passed local and remote checks. Copy modifiers, editor text dragging and other file managers remain untested.
 
 If an active remote backend exits unexpectedly, the gateway discards its session and the workbench returns to its local backend after a failed reconnect. Native SSH and dev-container checks killed `remote-main.js` while connected; each window returned to local `ready`, and later connections to the same target worked. An unsaved editor may veto the return so its contents can be recovered.
 
