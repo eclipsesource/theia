@@ -106,11 +106,13 @@
     "lint": "theiaext lint",
     "rebuild": "theia rebuild:tauri --cacheRoot ../..",
     "test:remote-backend-auth": "node test/remote-backend-auth.js",
+    "test:remote-gateway": "node test/remote-gateway.js",
     "start": "theia start --plugins=local-dir:../../plugins --ovsx-router-config=../ovsx-router-config.json",
     "watch": "concurrently --kill-others -n tsc,bundle -c red,blue \"tsc -b -w --preserveWatchOutput\" \"npm run -s watch:bundle\"",
     "watch:bundle": "theia build --watch --mode development"
   },
   "devDependencies": {
-    "@theia/cli": "1.76.0"
+    "@theia/cli": "1.76.0",
+    "ws": "^8.21.3"
   }
 }

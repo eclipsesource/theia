@@ -1,0 +1,150 @@
+// *****************************************************************************
+// Copyright (C) 2026 Eclipse Theia contributors.
+//
+// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
+// *****************************************************************************
+
+import * as http from 'http';
+import * as https from 'https';
+import { Duplex } from 'stream';
+import { inject, injectable } from 'inversify';
+import WebSocket = require('ws');
+import { Disposable } from '../../common/disposable';
+import { BackendApplicationContribution } from '../../node/backend-application';
+import { WsRequestValidator } from '../../node/ws-request-validators';
+
+interface RemoteSession {
+    port: number;
+    token: string;
+    sockets: Set<WebSocket>;
+}
+
+/** Forwards one trusted Tauri window's remote service channel through its local backend. */
+@injectable()
+export class TauriRemoteGateway implements BackendApplicationContribution {
+    @inject(WsRequestValidator)
+    protected readonly validator: WsRequestValidator;
+
+    protected readonly sessions = new Map<string, RemoteSession>();
+    protected readonly webSocketServer = new WebSocket.Server({ noServer: true, maxPayload: 1e8 });
+
+    register(id: string, port: number, token: string): Disposable {
+        if (!/^[0-9a-f]{32}$/.test(id) || !Number.isInteger(port) || port < 1 || port > 65535 || !/^[0-9a-f]{64}$/.test(token)) {
+            throw new Error('Invalid Tauri remote session');
+        }
+        if (this.sessions.has(id)) {
+            throw new Error('Tauri remote session already exists');
+        }
+        const session: RemoteSession = { port, token, sockets: new Set() };
+        this.sessions.set(id, session);
+        return Disposable.create(() => {
+            if (this.sessions.get(id) === session) {
+                this.sessions.delete(id);
+                for (const socket of session.sockets) {
+                    socket.terminate();
+                }
+                session.sockets.clear();
+            }
+        });
+    }
+
+    onStart(server: http.Server | https.Server): void {
+        server.on('upgrade', (request, socket, head) => {
+            try {
+                const path = new URL(request.url || '/', 'http://127.0.0.1').pathname;
+                if (path.startsWith('/tauri-remote/')) {
+                    this.upgrade(request, socket, head, path).catch(() => this.reject(socket, 403));
+                }
+            } catch {
+                this.reject(socket, 403);
+            }
+        });
+    }
+
+    onStop(): void {
+        for (const session of this.sessions.values()) {
+            for (const socket of session.sockets) {
+                socket.terminate();
+            }
+        }
+        this.sessions.clear();
+        this.webSocketServer.close();
+    }
+
+    protected async upgrade(request: http.IncomingMessage, socket: Duplex, head: Buffer, path: string): Promise<void> {
+        if (!await this.validator.allowWsUpgrade(request)) {
+            this.reject(socket, 403);
+            return;
+        }
+        const id = /^\/tauri-remote\/([0-9a-f]{32})\/services$/.exec(path)?.[1];
+        if (!id) {
+            this.reject(socket, 404);
+            return;
+        }
+        const session = this.sessions.get(id);
+        if (!session) {
+            this.reject(socket, 404);
+            return;
+        }
+        const upstream = new WebSocket(`ws://127.0.0.1:${session.port}/tauri-services`, {
+            headers: { 'X-Theia-Remote-Token': session.token }, maxPayload: 1e8
+        });
+        let settled = false;
+        const fail = () => {
+            if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                upstream.terminate();
+                this.reject(socket, 502);
+            }
+        };
+        const timer = setTimeout(fail, 10000);
+        socket.once('close', () => upstream.terminate());
+        upstream.once('error', fail);
+        upstream.once('unexpected-response', (_upgrade, response) => { response.resume(); fail(); });
+        upstream.once('close', fail);
+        upstream.once('open', () => {
+            if (settled || socket.destroyed || this.sessions.get(id) !== session) {
+                upstream.terminate();
+                return;
+            }
+            settled = true;
+            clearTimeout(timer);
+            try {
+                this.webSocketServer.handleUpgrade(request, socket, head, client => this.forward(client, upstream, session));
+            } catch {
+                upstream.terminate();
+                socket.destroy();
+            }
+        });
+    }
+
+    protected forward(client: WebSocket, upstream: WebSocket, session: RemoteSession): void {
+        session.sockets.add(client);
+        session.sockets.add(upstream);
+        client.on('message', (data, isBinary) => {
+            if (upstream.readyState === WebSocket.OPEN) {
+                upstream.send(data, { binary: isBinary });
+            }
+        });
+        upstream.on('message', (data, isBinary) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(data, { binary: isBinary });
+            }
+        });
+        const close = (closed: WebSocket, peer: WebSocket) => {
+            session.sockets.delete(closed);
+            peer.terminate();
+        };
+        client.on('close', () => close(client, upstream));
+        upstream.on('close', () => close(upstream, client));
+        client.on('error', () => client.terminate());
+        upstream.on('error', () => upstream.terminate());
+    }
+
+    protected reject(socket: Duplex, status: 403 | 404 | 502): void {
+        if (!socket.destroyed) {
+            socket.end(`HTTP/1.1 ${status} Rejected\r\nConnection: close\r\n\r\n`);
+        }
+    }
+}

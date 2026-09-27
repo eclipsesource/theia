@@ -18,6 +18,7 @@ import { TauriNativeBackendService } from '../tauri-native-backend-service';
 import { TauriCloseClient, tauriCloseServicePath } from '../../tauri-common/tauri-close-service';
 import { TauriCloseBackendCoordinator } from '../tauri-close-backend-coordinator';
 import { TauriUntrustedContentServer } from '../tauri-untrusted-content-server';
+import { TauriRemoteGateway } from './tauri-remote-gateway';
 
 export const TauriSecurityToken = Symbol('TauriSecurityToken');
 export const TauriCookieName = Symbol('TauriCookieName');
@@ -112,5 +113,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     ).inSingletonScope();
     bind(TauriUntrustedContentServer).toSelf().inSingletonScope();
     bind(BackendApplicationContribution).toService(TauriUntrustedContentServer);
+    bind(TauriRemoteGateway).toSelf().inSingletonScope();
+    bind(BackendApplicationContribution).toService(TauriRemoteGateway);
     rebind(DefaultMessagingService).to(TauriMessagingService).inSingletonScope();
 });
