@@ -25,7 +25,6 @@ import { PluginServer, DeployedPlugin, PluginIdentifiers, PluginDeployOptions } 
 import { WorkspaceTrustService } from '@theia/workspace/lib/browser/workspace-trust-service';
 import { VSCodeExtensionUri } from '@theia/plugin-ext-vscode/lib/common/plugin-vscode-uri';
 import { ProgressService } from '@theia/core/lib/common/progress-service';
-import { Endpoint } from '@theia/core/lib/browser/endpoint';
 import { VSXEnvironment } from '../common/vsx-environment';
 import { VSXExtensionsSearchModel } from './vsx-extensions-search-model';
 import { TypeBadge } from './type-badge';
@@ -36,6 +35,7 @@ import { VSXExtensionNamespaceAccess, VSXUser } from '@theia/ovsx-client/lib/ovs
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
 import { VSXExtensionsModel } from './vsx-extensions-model';
+import { PluginSharedStyle } from '@theia/plugin-ext/lib/main/browser/plugin-shared-style';
 
 export const EXTENSIONS_CONTEXT_MENU: MenuPath = ['extensions_context_menu'];
 
@@ -232,7 +232,7 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
         const plugin = this.plugin;
         const iconUrl = plugin && plugin.metadata.model.iconUrl;
         if (iconUrl) {
-            return new Endpoint({ path: iconUrl }).getRestUrl().toString();
+            return PluginSharedStyle.toExternalIconUrl(iconUrl);
         }
         return this.data['iconUrl'];
     }
@@ -281,7 +281,7 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
      */
     get localReadmeUrl(): string | undefined {
         const readmeUrl = this.plugin?.metadata.model.readmeUrl;
-        return readmeUrl ? new Endpoint({ path: readmeUrl }).getRestUrl().toString() : undefined;
+        return readmeUrl ? PluginSharedStyle.toExternalIconUrl(readmeUrl) : undefined;
     }
 
     get licenseUrl(): string | undefined {
@@ -292,7 +292,7 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
             const plugin = this.plugin;
             licenseUrl = plugin && plugin.metadata.model.licenseUrl;
             if (licenseUrl) {
-                return new Endpoint({ path: licenseUrl }).getRestUrl().toString();
+                return PluginSharedStyle.toExternalIconUrl(licenseUrl);
             }
         }
     }

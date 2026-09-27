@@ -54,6 +54,7 @@ import { ContextMenuRenderer } from '@theia/core/lib/browser';
 import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import { PluginViewWidget } from '../view/plugin-view-widget';
 import { WebviewPreferences } from '../../common/webview-preferences';
+import { PLUGINS_BASE_PATH } from '@theia/plugin-utils/lib/common/constants';
 
 // Style from core
 const TRANSPARENT_OVERLAY_STYLE = 'theia-transparent-overlay';
@@ -448,6 +449,9 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget, Extract
     }
 
     protected toEndpoint(pathname: string): string {
+        if (pathname.startsWith(`${PLUGINS_BASE_PATH}/`)) {
+            return PluginSharedStyle.toExternalIconUrl(pathname);
+        }
         return new Endpoint({ path: pathname }).getRestUrl().toString();
     }
 
