@@ -3,11 +3,13 @@
 
 const assert = require('assert').strict;
 const { execFileSync } = require('child_process');
+const { createHash, randomBytes } = require('crypto');
 const fs = require('fs');
 const http = require('http');
 const net = require('net');
 const path = require('path');
 const Docker = require('dockerode');
+const express = require('express');
 const WebSocket = require('ws');
 const { TauriRemoteGateway } = require('@theia/core/lib/tauri-node/messaging/tauri-remote-gateway');
 const { TauriRemoteSetupService } = require('@theia/remote/lib/tauri-node/tauri-remote-setup-service');
@@ -60,6 +62,19 @@ function connect(port, id) {
     });
 }
 
+function requestHttp(port, path, options = {}) {
+    return new Promise((resolve, reject) => {
+        const request = http.request({ hostname: '127.0.0.1', port, path, method: options.method || 'GET',
+            headers: { Cookie: 'local=valid', ...options.headers } }, response => {
+            const chunks = [];
+            response.on('data', chunk => chunks.push(chunk));
+            response.on('end', () => resolve({ status: response.statusCode, body: Buffer.concat(chunks) }));
+        });
+        request.once('error', reject);
+        request.end(options.body);
+    });
+}
+
 async function run() {
     if (Number(process.versions.node.split('.')[0]) < 24 && !process.env.THEIA_TEST_NODE_PREFIX) {
         throw new Error('This check requires Node 24 or THEIA_TEST_NODE_PREFIX pointing to a Node 24 installation');
@@ -91,7 +106,12 @@ async function run() {
     remoteSetup.cliContributions = { getContributions: () => [] };
     const gateway = new TauriRemoteGateway();
     gateway.validator = { allowWsUpgrade: request => request.headers.origin === `http://127.0.0.1:${request.socket.localPort}` && request.headers.cookie === 'local=valid' };
-    const localServer = http.createServer((_request, response) => response.writeHead(404).end());
+    const localApp = express();
+    localApp.use((request, response, next) => request.headers.cookie === 'local=valid' &&
+        (!request.headers.origin || request.headers.origin === `http://127.0.0.1:${request.socket.localPort}`)
+        ? next() : response.sendStatus(403));
+    gateway.configure(localApp);
+    const localServer = http.createServer(localApp);
     gateway.onStart(localServer);
     const localPort = await new Promise(resolve => localServer.listen(0, '127.0.0.1', () => resolve(localServer.address().port)));
     const provider = new TauriContainerConnectionProvider();
@@ -117,8 +137,38 @@ async function run() {
         console.log('docker_gateway_websocket=passed');
         socket.close();
         await new Promise(resolve => socket.once('close', resolve));
-        forwardedPort = await freePort();
         const node = `${remoteRoot}/${remoteNodeDirectory}/bin/node`;
+        const transferBody = randomBytes(8 * 1024 * 1024);
+        const transferHash = createHash('sha256').update(transferBody).digest('hex');
+        execFileSync('docker', ['exec', container.id, node, '-e',
+            "require('fs').writeFileSync('/tmp/theia-large-download.bin', Buffer.alloc(8 * 1024 * 1024, 0x5a))"]);
+        const filesPath = `/tauri-remote/${result.sessionId}/files`;
+        const prepared = await requestHttp(localPort, `${filesPath}/?uri=file:///tmp/theia-large-download.bin`);
+        assert.equal(prepared.status, 200);
+        const downloadId = JSON.parse(prepared.body.toString()).id;
+        const downloaded = await requestHttp(localPort, `${filesPath}/download/?id=${encodeURIComponent(downloadId)}`);
+        assert.equal(downloaded.status, 200);
+        assert.equal(downloaded.body.length, transferBody.length);
+        assert.equal(downloaded.body.compare(Buffer.alloc(transferBody.length, 0x5a)), 0);
+        console.log('docker_large_download=passed');
+        const boundary = `theia-${randomBytes(12).toString('hex')}`;
+        const multipart = Buffer.concat([
+            Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="uri"\r\n\r\nfile:///tmp/theia-large-upload.bin\r\n` +
+                `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="large.bin"\r\n` +
+                'Content-Type: application/octet-stream\r\n\r\n'),
+            transferBody,
+            Buffer.from(`\r\n--${boundary}--\r\n`)
+        ]);
+        const uploaded = await requestHttp(localPort, `/tauri-remote/${result.sessionId}/file-upload`, {
+            method: 'POST', headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: multipart
+        });
+        assert.equal(uploaded.status, 200);
+        assert.equal(uploaded.body.toString(), '/tmp/theia-large-upload.bin');
+        const remoteHash = execFileSync('docker', ['exec', container.id, 'sha256sum', '/tmp/theia-large-upload.bin'])
+            .toString().split(' ')[0];
+        assert.equal(remoteHash, transferHash);
+        console.log('docker_large_upload=passed');
+        forwardedPort = await freePort();
         execFileSync('docker', ['exec', '-d', container.id, node, '-e',
             `require('net').createServer(socket => socket.once('data', () => socket.end('remote-port-ok'))).listen(${forwardedPort}, '127.0.0.1')`]);
         let remoteReady = false;
