@@ -1,5 +1,7 @@
 # Experimental Tauri example (Linux)
 
+For portable archives and Debian packages of this example and the Electron example, see [Linux desktop packaging](../../doc/DesktopPackaging.md).
+
 This example uses the same Theia extension dependency inventory as `examples/electron`. It is an experimental source integration with incomplete desktop parity. The Rust host starts a Node desktop controller, which owns one backend per workbench window. Each window has its own loopback port, security token and WebKit data directory. The controller provides a narrow bridge for window controls and native file dialogs. Tauri JavaScript invoke capabilities remain disabled.
 
 ## Prerequisites

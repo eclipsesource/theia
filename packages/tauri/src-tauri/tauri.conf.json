@@ -1,10 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Theia Tauri Example",
-  "version": "0.1.0",
+  "version": "../../../examples/tauri/package.json",
   "identifier": "org.eclipse.theia.experimental.tauri",
   "build": {
-    "frontendDist": "../../../examples/tauri/lib/frontend"
+    "frontendDist": "fallback"
   },
   "app": {
     "windows": [],

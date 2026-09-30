@@ -107,7 +107,9 @@
   },
   "scripts": {
     "build": "theiaext build && npm run -s bundle",
+    "build:production": "theiaext build && npm run -s bundle:production",
     "bundle": "npm run rebuild && theia build --mode development",
+    "bundle:production": "npm run rebuild && theia build --mode production",
     "clean": "theiaext clean",
     "compile": "tsc -b",
     "lint": "theiaext lint",

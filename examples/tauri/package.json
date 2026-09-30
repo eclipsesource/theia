@@ -99,8 +99,11 @@
   },
   "scripts": {
     "build": "theiaext build && npm run -s bundle && npm run -s build:host",
+    "build:production": "theiaext build && npm run -s bundle:production && npm run -s build:host:release",
     "build:host": "cargo build --manifest-path ../../packages/tauri/src-tauri/Cargo.toml",
+    "build:host:release": "cargo build --release --locked --manifest-path ../../packages/tauri/src-tauri/Cargo.toml",
     "bundle": "npm run rebuild && theia build --mode development",
+    "bundle:production": "npm run rebuild && theia build --mode production",
     "clean": "theiaext clean",
     "compile": "tsc -b",
     "lint": "theiaext lint",

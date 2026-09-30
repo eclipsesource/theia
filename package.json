@@ -85,6 +85,7 @@
     "build:browser": "cd examples/browser && npm run build",
     "build:browser-only": "cd examples/browser-only && npm run build",
     "build:electron": "cd examples/electron && npm run build",
+    "build:electron:production": "cd examples/electron && npm run build:production",
     "build:tools": "lerna run compile --scope \"@theia/{re-exports,eslint-plugin}\"",
     "clean": "npm run -s rebuild:clean && npm run -s lint:clean && lerna run clean",
     "compile": "lerna run compile",
@@ -126,6 +127,9 @@
     "performance:startup:electron": "npm run -s rebuild:electron && cd scripts/performance && node electron-performance.js --name 'Electron Frontend Startup' --folder electron --runs 10",
     "zip:native:dependencies": "node ./scripts/zip-native-dependencies.js",
     "build:tauri": "cd examples/tauri && npm run build",
+    "build:tauri:production": "cd examples/tauri && npm run build:production",
+    "package:electron": "node scripts/package-desktop-linux.mjs electron",
+    "package:tauri": "node scripts/package-desktop-linux.mjs tauri",
     "start:tauri": "cd examples/tauri && npm run start --",
     "watch:tauri": "cd examples/tauri && npm run -s watch"
   },

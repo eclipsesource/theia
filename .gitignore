@@ -30,6 +30,7 @@ dev-packages/electron/compile_commands.json
 *-trace.json
 .tours
 /performance-result.json
+/dist/desktop/
 *.vsix
 /scripts/native-dependencies-*
 allure-results
